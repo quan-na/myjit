@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.5: http://docutils.sourceforge.net/" />
+<title>MyJIT</title>
+<style type="text/css">
+
+body {
+       font-family: sans-serif;	
+       font-size: 10.5pt;
+       margin-left: 10%;
+       margin-right: 10%;
+}
+
+.title {
+	font-size: 19pt;
+}
+
+h1 {
+	font-size: 16pt;
+}
+
+h2 {
+	font-size: 13pt;
+}
+
+pre, .pre {
+	color: #333333;
+}
+
+</style>
+</head>
+<body>
+<div class="document" id="myjit">
+<h1 class="title">MyJIT</h1>
+
+<p>MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of Schemik (<a class="reference external" href="http://schemik.sourceforge.net">http://schemik.sourceforge.net</a>) and it was considered as a replacement for the GNU lightning library (<a class="reference external" href="http://www.gnu.org/software/lightning/">http://www.gnu.org/software/lightning/</a>). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:</p>
+<ul class="simple">
+<li>unlimited number of registers (in this case &quot;unlimited&quot; means 32, this is to be fixed very soon)</li>
+<li>thread-safety</li>
+<li>easy to use and easy to extend design</li>
+<li>particular backward compatibility with GNU lightning</li>
+<li>the library allows for debugging (the debugging is broken right now)</li>
+<li>MyJIT allows for future optimizations</li>
+<li>the library is fully embeddable</li>
+</ul>
+<div class="section" id="getting-myjit">
+<h1>Getting MyJIT</h1>
+<p>The source code including this documentation and examples is available at <a class="reference external" href="http://sourceforge.net/projects/myjit/files">http://sourceforge.net/projects/myjit/files</a></p>
+</div>
+<div class="section" id="instruction-set">
+<h1>Instruction Set</h1>
+<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited but you have to set the number of registers while initializing the compiler.</p>
+<p>All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and if you have 64-bit machine, MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to <tt class="docutils literal"><span class="pre">signed</span> <span class="pre">long</span></tt> type. In specific cases, e.g., if you need smaller values than <tt class="docutils literal"><span class="pre">long</span></tt> or if you need an <tt class="docutils literal"><span class="pre">unsigned</span></tt> value and if it is appropriate, you may specify the size or the type of the value. This topic is discussed in the sequel.</p>
+<p>Name of each instruction consist of three parts:</p>
+<ul class="simple">
+<li>name of the operation (<tt class="docutils literal"><span class="pre">add</span></tt> for addition, <tt class="docutils literal"><span class="pre">mul</span></tt> for multiplication, etc.)</li>
+<li>instruction name can contain <tt class="docutils literal"><span class="pre">r</span></tt> or <tt class="docutils literal"><span class="pre">i</span></tt> character indicating whether the operation is taking merely registers, or if it also takes an immediate value as its input</li>
+<li>name of the operation can also contain additional flags delimited by underscore (typically, this is used to identify operations handling unsigned numbers)</li>
+</ul>
+<div class="section" id="registers">
+<h2>Registers</h2>
+<p>MyJIT supports arbitrary number of register, however, this number have to be specified in advance. If the number of requested registers is higher than the number of available hardware registers, MyJIT can emulate them. Nevertheless, to achieve the best performance, it is good practice to set the number of used registers as low as possible. All registers are denoted by numbers from 0 up to n-1. To refer to these registers you should use the macro <tt class="docutils literal"><span class="pre">R(x)</span></tt>.</p>
+<p>Besides, MyJIT has two special purpose registers---JIT_FP and JIT_RETREG. JIT_FP serves as the frame pointer and is used to access allocated memory on the stack. The JIT_RETREG can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior.</p>
+</div>
+</div>
+<div class="section" id="transfer-operations">
+<h1>Transfer Operations</h1>
+<p>Operations <tt class="docutils literal"><span class="pre">movi</span></tt> and <tt class="docutils literal"><span class="pre">movr</span></tt> allows to explicitly set the value of the register. First operand is always a register and the second one, can be either an immediate value or a register.</p>
+</div>
+<div class="section" id="binary-arithmetic-operations">
+<h1>Binary Arithmetic Operations</h1>
+<p>Each binary arithmetic operation takes exactly three operands. First two operands are always registers and the last one can be an immediate value or a register.These operations are fully compatible with those used by GNU lightning.</p>
+<pre class="literal-block">
+addr       O1 = O2 + O3
+addi       O1 = O2 + O3
+addxr      O1 = O2 + (O3 + carry)
+addxi      O1 = O2 + (O3 + carry)
+addcr      O1 = O2 + O3, set carry
+addci      O1 = O2 + O3, set carry
+subr       O1 = O2 - O3
+subi       O1 = O2 - O3
+subxr      O1 = O2 - (O3 + carry)
+subxi      O1 = O2 - (O3 + carry)
+subcr      O1 = O2 - O3, set carry
+subci      O1 = O2 - O3, set carry
+rsbr       O1 = O3 - O2
+rsbi       O1 = O3 - O2
+mulr       O1 = O2 * O3
+muli       O1 = O2 * O3
+hmulr      O1 = high bits of O2 * O3
+hmuli      O1 = high bits of O2 * O3
+divr       O1 = O2 / O3
+divi       O1 = O2 / O3
+modr       O1 = O2 % O3
+modi       O1 = O2 % O3
+andr       O1 = O2 &amp; O3
+andi       O1 = O2 &amp; O3
+orr        O1 = O2 | O3
+ori        O1 = O2 | O3
+xorr       O1 = O2 ^ O3
+xori       O1 = O2 ^ O3
+lshr       O1 = O2 &lt;&lt; O3
+lshi       O1 = O2 &lt;&lt; O3
+rshr (u)   O1 = O2 &gt;&gt; O3
+rshi (u)   O1 = O2 &gt;&gt; O3
+</pre>
+<p>Operations <tt class="docutils literal"><span class="pre">subx</span></tt> and <tt class="docutils literal"><span class="pre">addx</span></tt> have to directly follow <tt class="docutils literal"><span class="pre">subc</span></tt> and <tt class="docutils literal"><span class="pre">addc</span></tt> otherwise is the result undefined. Note that you can specify <tt class="docutils literal"><span class="pre">unsigned</span> <span class="pre">sign</span></tt> along with the <tt class="docutils literal"><span class="pre">rshr</span></tt> operation to propagate the first bit accordingly.</p>
+</div>
+<div class="section" id="unary-arithmetic-operations">
+<h1>Unary Arithmetic Operations</h1>
+<p>These operations accepts two operands and both of which have to be registers.</p>
+<pre class="literal-block">
+negr    O1 = -O2
+notr    O1 = ~O2
+</pre>
+</div>
+<div class="section" id="load-operations">
+<h1>Load Operations</h1>
+<p>These operations allows to read data from the memory. Each operation has 3 or 4 operands. The last operand is an immediate value and indicates the &quot;<tt class="docutils literal"><span class="pre">size</span></tt>&quot; of the data processed by this operation, i.e., a number of bytes copied from the memory to the register. It can be one of the following values: 1, 2, 4, or 8. Furthermore, the <tt class="docutils literal"><span class="pre">size</span></tt> cannot be larger than the size of the register. If the size of the data copied from the memory is smaller than the size of the register the value is expanded to fit the entire register. Therefore, it may be necessary to specify the sign flag.</p>
+<p>The last but one operand can be an immediate value or a register. Other operands have to be registers.</p>
+<pre class="literal-block">
+ldi  (u)    O1 = *O2       (O3 = size)
+ldr  (u)    O1 = *O2       (O3 = size)
+ldxi (u)    O1 = *(O2+O3)  (O4 = size)
+ldxr (u)    O1 = *(O2+O3)  (O4 = size)
+</pre>
+</div>
+<div class="section" id="store-operations">
+<h1>Store Operations</h1>
+<p>These operations allows to store the data to the memory. Each operation has 3 or 4 operands. The last operand is an immediate value and indicates the <tt class="docutils literal"><span class="pre">size</span></tt> of the operation, see &quot;Load Operations&quot; for more details. The first operand can be either an immediate or a register. Other operands must be registers.</p>
+<pre class="literal-block">
+str     *O1 = O2        (O3 = size)
+sti     *O1 = O2        (O3 = size)
+stxr    *(O1+O2) = O3   (O4 = size)
+stxi    *(O1+O2) = O3   (O4 = size)
+</pre>
+</div>
+<div class="section" id="compare-instructions">
+<h1>Compare Instructions</h1>
+<p>These operations compare last two operands and store the result (1 or 0, if the condition was met or not, respectively) into the first operand. All these operations have three operands. The first two operands have to be registers and the last one can be either a register or an immediate value.</p>
+<pre class="literal-block">
+ltr (u)   O1 = (O2 &lt;  O3)
+lti (u)   O1 = (O2 &lt;  O3)
+ler (u)   O1 = (O2 &lt;= O3)
+lei (u)   O1 = (O2 &lt;= O3)
+gtr (u)   O1 = (O2 &gt;  O3)
+gti (u)   O1 = (O2 &gt;  O3)
+ger (u)   O1 = (O2 &gt;= O3)
+gei (u)   O1 = (O2 &gt;= O3)
+eqr       O1 = (O2 == O3)
+eqi       O1 = (O2 == O3)
+ner       O1 = (O2 != O3)
+nei       O1 = (O2 != O3)
+</pre>
+</div>
+<div class="section" id="instructions-related-to-function-calls">
+<h1>Instructions Related to Function Calls</h1>
+<p>The following operations and auxiliary macros helps to create a function, read its arguments, and return values.</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">prolog</span></tt> takes one operand which is an immediate value, which is a reference to a pointer of a function described by the code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the &quot;Getting started&quot;, for more details.</li>
+<li><tt class="docutils literal"><span class="pre">retr</span></tt> and <tt class="docutils literal"><span class="pre">reti</span></tt> -- are operations which returns from the function; these accept one operand which is a returned value (a register or an immediate value)</li>
+<li><tt class="docutils literal"><span class="pre">arg</span></tt> -- this is not an actual operation but rather a auxiliary macro which returns an identifier of the argument (interger number)</li>
+<li>to read an argument use <tt class="docutils literal"><span class="pre">getarg</span></tt> operation, which accepts three arguments register and two immediate values (in this order). The register is the destination register where the input argument is stored. The first immediate value is the value generated by the operation <tt class="docutils literal"><span class="pre">arg</span></tt> and identifies argument of the function. The second immediate value defines size of the argument, e.g., 1, 2, 4, or 8 bytes.</li>
+<li><tt class="docutils literal"><span class="pre">allocai</span></tt> reserves space on the stack which has at least size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an <em>offset from the frame pointer JIT_FP!</em></li>
+</ul>
+</div>
+<div class="section" id="function-calls">
+<h1>Function calls</h1>
+<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">pusharg</span></tt>. It should be stressed that the <em>arguments are passed in the reverse order!</em> Afterwards, the function is called using a <tt class="docutils literal"><span class="pre">finish</span></tt> or <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
+<p>Let us make few notes on function calls:</p>
+<ul class="simple">
+<li>There are two variants of function calls <tt class="docutils literal"><span class="pre">finish</span></tt> and <tt class="docutils literal"><span class="pre">call</span></tt>. The difference is that <tt class="docutils literal"><span class="pre">call</span></tt> does not destroy the prepared arguments and these can be reused to call the same or some other function. However, and this have to be emphasized, each <tt class="docutils literal"><span class="pre">prepare</span></tt> operation have to be paired with some <tt class="docutils literal"><span class="pre">finish</span></tt> operation otherwise it causes undefined behavior.</li>
+<li>If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.</li>
+<li>You should not nest prepare operations.</li>
+<li>Modifications to the register performed after <tt class="docutils literal"><span class="pre">prepare</span></tt> need not to be preserved, thus, it is not a good idea to make modifications of registers inside the <tt class="docutils literal"><span class="pre">prepare-finish</span></tt>  block.</li>
+</ul>
+<p>List of operations related to function calls:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">prepare</span> <span class="pre">imm</span></tt> -- prepares a function call (generic)</li>
+<li><tt class="docutils literal"><span class="pre">pushargr</span> <span class="pre">reg</span></tt> -- passes the argument to a function</li>
+<li><tt class="docutils literal"><span class="pre">pushargi</span> <span class="pre">imm</span></tt> -- passes the argument to a function</li>
+<li><tt class="docutils literal"><span class="pre">finish</span> <span class="pre">imm</span></tt> -- calls a function</li>
+<li><tt class="docutils literal"><span class="pre">finishr</span> <span class="pre">reg</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">call</span> <span class="pre">imm</span></tt> -- calls a function, however, leaves the arguments prepared for another call</li>
+<li><tt class="docutils literal"><span class="pre">callr</span> <span class="pre">reg</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">retval</span> <span class="pre">reg</span></tt> -- retrieves return value</li>
+</ul>
+</div>
+<div class="section" id="jumps">
+<h1>Jumps</h1>
+<p>Operations <tt class="docutils literal"><span class="pre">jmpi</span></tt> and <tt class="docutils literal"><span class="pre">jmpr</span></tt> can be used to implement unconditional jumps. Both operations accept one argument, address to jump to. To obtain this address you can use the <tt class="docutils literal"><span class="pre">get_label</span></tt> operation or use the forward declaration along with the <tt class="docutils literal"><span class="pre">patch</span></tt> operation.</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">get_label</span></tt> is not an actual operation; it is a function that returns a <tt class="docutils literal"><span class="pre">jit_label</span></tt> value which corresponds to the current position in the code. This value can be passed to jmpi/call/finish/ or to a branch operation.</li>
+<li>It may happen that one need to jump into the code which was not defined yet. Therefore, we can use forward declaration and set the address later. This means, we declare that the operation <tt class="docutils literal"><span class="pre">jmpi</span></tt> or branch operations jumps to the place defined by the macro JIT_FORWARD, and subsequently, we store the operation in some value <tt class="docutils literal"><span class="pre">jit_op</span> <span class="pre">*</span></tt>. In the place we want to jump to, we call the <tt class="docutils literal"><span class="pre">patch</span></tt> operation with an argument which is the patched operation. The following code illustrates the situation.</li>
+</ul>
+<pre class="literal-block">
+op = jmpi JIT_FORWARD
+     ;
+     ; some code
+     ;
+     patch op
+</pre>
+</div>
+<div class="section" id="branch-operations">
+<h1>Branch Operations</h1>
+<p>Branch operations represents conditional jumps and all have three operands. The first operand is an immediate value and represents an address to jump to. The latter two are values to be compared. The last operand can be either an immediate value or a register.</p>
+<pre class="literal-block">
+bltr (u)   if (O2 &lt;  O3) goto O1
+blti (u)   if (O2 &lt;  O3) goto O1
+bler (u)   if (O2 &lt;= O3) goto O1
+blei (u)   if (O2 &lt;= O3) goto O1
+bgtr (u)   if (O2 &gt;  O3) goto O1
+bgti (u)   if (O2 &gt;  O3) goto O1
+bger (u)   if (O2 &gt;= O3) goto O1
+bgei (u)   if (O2 &gt;= O3) goto O1
+beqr       if (O2 == O3) goto O1
+beqi       if (O2 == O3) goto O1
+bner       if (O2 != O3) goto O1
+bnei       if (O2 != O3) goto O1
+
+
+bmsr        if O2 &amp;  O3 goto O1
+bmsi        if O2 &amp;  O3 goto O1
+bmcr        if !(O2 &amp; O3) goto O1
+bmci        if !(O2 &amp; O3) goto O1
+boaddr (u)     O2 += O3, goto O1 on overflow
+boaddi (u)     O2 += O3, goto O1 on overflow
+bosubr (u)     O2 -= O3, goto O1 on overflow
+bosubi (u)     O2 -= O3, goto O1 on overflow
+</pre>
+</div>
+<div class="section" id="getting-started">
+<h1>Getting Started</h1>
+<p>We start with a really simple example---with a function returning its argument incremented by one. The source code of this example can be found in <tt class="docutils literal"><span class="pre">demo1.c</span></tt> which is part of the MyJIT package.</p>
+<pre class="literal-block">
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+
+// include the header file
+#include &quot;myjit/jitlib.h&quot;
+
+// pointer to a function accepting one argument of type long and returning long value
+typedef long (* plfl)(long);
+
+int main()
+{
+        // we create a new instance of a compiler
+        // the first argument is an expected size of the machine code generated
+        // by the compiler; the second one indicates that the compiler has 4 registers
+        struct jit * p = jit_init(4096, 4);
+
+        plfl foo;
+
+        // the code generated by the compiler will be assigned to the function `foo'
+        jit_prolog(p, &amp;foo);
+
+        // the first argument of the function
+        int ar1 = jit_arg(p);
+
+        // moves the first argument into the register R(0)
+        jit_getarg(p, R(0), ar1, sizeof(long));
+
+        // takes the value in R(0), increments it by one, and stores the result into the
+        // register R(1)
+        jit_addi(p, R(1), R(0), 1);
+
+        // returns from the function and returns the value stored in the register R(1)
+        jit_retr(p, R(1));
+
+        // compiles the above defined code
+        jit_generate_code(p);
+
+        // checks, if it works
+        printf(&quot;Check #1: %li\n&quot;, foo(1));
+        printf(&quot;Check #2: %li\n&quot;, foo(100));
+        printf(&quot;Check #3: %li\n&quot;, foo(255));
+
+        // if you are interested, you can dump the machine code
+        // this functionality is provided through the `gcc' and `objdump'
+        // jit_dump(p);
+
+        // cleanup
+        jit_free(p);
+        return 0;
+}
+</pre>
+<p>We assume that the code above is quite (self-)explanatory and thus we do not include comments on this. However, let us make a note on compiling programs using MyJIT. To include the MyJIT it is sufficient to copy the <tt class="docutils literal"><span class="pre">myjit</span></tt> subdirectory into your project. Programs using the MyJIT should include the <tt class="docutils literal"><span class="pre">#include</span> <span class="pre">&quot;myjit/jitlib-core.h&quot;</span></tt> header file. In order to link the application and build a proper executable file, it is necessary to also compile <tt class="docutils literal"><span class="pre">&quot;myjit/libjit-core.c&quot;</span></tt>.</p>
+<p>For instance, to build a program with <tt class="docutils literal"><span class="pre">gcc</span></tt> you may use the following steps:</p>
+<pre class="literal-block">
+gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 demo1.c
+gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 myjit/jitlib-core.c
+gcc -o demo1 -g -Wall -std=c99 -pedantic demo1.o jitlib-core.o
+</pre>
+<p>The first command compiles the example, the second one compiles the functions used by MyJIT, and the last links the object files together and creates an execute file---<tt class="docutils literal"><span class="pre">demo1</span></tt>.</p>
+<p>It should be emphasized that the MyJIT conforms to the C99 standard and all MyJIT files should be compiled according to this standard.</p>
+<p>We also recommend to check the <tt class="docutils literal"><span class="pre">demo2.c</span></tt> and <tt class="docutils literal"><span class="pre">demo3.c</span></tt> examples, which are also included in the MyJIT package.</p>
+</div>
+<div class="section" id="license">
+<h1>License</h1>
+<p>MyJIT is distributed under the terms of GNU Lesser General Public License v.3 or later (at your option).</p>
+<p>Despite the fact that MyJIT is very similar to GNU Lightning, it does not share any source code with this project. However, some files come from the Mono project by Novel. (<a class="reference external" href="http://www.mono-project.com">http://www.mono-project.com</a>)</p>
+</div>
+<div class="section" id="notes-on-development">
+<h1>Notes on Development</h1>
+<ul class="simple">
+<li>The primary use of this library is in our compiler of the Schemik programming language and the development of this library affected requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.</li>
+<li>MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.</li>
+<li>Only the i386 platform is supported right now. (support for AMD64 and SPARC will be available shortly)</li>
+<li>At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to add support for floating point arithmetic, however, it is not the priority.</li>
+<li>The library is still in the early stage of development and the API may slightly change in the near future.</li>
+<li>If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.</li>
+<li>The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still under development. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (<a class="reference external" href="mailto:myjit-devel&#64;lists.sourceforge.net">myjit-devel&#64;lists.sourceforge.net</a>). If you  would like to participate on documentation improvements, please, let us know, we will really appreciate it.</li>
+</ul>
+</div>
+</div>
+<div class="footer">
+<hr class="footer" />
+Generated on: 2010-06-05 17:55 UTC.
+
+</div>
+</body>
+</html>

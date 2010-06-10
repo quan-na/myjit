@@ -1,0 +1,22 @@
+body {
+       font-family: sans-serif;	
+       font-size: 10.5pt;
+       margin-left: 10%;
+       margin-right: 10%;
+}
+
+.title {
+	font-size: 19pt;
+}
+
+h1 {
+	font-size: 16pt;
+}
+
+h2 {
+	font-size: 13pt;
+}
+
+pre, .pre {
+	color: #333333;
+}

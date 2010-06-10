@@ -1,0 +1,10 @@
+*.o
+demo1
+demo2
+demo3
+test/t001
+test/t002
+test/t003
+test/t004
+test/t005
+test/t006
