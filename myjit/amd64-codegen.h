@@ -2,6 +2,7 @@
  * amd64-codegen.h: Macros for generating amd64 code
  *
  * Authors:
+ *   Petr Krajca (krajcap@inf.upol.cz)
  *   Paolo Molaro (lupus@ximian.com)
  *   Intel Corporation (ORP Project)
  *   Sergey Chaban (serge@wildwestsoftware.com)
@@ -11,12 +12,19 @@
  * 
  * Copyright (C)  2000 Intel Corporation.  All rights reserved.
  * Copyright (C)  2001, 2002 Ximian, Inc.
+ * Copyright (C)  2010, Petr Krajca
  */
 
 #ifndef AMD64_H
 #define AMD64_H
 
-#include <glib.h>
+//#include <glib.h>
+
+// XXX: REMOVEME
+typedef size_t gsize;
+typedef unsigned long guint64;
+typedef long gint64;
+//
 
 typedef enum {
 	AMD64_RAX = 0,
@@ -115,7 +123,7 @@ typedef union {
 	unsigned char b [8];
 } amd64_imm_buf;
 
-#include "../x86/x86-codegen.h"
+#include "x86-codegen.h"
 
 /* In 64 bit mode, all registers have a low byte subregister */
 #undef X86_IS_BYTE_REG
@@ -270,16 +278,39 @@ typedef union {
 		amd64_membase_emit ((inst), (reg), (basereg), (disp));	\
 	} while (0)
 
-#define amd64_movzx_reg_membase(inst,reg,basereg,disp,size)	\
+#define amd64_movzx_reg_reg(inst,dreg,reg,size)	\
 	do {	\
-		amd64_emit_rex(inst, (size), (reg), 0, (basereg)); \
+		if ((size) == 4) { \
+			amd64_alu_reg_reg(inst, X86_XOR, dreg, dreg); \
+			amd64_mov_reg_reg(inst, dreg, reg, 4); \
+			break; \
+		} \
+		if ((size) == 2) \
+			*(inst)++ = (unsigned char)0x66; \
+		amd64_emit_rex(inst, 8, (dreg), 0, (reg)); \
 		switch ((size)) {	\
 		case 1: *(inst)++ = (unsigned char)0x0f; *(inst)++ = (unsigned char)0xb6; break;	\
 		case 2: *(inst)++ = (unsigned char)0x0f; *(inst)++ = (unsigned char)0xb7; break;	\
-		case 4: case 8: *(inst)++ = (unsigned char)0x8b; break;	\
 		default: assert (0);	\
 		}	\
-		x86_membase_emit ((inst), ((reg)&0x7), ((basereg)&0x7), (disp));	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
+	} while (0)
+
+#define amd64_movsx_reg_reg(inst,dreg,reg,size)	\
+	do {	\
+		if ((size) == 4) { \
+			amd64_movsxd_reg_reg(inst, dreg, reg); \
+			break; \
+		} \
+		if ((size) == 2) \
+			*(inst)++ = (unsigned char)0x66; \
+		amd64_emit_rex(inst, 8, (dreg), 0, (reg)); \
+		switch ((size)) {	\
+		case 1: *(inst)++ = (unsigned char)0x0f; *(inst)++ = (unsigned char)0xbe; break;	\
+		case 2: *(inst)++ = (unsigned char)0x0f; *(inst)++ = (unsigned char)0xbf; break;	\
+		default: assert (0);	\
+		}	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
 	} while (0)
 
 #define amd64_movsxd_reg_mem(inst,reg,mem) \

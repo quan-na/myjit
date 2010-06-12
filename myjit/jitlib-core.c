@@ -45,7 +45,8 @@ struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 	reg_count += 2; // two lower registers remain reserved for JIT_FP, JIT_RETREG
 
 	posix_memalign(&mem, sysconf(_SC_PAGE_SIZE), buffer_size * 5);
-	mprotect(mem, buffer_size, PROT_READ | PROT_EXEC | PROT_WRITE);
+	int x = mprotect(mem, buffer_size, PROT_READ | PROT_EXEC | PROT_WRITE);
+	printf("GGG:%x\n", x);
 
 	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;

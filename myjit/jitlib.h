@@ -22,7 +22,12 @@
 
 #include "set.h"
 #include "jitlib-core.h"
+#ifdef __arch32__
 #include "x86-specific.h"
 #include "x86-reg-allocator.h"
+#else
+#include "amd64-specific.h"
+#include "amd64-reg-allocator.h"
+#endif
 
 #endif

@@ -5,7 +5,7 @@
 #include "myjit/jitlib.h"
 
 // pointer to a function accepting one argument of type long and returning long value
-typedef long (* plfl)(long);
+typedef long (* plfl)(long)__attribute__((cdecl));
 
 int main()
 {
@@ -35,14 +35,14 @@ int main()
 	// compiles the above defined code
 	jit_generate_code(p);
 
+	// if you are interested, you can dump the machine code
+	// this functionality is provided through the `gcc' and `objdump'
+	jit_dump(p);
+
 	// check
 	printf("Check #1: %li\n", foo(1));
 	printf("Check #2: %li\n", foo(100));
 	printf("Check #3: %li\n", foo(255));
-
-	// if you are interested, you can dump the machine code
-	// this functionality is provided through the `gcc' and `objdump'
-	// jit_dump(p);
 
 	// cleanup
 	jit_free(p);

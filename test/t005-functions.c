@@ -9,7 +9,7 @@ typedef long (*plfus)(unsigned short);
 typedef long (*plfpcus)(char *, unsigned short);
 //typedef long (*plfv)(void);
 
-// function which computes average of three two bytes numbers
+// function which computes an average of three numbers each occupying 2 bytes 
 void test1()
 {
 	long r;
@@ -28,7 +28,10 @@ void test1()
 	jit_retr(p, R(0));
 	jit_generate_code(p);
 
+	jit_dump(p);
+
 	r = f1(20, 20, -10);
+	printf("DD:%i\n", r);
 	if (r == 10) SUCCESS(10);
 	else FAIL(10);
 
@@ -393,11 +396,11 @@ void test8()
 int main() 
 {
 	test1();
-	test2();
+	test2(); 
 	test3();
-	test4();
-	test5(); // XXX
-	test6();
+	test4(); // XXX
+      	test5(); // XXX
+	test6(); // XXX
 	test7(); // XXX
 	test8(); // XXX
 }
