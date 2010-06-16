@@ -23,6 +23,17 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+
+// pretty lousy processor detection
+// FIXME: the same code is also in jitlib.h
+#ifdef __arch32__
+#define JIT_ARCH_I386
+#else
+#define JIT_ARCH_AMD64
+#warning "AMD64 processors are supported only partially!"
+#endif
+
+
 #include "jitlib-core.h"
 #include "jitlib-debug.c"
 #include "flow-analysis.h"
@@ -42,11 +53,18 @@ struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 {
 	void * mem;
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
+// FIXME: should be platform specific
+#ifdef JIT_ARCH_I386
 	reg_count += 2; // two lower registers remain reserved for JIT_FP, JIT_RETREG
+#endif
+#ifdef JIT_ARCH_AMD64
+	reg_count += 3; // three lower registers are reserved for JIT_FP, JIT_RETREG, JIT_IMM
+	reg_count += 6; // these registers server are used to store passed arguments
+#endif
+
 
 	posix_memalign(&mem, sysconf(_SC_PAGE_SIZE), buffer_size * 5);
 	int x = mprotect(mem, buffer_size, PROT_READ | PROT_EXEC | PROT_WRITE);
-	printf("GGG:%x\n", x);
 
 	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;

@@ -28,8 +28,16 @@
 
 #define JIT_FP		(0)
 #define JIT_RETREG	(1)
-//#define JIT_GET_REG_ID	(x + 2)
+
+// FIXME: should be platform specific
+#ifdef JIT_ARCH_I386
 #define R(x)	(x + 2)
+#endif
+
+#ifdef JIT_ARCH_AMD64
+#define R(x)	(x + 9)
+#endif
+
 #define JIT_FORWARD	(NULL)
 
 #ifndef JIT_ARCH

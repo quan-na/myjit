@@ -1,0 +1,13 @@
++ generic
+	+ support for unlimited number of registers
+	+ main buffer issue
+	+ documentation update
++ ADM64
+	* support for all GP registers
+	+ pusharg support for amd64 calling convention
+	+ getarg should support virtual registers
+	+ support for large immediate values
+	+ amd64-specific: callee & caller-saved registers
+	+ load/store operations
++ SPARC
+	+ TODO

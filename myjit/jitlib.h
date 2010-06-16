@@ -20,12 +20,23 @@
 #ifndef JITLIB_H
 #define JITLIB_H
 
+// pretty lousy processor detection
+#ifdef __arch32__
+#define JIT_ARCH_I386
+#else
+#define JIT_ARCH_AMD64
+#warning "AMD64 processors are supported only partially!"
+#endif
+
 #include "set.h"
 #include "jitlib-core.h"
-#ifdef __arch32__
+
+#ifdef JIT_ARCH_I386
 #include "x86-specific.h"
 #include "x86-reg-allocator.h"
-#else
+#endif
+
+#ifdef JIT_ARCH_AMD64
 #include "amd64-specific.h"
 #include "amd64-reg-allocator.h"
 #endif

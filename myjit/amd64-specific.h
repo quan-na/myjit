@@ -242,8 +242,15 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int 
 	for (int i = jit->reg_count - 1; i >= 0; i--) {
 		if (!jitset_get(op->live_in, R(i))) continue;
 		if (op->regmap[R(i)]) {
-			if (op->regmap[R(i)]->id == AMD64_RCX) amd64_pop_reg(jit->ip, AMD64_RCX);
-			if (op->regmap[R(i)]->id == AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
+			if (op->regmap[R(i)]->id == AMD64_RCX) amd64_push_reg(jit->ip, AMD64_RCX);
+			if (op->regmap[R(i)]->id == AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
+			if (op->regmap[R(i)]->id == AMD64_RSI) amd64_push_reg(jit->ip, AMD64_RSI);
+			if (op->regmap[R(i)]->id == AMD64_RDI) amd64_push_reg(jit->ip, AMD64_RDI);
+			if (op->regmap[R(i)]->id == AMD64_R8) amd64_push_reg(jit->ip, AMD64_R9);
+			if (op->regmap[R(i)]->id == AMD64_R9) amd64_push_reg(jit->ip, AMD64_R8);
+
+			if (op->regmap[R(i)]->id == AMD64_R10) amd64_pop_reg(jit->ip, AMD64_R10);
+			if (op->regmap[R(i)]->id == AMD64_R11) amd64_pop_reg(jit->ip, AMD64_R11);
 		}
 	}
 }
@@ -387,11 +394,19 @@ static inline void __push_callee_saved_regs(struct jit * jit, struct jit_op * op
 
 	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_RSI)) { amd64_push_reg(jit->ip, AMD64_RSI); break; }
+		if (__uses_hw_reg(o, AMD64_R12)) { amd64_push_reg(jit->ip, AMD64_R12); break; }
 	}
 	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_RDI)) { amd64_push_reg(jit->ip, AMD64_RDI); break; }
+		if (__uses_hw_reg(o, AMD64_R13)) { amd64_push_reg(jit->ip, AMD64_R13); break; }
+	}
+	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
+		if (GET_OP(o) == JIT_PROLOG) break;
+		if (__uses_hw_reg(o, AMD64_R14)) { amd64_push_reg(jit->ip, AMD64_R14); break; }
+	}
+	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
+		if (GET_OP(o) == JIT_PROLOG) break;
+		if (__uses_hw_reg(o, AMD64_R15)) { amd64_push_reg(jit->ip, AMD64_R15); break; }
 	}
 }
 
@@ -399,14 +414,22 @@ static inline void __pop_callee_saved_regs(struct jit * jit)
 {
 	struct jit_op * op = jit->current_func;
 
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_RDI)) { amd64_pop_reg(jit->ip, AMD64_RDI); break; }
-	}
 
 	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_RSI)) { amd64_pop_reg(jit->ip, AMD64_RSI); break; }
+		if (__uses_hw_reg(o, AMD64_R15)) { amd64_pop_reg(jit->ip, AMD64_R15); break; }
+	}
+	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
+		if (GET_OP(o) == JIT_PROLOG) break;
+		if (__uses_hw_reg(o, AMD64_R14)) { amd64_pop_reg(jit->ip, AMD64_R14); break; }
+	}
+	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
+		if (GET_OP(o) == JIT_PROLOG) break;
+		if (__uses_hw_reg(o, AMD64_R13)) { amd64_pop_reg(jit->ip, AMD64_R13); break; }
+	}
+	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
+		if (GET_OP(o) == JIT_PROLOG) break;
+		if (__uses_hw_reg(o, AMD64_R12)) { amd64_pop_reg(jit->ip, AMD64_R12); break; }
 	}
 	
 	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
@@ -424,8 +447,14 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	for (int i = 0; i < jit->reg_count; i++) {
 		if (!jitset_get(op->live_in, R(i))) continue;
 		if (op->regmap[R(i)]) {
-			if (op->regmap[R(i)]->id == AMD64_RCX) amd64_push_reg(jit->ip, AMD64_RCX);
-			if (op->regmap[R(i)]->id == AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
+			if (op->regmap[R(i)]->id == AMD64_RCX) amd64_pop_reg(jit->ip, AMD64_RCX);
+			if (op->regmap[R(i)]->id == AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
+			if (op->regmap[R(i)]->id == AMD64_RSI) amd64_pop_reg(jit->ip, AMD64_RSI);
+			if (op->regmap[R(i)]->id == AMD64_RDI) amd64_pop_reg(jit->ip, AMD64_RDI);
+			if (op->regmap[R(i)]->id == AMD64_R8) amd64_pop_reg(jit->ip, AMD64_R9);
+			if (op->regmap[R(i)]->id == AMD64_R9) amd64_pop_reg(jit->ip, AMD64_R8);
+			if (op->regmap[R(i)]->id == AMD64_R10) amd64_push_reg(jit->ip, AMD64_R10);
+			if (op->regmap[R(i)]->id == AMD64_R11) amd64_push_reg(jit->ip, AMD64_R11);
 		}
 	}
 }

@@ -42,9 +42,10 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 {
 	int spill_candidate = -1;
 	int age = -1;
-	for (int i = 0; i < jit->reg_count; i++) {
-		if (op->regmap[R(i)]) {
-			struct __hw_reg * hreg = op->regmap[R(i)];
+	// FIXME: 2 -> magic constant
+	for (int i = 2; i < jit->reg_count; i++) {
+		if (op->regmap[i]) {
+			struct __hw_reg * hreg = op->regmap[i];
 			if ((int)hreg->used > age) {
 				spill_candidate = i;
 				age = hreg->used;
@@ -52,9 +53,9 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 		}
 	}
 
-	struct __hw_reg * hreg = op->regmap[R(spill_candidate)];
-	unload_reg(jit->reg_al, op, hreg, R(spill_candidate));
-	op->regmap[R(spill_candidate)] = NULL;
+	struct __hw_reg * hreg = op->regmap[spill_candidate];
+	unload_reg(jit->reg_al, op, hreg, spill_candidate);
+	op->regmap[spill_candidate] = NULL;
 	hreg->used = 0;
 	return hreg;
 }
@@ -62,13 +63,14 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 // moves unused registers back to the register pool
 static inline void free_unused_regs(struct jit * jit, jit_op * op)
 {
-	for (int i = 0; i < jit->reg_count; i++) {
-		if ((op->regmap[R(i)] != NULL) 
-			&& !(jitset_get(op->live_in, R(i)) || jitset_get(op->live_out, R(i))))
+	// FIXME: 2 is a magic constant
+	for (int i = 2; i < jit->reg_count; i++) {
+		if ((op->regmap[i] != NULL) 
+			&& !(jitset_get(op->live_in, i) || jitset_get(op->live_out, i)))
 		{
 			struct jit_reg_allocator * al = jit->reg_al;
-			al->hwreg_pool[++al->hwreg_pool_pos] = op->regmap[R(i)];
-			op->regmap[R(i)] = NULL;
+			al->hwreg_pool[++al->hwreg_pool_pos] = op->regmap[i];
+			op->regmap[i] = NULL;
 		}
 	}
 }
@@ -78,8 +80,10 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocato
 	struct __hw_reg * result = NULL;
 	for (int i = 0; i <= al->hwreg_pool_pos; i++) {
 		if ((al->hwreg_pool[i]->id == AMD64_RBX)
-		|| (al->hwreg_pool[i]->id == AMD64_RSI)
-		|| (al->hwreg_pool[i]->id == AMD64_RDI)) {
+		|| (al->hwreg_pool[i]->id == AMD64_R12)
+		|| (al->hwreg_pool[i]->id == AMD64_R13)
+		|| (al->hwreg_pool[i]->id == AMD64_R14)
+		|| (al->hwreg_pool[i]->id == AMD64_R15)) {
 			result = al->hwreg_pool[i];
 			if (i < al->hwreg_pool_pos) al->hwreg_pool[i] = al->hwreg_pool[al->hwreg_pool_pos];
 			al->hwreg_pool_pos--;
@@ -95,13 +99,14 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
-	if (op->prev) memcpy(op->regmap, op->prev->regmap, sizeof(int) * (jit->reg_count + 2));
+	if (op->prev) memcpy(op->regmap, op->prev->regmap, sizeof(struct hw_reg *) * jit->reg_count);
 	free_unused_regs(jit, op);
 
 	if (GET_OP(op) == JIT_PREPARE) {
-		for (i = 0; i < jit->reg_count; i++) {
-			if (op->regmap[R(i)]) {
-				struct __hw_reg  * hreg = op->regmap[R(i)];
+		// FIXME: 2 -> magic constant
+		for (i = 2; i < jit->reg_count; i++) {
+			if (op->regmap[i]) {
+				struct __hw_reg  * hreg = op->regmap[i];
 				if (hreg->id != AMD64_RAX) continue;
 
 				// checks whether there is a free callee-saved register
@@ -109,17 +114,17 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				struct __hw_reg * freereg = get_free_callee_save_reg(al);
 				if (freereg) {
 					// should have its own name
-					jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), R(i), R(i), 0, 0);
+					jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), i, i, 0, 0);
 					o->r_arg[0] = freereg->id;
 					o->r_arg[1] = AMD64_RAX;
 
 					jit_op_prepend(op, o);
-					op->regmap[R(i)] = freereg;
+					op->regmap[i] = freereg;
 					break;
 
 					
 				} 
-				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), R(i), hreg->id, 0, 0);
+				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
 				o->r_arg[0] = o->arg[0];
 				o->r_arg[1] = o->arg[1];
 
@@ -130,20 +135,19 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if ((GET_OP(op) == JIT_FINISH) || (GET_OP(op) == JIT_CALL)) {
-		for (i = 0; i < jit->reg_count; i++) {
-			if (op->regmap[R(i)]) {
-				struct __hw_reg  * hreg = op->regmap[R(i)];
+		// FIXME: 2 -> magic constant
+		for (i = 2; i < jit->reg_count; i++) {
+			if (op->regmap[i]) {
+				struct __hw_reg  * hreg = op->regmap[i];
 				if (hreg->id == AMD64_RAX) {
 					al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
-					op->regmap[R(i)] = NULL;
+					op->regmap[i] = NULL;
 
 					break;
 				}
 			}
 		}
 	}
-
-
 
 	// get registers used in the current operation
 	for (i = 0; i < 3; i++)
@@ -173,8 +177,10 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 				op->regmap[op->arg[i]] = reg;
 				op->r_arg[i] = reg->id;
-				if (jitset_get(op->live_in, op->arg[i]))
+				if (jitset_get(op->live_in, op->arg[i])) {
 					load_reg(op, op->regmap[op->arg[i]], op->arg[i]);
+				}
+
 			}
 		} else if (ARG_TYPE(op, i + 1) == IMM) {
 			// assigns immediate values
@@ -183,8 +189,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	// increasing age of each register
-	for (int i = 0; i < jit->reg_count; i++) {
-		struct __hw_reg * reg = op->regmap[R(i)];
+	// FIXME: 2 is a magic constant
+	for (int i = 2; i < jit->reg_count; i++) {
+		struct __hw_reg * reg = op->regmap[i];
 		if (reg) reg->used++;
 	}
 }
@@ -194,13 +201,15 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 	if (GET_OP(op) != JIT_JMP) return;
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
-	for (int i = 0; i < jit->reg_count; i++)
-		if (cur_regmap[R(i)] != tgt_regmap[R(i)])
-			if (cur_regmap[R(i)]) unload_reg(jit->reg_al, op, cur_regmap[R(i)], R(i));
+	// FIXME: 2 -> magic constant
+	for (int i = 2; i < jit->reg_count; i++)
+		if (cur_regmap[i] != tgt_regmap[i])
+			if (cur_regmap[i]) unload_reg(jit->reg_al, op, cur_regmap[i], i);
 
-	for (int i = 0; i < jit->reg_count; i++)
-		if (tgt_regmap[R(i)] && (cur_regmap[R(i)] != tgt_regmap[R(i)]))
-			load_reg(op, tgt_regmap[R(i)], R(i));
+	// FIXME: 2 -> magic constant
+	for (int i = 2; i < jit->reg_count; i++)
+		if (tgt_regmap[i] && (cur_regmap[i] != tgt_regmap[i]))
+			load_reg(op, tgt_regmap[i], i);
 }
 
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
@@ -218,8 +227,9 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
 	int adjust = 0;
-	for (int i = 0; i < jit->reg_count; i++)
-		if (cur_regmap[R(i)] != tgt_regmap[R(i)]) {
+	// FIXME: 2 -> magic constant
+	for (int i = 2; i < jit->reg_count; i++)
+		if (cur_regmap[i] != tgt_regmap[i]) {
 			//printf("branch needs an adjustment\n");
 			adjust = 1;
 			break;
@@ -267,7 +277,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 {
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->hw_reg_cnt = 6;
+	a->hw_reg_cnt = 14;
 	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
 
 	a->hw_reg = malloc(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
@@ -278,7 +288,16 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 	a->hw_reg[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx" };
 	a->hw_reg[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi" };
 	a->hw_reg[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi" };
-	a->hw_reg[6] = (struct __hw_reg) { AMD64_RBP, 0, "rbp" };
+	a->hw_reg[6] = (struct __hw_reg) { AMD64_R8, 0, "r8" };
+	a->hw_reg[7] = (struct __hw_reg) { AMD64_R9, 0, "r9" };
+	a->hw_reg[8] = (struct __hw_reg) { AMD64_R10, 0, "r10" };
+	a->hw_reg[9] = (struct __hw_reg) { AMD64_R11, 0, "r11" };
+	a->hw_reg[10] = (struct __hw_reg) { AMD64_R12, 0, "r12" };
+	a->hw_reg[11] = (struct __hw_reg) { AMD64_R13, 0, "r13" };
+	a->hw_reg[12] = (struct __hw_reg) { AMD64_R14, 0, "r14" };
+	a->hw_reg[13] = (struct __hw_reg) { AMD64_R15, 0, "r15" };
+
+	a->hw_reg[14] = (struct __hw_reg) { AMD64_RBP, 0, "rbp" };
 
 	/*
 	a->hwreg_pool_pos = 2;
@@ -286,24 +305,33 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 	a->hwreg_pool[1] = &(a->hw_reg[1]);
 	a->hwreg_pool[2] = &(a->hw_reg[0]);
 */
-	a->hwreg_pool_pos = 5;
-	a->hwreg_pool[0] = &(a->hw_reg[5]);
-	a->hwreg_pool[1] = &(a->hw_reg[3]);
-	a->hwreg_pool[2] = &(a->hw_reg[4]);
-	a->hwreg_pool[3] = &(a->hw_reg[2]);
-	a->hwreg_pool[4] = &(a->hw_reg[1]);
-	a->hwreg_pool[5] = &(a->hw_reg[0]);
+	// FIXME: more sophisticated order
+	a->hwreg_pool_pos = 13;
+	a->hwreg_pool[0] = &(a->hw_reg[13]);
+	a->hwreg_pool[1] = &(a->hw_reg[12]);
+	a->hwreg_pool[2] = &(a->hw_reg[11]);
+	a->hwreg_pool[3] = &(a->hw_reg[10]);
+	a->hwreg_pool[4] = &(a->hw_reg[9]);
+	a->hwreg_pool[5] = &(a->hw_reg[8]);
+	a->hwreg_pool[6] = &(a->hw_reg[7]);
+	a->hwreg_pool[7] = &(a->hw_reg[6]);
+	a->hwreg_pool[8] = &(a->hw_reg[5]);
+	a->hwreg_pool[9] = &(a->hw_reg[4]);
+	a->hwreg_pool[10] = &(a->hw_reg[3]);
+	a->hwreg_pool[11] = &(a->hw_reg[2]);
+	a->hwreg_pool[12] = &(a->hw_reg[1]);
+	a->hwreg_pool[13] = &(a->hw_reg[0]);
 	return a;
 }
 
 void jit_assign_regs(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		op->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * (jit->reg_count + 2));
-		op->regmap[JIT_FP] = &(jit->reg_al->hw_reg[6]);
+		op->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * jit->reg_count);
+		op->regmap[JIT_FP] = &(jit->reg_al->hw_reg[14]);
 		op->regmap[JIT_RETREG] = &(jit->reg_al->hw_reg[0]);
-		for (int i = 0; i < jit->reg_count; i++)
-			op->regmap[R(i)] = NULL;
+		for (int i = 2; i < jit->reg_count; i++)
+			op->regmap[i] = NULL;
 	}
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
