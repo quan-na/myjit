@@ -1,13 +1,29 @@
-+ generic
-	+ support for unlimited number of registers
-	+ main buffer issue
-	+ documentation update
-+ ADM64
-	* support for all GP registers
+ROADMAP
+=======
+
++ ADM64 (release 0.2.5)
+	* support for all GP registers 
 	* getarg should support virtual registers
-	+ pusharg support for amd64 calling convention
+	* amd64-specific: callee & caller-saved registers
+	+ pusharg support for amd64 calling convention 
 	+ support for large immediate values
-	+ amd64-specific: callee & caller-saved registers
 	+ load/store operations
-+ SPARC
+
++ generic (release 0.3.0)
+	+ support for unlimited number of registers
+	+ main buffer issue 
+	+ documentation update 
+	+ x86/amd64 code merge 
+
++ SPARC (release 0.3.x)
 	+ TODO
+
++ generic (release 0.4.x)
+	+ floating point arithmetics
+
++ generic (release 0.5.x+)
+	+ optimizations
+	+ linear-scan reg. allocator
+	+ debugging
+
+
