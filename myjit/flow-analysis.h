@@ -46,6 +46,18 @@ static inline int __flw_analyze_op(jit_op * op)
 
 	jitset_free(op->live_out);
 
+#ifdef JIT_ARCH_AMD64
+	// FIXME: magic constants
+	if (GET_OP(op) == JIT_GETARG) {
+		if (op->arg[1] == 0) jitset_set(op->live_in, 3, 1);
+		if (op->arg[1] == 1) jitset_set(op->live_in, 4, 1);
+		if (op->arg[1] == 2) jitset_set(op->live_in, 5, 1);
+		if (op->arg[1] == 3) jitset_set(op->live_in, 6, 1);
+		if (op->arg[1] == 4) jitset_set(op->live_in, 7, 1);
+		if (op->arg[1] == 5) jitset_set(op->live_in, 8, 1);
+	}
+#endif
+
 	if (GET_OP(op) == JIT_RET) {
 		op->live_out = jitset_new(out1->size);
 		goto skip;

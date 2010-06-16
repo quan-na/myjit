@@ -100,6 +100,15 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	// initialize mappings
 	if (op->prev) memcpy(op->regmap, op->prev->regmap, sizeof(struct hw_reg *) * jit->reg_count);
+	
+	if (GET_OP(op) == JIT_PROLOG) {
+		op->regmap[3] = &(al->hw_reg[5]); // RDI
+		op->regmap[4] = &(al->hw_reg[4]); // RSI
+		op->regmap[5] = &al->hw_reg[3]; // RDX
+		op->regmap[6] = &al->hw_reg[2]; // RCX
+		op->regmap[7] = &al->hw_reg[6]; // R8
+		op->regmap[8] = &al->hw_reg[7]; // R9
+	}
 	free_unused_regs(jit, op);
 
 	if (GET_OP(op) == JIT_PREPARE) {
@@ -306,21 +315,15 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 	a->hwreg_pool[2] = &(a->hw_reg[0]);
 */
 	// FIXME: more sophisticated order
-	a->hwreg_pool_pos = 13;
+	a->hwreg_pool_pos = 7;
 	a->hwreg_pool[0] = &(a->hw_reg[13]);
 	a->hwreg_pool[1] = &(a->hw_reg[12]);
 	a->hwreg_pool[2] = &(a->hw_reg[11]);
 	a->hwreg_pool[3] = &(a->hw_reg[10]);
 	a->hwreg_pool[4] = &(a->hw_reg[9]);
 	a->hwreg_pool[5] = &(a->hw_reg[8]);
-	a->hwreg_pool[6] = &(a->hw_reg[7]);
-	a->hwreg_pool[7] = &(a->hw_reg[6]);
-	a->hwreg_pool[8] = &(a->hw_reg[5]);
-	a->hwreg_pool[9] = &(a->hw_reg[4]);
-	a->hwreg_pool[10] = &(a->hw_reg[3]);
-	a->hwreg_pool[11] = &(a->hw_reg[2]);
-	a->hwreg_pool[12] = &(a->hw_reg[1]);
-	a->hwreg_pool[13] = &(a->hw_reg[0]);
+	a->hwreg_pool[6] = &(a->hw_reg[1]);
+	a->hwreg_pool[7] = &(a->hw_reg[0]);
 	return a;
 }
 

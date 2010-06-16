@@ -313,6 +313,22 @@ typedef union {
 		x86_reg_emit ((inst), (dreg), (reg));	\
 	} while (0)
 
+#define amd64_movsx_reg_membase(inst,reg,basereg,disp,size)       \
+	do {    \
+		if ((size) == 4) { \
+			amd64_movsxd_reg_membase(inst, reg, basereg, disp); \
+			break; \
+		} \
+		amd64_emit_rex(inst,8,(reg),0,(basereg)); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		switch (size) {\
+			case 1: *(inst)++ = (unsigned char)0xbe; break; \
+			case 2: *(inst)++ = (unsigned char)0xbf; break; \
+			default: assert(0);\
+		}\
+		x86_membase_emit ((inst), (reg), (basereg), (disp));    \
+	} while (0)
+
 #define amd64_movsxd_reg_mem(inst,reg,mem) \
     do {     \
        amd64_emit_rex(inst,8,(reg),0,0); \

@@ -45,7 +45,7 @@ void jit_dump_registers(struct jit * jit, long * hwregs);
 static inline int jit_arg(struct jit * jit)
 {
 	int r = jit->argpos;
-	jit->argpos += REG_SIZE;
+	jit->argpos += 1;
 	return r;
 }
 
@@ -459,6 +459,12 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	}
 }
 
+void __get_arg(struct jit * jit, jit_op * op, int reg)
+{
+	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, op->r_arg[0], reg, 8);
+	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, op->r_arg[0], reg, op->arg_size);
+	else amd64_movzx_reg_reg(jit->ip, op->r_arg[0], reg, op->arg_size);
+}
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
@@ -540,30 +546,22 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_GETARG:
-					// FIXME
-			if (a2 == 0) {
-				if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, a1, AMD64_RDI, 8);
-				else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, a1, AMD64_RDI, op->arg_size);
-				else amd64_movzx_reg_reg(jit->ip, a1, AMD64_RDI, op->arg_size);
+			if (a2 == 0) __get_arg(jit, op, AMD64_RDI);
+			if (a2 == 1) __get_arg(jit, op, AMD64_RSI);
+			if (a2 == 2) __get_arg(jit, op, AMD64_RDX);
+			if (a2 == 3) __get_arg(jit, op, AMD64_RCX);
+			if (a2 == 4) __get_arg(jit, op, AMD64_R8);
+			if (a2 == 5) __get_arg(jit, op, AMD64_R9);
+			if (a2 > 5) {
+				if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, REG_SIZE); 
+				else if (IS_SIGNED(op)) {
+					amd64_movsx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size);
+				} else {
+					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // cleans
+					amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size); 
+				}
+
 			}
-			if (a2 == 8) {
-				if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, a1, AMD64_RSI, 8);
-				else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, a1, AMD64_RSI, op->arg_size);
-				else amd64_movzx_reg_reg(jit->ip, a1, AMD64_RSI, op->arg_size);
-			}
-			if (a2 == 16) {
-				if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, a1, AMD64_RDX, 8);
-				else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, a1, AMD64_RDX, op->arg_size);
-				else amd64_movzx_reg_reg(jit->ip, a1, AMD64_RDX, op->arg_size);
-			}
-			if (a2 == 24) amd64_mov_reg_reg(jit->ip, a1, AMD64_RCX, 8);
-			if (a2 == 32) amd64_mov_reg_reg(jit->ip, a1, AMD64_R8, 8);
-			if (a2 == 40) amd64_mov_reg_reg(jit->ip, a1, AMD64_R9, 8);
-			/*
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + a2, REG_SIZE); 
-			else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + a2, op->arg_size); 
-			else amd64_movzx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + a2, op->arg_size); 
-			*/
 			break;
 			
 

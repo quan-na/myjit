@@ -128,9 +128,9 @@ static void __free_labels(jit_label * lab)
 
 void jit_free(struct jit * jit)
 {
+	jit_reg_allocator_free(jit->reg_al);
 	__free_ops(jit->ops);
 	__free_labels(jit->labels);
-	jit_reg_allocator_free(jit->reg_al);
 	JIT_FREE(jit->buf);
 	JIT_FREE(jit);
 }
