@@ -557,7 +557,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				else if (IS_SIGNED(op)) {
 					amd64_movsx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size);
 				} else {
-					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // cleans
+					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
 					amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size); 
 				}
 
@@ -601,7 +601,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = jit->ip; break;
 
-				/*
 		case (JIT_LD | IMM | SIGNED): 
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
 			else amd64_movsx_reg_mem(jit->ip, a1, a2, op->arg_size);
@@ -609,7 +608,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case (JIT_LD | IMM | UNSIGNED): 
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
-			else amd64_movzx_reg_mem(jit->ip, a1, a2, op->arg_size);
+			else {
+				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
+				amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
+			}
 			break;
 
 		case (JIT_LD | REG | SIGNED):
@@ -619,7 +621,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case (JIT_LD | REG | UNSIGNED):
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			else  amd64_movzx_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
+			else  {
+				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
+				amd64_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
+			}
 			break;
 
 		case (JIT_LDX | IMM | SIGNED): 
@@ -629,18 +634,24 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case (JIT_LDX | IMM | UNSIGNED): 
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			else amd64_movzx_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
+			else {
+				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
+				amd64_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
+			}
 			break;
 
 		case (JIT_LDX | REG | SIGNED): 
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
 			else amd64_movsx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
 			break;
+
 		case (JIT_LDX | REG | UNSIGNED): 
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			else amd64_movzx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
+			else {
+				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
+				amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size);
+			}
 			break;
-*/
 		case (JIT_ST | IMM): amd64_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
 		case (JIT_ST | REG): amd64_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
 		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
@@ -679,7 +690,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				    amd64_push_reg(jit->ip, AMD64_RDI);
 				    amd64_push_reg(jit->ip, AMD64_RBP);
 				    break;
-		// platform specific opcodes; used byt optimizer
+		// platform specific opcodes; used by the optimizer
 		case (JIT_X86_STI | IMM): amd64_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
 		case (JIT_X86_STI | REG): amd64_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
 		case (JIT_X86_STXI | IMM): amd64_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;

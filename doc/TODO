@@ -5,9 +5,9 @@ ROADMAP
 	* support for all GP registers 
 	* getarg should support virtual registers
 	* amd64-specific: callee & caller-saved registers
+	* load/store operations
 	+ pusharg support for amd64 calling convention 
 	+ support for large immediate values
-	+ load/store operations
 
 + generic (release 0.3.0)
 	+ support for unlimited number of registers
@@ -25,5 +25,3 @@ ROADMAP
 	+ optimizations
 	+ linear-scan reg. allocator
 	+ debugging
-
-
