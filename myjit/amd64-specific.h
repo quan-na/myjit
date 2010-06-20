@@ -33,6 +33,7 @@ struct jit_reg_allocator {
 };
 
 
+
 #define JIT_X86_STI	(0x0100 << 3)
 #define JIT_X86_STXI	(0x0101 << 3)
 
@@ -340,10 +341,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 
 	if (imm) {
 		if (dividend != AMD64_RAX) amd64_mov_reg_reg(jit->ip, AMD64_RAX, dividend, REG_SIZE);
-		// FIXME: is this correct?
 		amd64_cdq(jit->ip);
 		if (dest != AMD64_RBX) amd64_push_reg(jit->ip, AMD64_RBX);
-		// FIXME: optimization for smaller values
 		amd64_mov_reg_imm_size(jit->ip, AMD64_RBX, divisor, 8);
 		amd64_div_reg(jit->ip, AMD64_RBX, sign);
 		if (dest != AMD64_RBX) amd64_pop_reg(jit->ip, AMD64_RBX);
@@ -536,7 +535,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else amd64_jump_code(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
 		case JIT_RET:
-			// FIXME: immediate value assignment should conform AMD64 mov operation
 			if (!IS_IMM(op) && (a1 != AMD64_RAX)) amd64_mov_reg_reg(jit->ip, AMD64_RAX, a1, 8);
 			if (IS_IMM(op)) amd64_mov_reg_imm(jit->ip, AMD64_RAX, a1);
 			__pop_callee_saved_regs(jit);
@@ -576,7 +574,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_MOV | IMM):
 			if (a2 == 0) amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1);
 			//else amd64_mov_reg_imm(jit->ip, a1, a2); 
-			// FIXME: optimization for smaller values
 			else amd64_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
@@ -766,5 +763,36 @@ void jit_optimize(struct jit * jit)
 			op->prev->spec = SPEC(NO, NO, NO);
 		}
 
+	}
+}
+
+void jit_correct_long_imms(struct jit * jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (!IS_IMM(op)) continue;
+		int imm_arg;
+		for (int i = 1; i < 4; i++)
+			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
+		long value = op->arg[imm_arg];
+		
+		int transform = 0;
+		long high_bits = (value & 0xffffffff80000000) >> 31;
+		if (IS_SIGNED(op)) {
+			if ((high_bits != 0) && (high_bits != 0x1ffffffff)) transform = 1; 
+		} else {
+			if (high_bits != 0) transform = 1;
+		}
+
+		if (transform) {
+			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), JIT_IMMREG, value, 0, REG_SIZE);
+			jit_op_prepend(op, newop);
+
+			op->code &= ~(0x3);
+			op->code |= REG;
+
+			op->spec &= ~(0x3 << (2 * imm_arg));
+			op->spec |=  (REG << (2 * imm_arg));
+			op->arg[imm_arg] = JIT_IMMREG;
+		}
 	}
 }

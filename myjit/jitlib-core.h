@@ -28,6 +28,8 @@
 
 #define JIT_FP		(0)
 #define JIT_RETREG	(1)
+#define JIT_IMMREG	(2) /* used by amd64 */
+
 
 // FIXME: should be platform specific
 #ifdef JIT_ARCH_I386
@@ -137,6 +139,7 @@ void jit_dump(struct jit * jit);
 void jit_print_ops(struct jit * jit);
 void __print_op(struct jit * jit, struct jit_op * op);
 void jit_get_reg_name(char * r, int reg, jit_op * op);
+void jit_correct_long_imms(struct jit * jit);
 
 
 /* FIXME: presunout do generic-reg-allocator.h */
