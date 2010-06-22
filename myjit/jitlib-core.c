@@ -43,7 +43,6 @@ struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char 
 	struct jit_op * r = __new_op(code, spec, arg1, arg2, arg3, arg_size);
 	jit_op_append(jit->last_op, r);
 	jit->last_op = r;
-	jit->argpos = 0;
 	if (code == JIT_PROLOG) jit->current_func = r;
 
 	return r;
@@ -60,6 +59,7 @@ struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 #ifdef JIT_ARCH_AMD64
 	reg_count += 3; // three lower registers are reserved for JIT_FP, JIT_RETREG, JIT_IMM
 	reg_count += 6; // these registers server are used to store passed arguments
+	if (reg_count % 2) reg_count ++; // stack has to be aligned to 16 bytes
 #endif
 
 
@@ -76,6 +76,7 @@ struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 
 	r->reg_count = reg_count;
 	r->reg_al = jit_reg_allocator_create(reg_count);
+	r->argpos = 0;
 
 	return r;
 }

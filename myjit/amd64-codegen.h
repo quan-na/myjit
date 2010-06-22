@@ -124,6 +124,32 @@ typedef union {
 } amd64_imm_buf;
 
 #include "x86-codegen.h"
+#define amd64_patch(ins,target)	\
+	do {	\
+		unsigned char rex_correction = 0; \
+		if ((*((unsigned char*)(ins)) & 0xf0) == 0x40) rex_correction++; \
+		unsigned char* pos = (ins) + 1 + rex_correction;	\
+		int disp, size = 0;	\
+		switch (*((unsigned char*)(ins) + rex_correction)) {	\
+		case 0xe8: case 0xe9: ++size; break; /* call, jump32 */	\
+		case 0x0f: if (!(*pos >= 0x70 && *pos <= 0x8f)) assert (0);	\
+		   ++size; ++pos; break; /* prefix for 32-bit disp */	\
+		case 0xe0: case 0xe1: case 0xe2: /* loop */	\
+		case 0xeb: /* jump8 */	\
+		/* conditional jump opcodes */	\
+		case 0x70: case 0x71: case 0x72: case 0x73:	\
+		case 0x74: case 0x75: case 0x76: case 0x77:	\
+		case 0x78: case 0x79: case 0x7a: case 0x7b:	\
+		case 0x7c: case 0x7d: case 0x7e: case 0x7f:	\
+			break;	\
+		default: assert (0);	\
+		}	\
+		disp = (target) - pos;	\
+		if (size) x86_imm_emit32 (pos, disp - 4);	\
+		else if (x86_is_imm8 (disp - 1)) x86_imm_emit8 (pos, disp - 1);	\
+		else assert (0);	\
+	} while (0)
+
 
 /* In 64 bit mode, all registers have a low byte subregister */
 #undef X86_IS_BYTE_REG
@@ -327,7 +353,10 @@ typedef union {
 			case 2: *(inst)++ = (unsigned char)0xbf; break; \
 			default: assert (0);    \
 		}       \
-		x86_mem_emit ((inst), (reg), (mem));    \
+		/*x86_mem_emit ((inst), (reg), (mem));  */  \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
 	} while (0)
 
 #define amd64_movsx_reg_memindex(inst,reg,basereg,disp,indexreg,shift,size)       \
@@ -336,7 +365,7 @@ typedef union {
 			amd64_movsxd_reg_memindex(inst,reg,basereg,disp,indexreg,shift); \
 			break; \
 		} \
-		amd64_emit_rex(inst,8,(reg),0,0); \
+		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\
 		*(inst)++ = (unsigned char)0x0f;        \
 		switch ((size)) {       \
 			case 1: *(inst)++ = (unsigned char)0xbe; break; \
@@ -367,7 +396,10 @@ typedef union {
     do {     \
        amd64_emit_rex(inst,8,(reg),0,0); \
        *(inst)++ = (unsigned char)0x63; \
-       x86_mem_emit ((inst), ((reg)&0x7), (mem)); \
+       /*x86_mem_emit ((inst), ((reg)&0x7), (mem));*/ \
+       x86_address_byte ((inst), 0, (reg), 4); \
+       x86_address_byte ((inst), 0, 4, 5); \
+       x86_imm_emit32 ((inst), (mem)); \
     } while (0)
 
 #define amd64_movsxd_reg_memindex(inst,reg,basereg,disp,indexreg,shift) \

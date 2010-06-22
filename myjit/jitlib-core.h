@@ -121,6 +121,13 @@ struct jit {
 	struct jit_reg_allocator * reg_al;
 	struct jit_op * current_func;
 	jit_label * labels;
+#ifdef JIT_ARCH_AMD64
+	int argspos; // FIXME: better name
+	struct arg {
+		int isreg;
+		long value;
+	} * args;
+#endif
 };
 
 struct __hw_reg;

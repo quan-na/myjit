@@ -28,7 +28,7 @@ static inline void jit_flw_initialize(struct jit * jit)
 	}
 }
 
-static inline int __flw_analyze_op(jit_op * op)
+static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 {
 	int result;
 	jitset * in1 = jitset_clone(op->live_in);
@@ -40,11 +40,22 @@ static inline int __flw_analyze_op(jit_op * op)
 	for (int i = 0; i < 3; i++)
 		if (ARG_TYPE(op, i + 1) == TREG) jitset_set(op->live_in, op->arg[i], 0);
 
+#ifdef JIT_ARCH_AMD64
+	// FIXME: magic constants
+	if (GET_OP(op) == JIT_PROLOG) {
+		int argcount = jit->argpos;
+		if (argcount > 0) jitset_set(op->live_in, 3, 0);
+		if (argcount > 1) jitset_set(op->live_in, 4, 0);
+		if (argcount > 2) jitset_set(op->live_in, 5, 0);
+		if (argcount > 3) jitset_set(op->live_in, 6, 0);
+		if (argcount > 4) jitset_set(op->live_in, 7, 0);
+		if (argcount > 5) jitset_set(op->live_in, 8, 0);
+	}
+#endif
+
 	for (int i = 0; i < 3; i++)
 		if (ARG_TYPE(op, i + 1) == REG)
 			jitset_set(op->live_in, op->arg[i], 1);
-
-	jitset_free(op->live_out);
 
 #ifdef JIT_ARCH_AMD64
 	// FIXME: magic constants
@@ -57,6 +68,10 @@ static inline int __flw_analyze_op(jit_op * op)
 		if (op->arg[1] == 5) jitset_set(op->live_in, 8, 1);
 	}
 #endif
+
+
+	jitset_free(op->live_out);
+
 
 	if (GET_OP(op) == JIT_RET) {
 		op->live_out = jitset_new(out1->size);
@@ -88,7 +103,7 @@ static inline void jit_flw_analysis(struct jit * jit)
 		changed = 0;
 		jit_op * op = jit_op_first(jit->ops);
 		while (op) {
-			changed |= __flw_analyze_op(op);
+			changed |= __flw_analyze_op(jit, op);
 			op = op->next;
 		}
 	} while (changed);

@@ -28,7 +28,7 @@ void test1()
 	jit_retr(p, R(0));
 	jit_generate_code(p);
 
-	jit_dump(p);
+//	jit_dump(p);
 
 	r = f1(20, 20, -10);
 	printf("DD:%i\n", r);
@@ -262,7 +262,7 @@ void test6()
 //	jit_print_ops(p); return;
 //	jit_dump(p); return;
 	r = f1();
-	printf("::%i\n", r);
+//	printf("::%i\n", r);
 
 
 	jit_free(p);
@@ -288,11 +288,11 @@ void test7()
 
 	jit_label * loop = jit_get_label(p);
 
-	jit_ldxi(p, R(3), R(1), -4, REG_SIZE);
+	jit_ldxi(p, R(3), R(1), -REG_SIZE, REG_SIZE);
 	jit_lshi(p, R(3), R(3), 1);
 	jit_str(p, R(1), R(3), REG_SIZE);
 
-	jit_addi(p, R(1), R(1), 4);
+	jit_addi(p, R(1), R(1), REG_SIZE);
 	jit_subi(p, R(2), R(2), 1);
 	jit_bgti(p, loop, R(2), 0);
 
@@ -305,7 +305,6 @@ void test7()
 	jit_ldr(p, R(1), R(0), REG_SIZE);
 	jit_prepare(p, 2);
 	jit_pushargr(p, R(1));
-//	jit_movi(p, R(1), formatstr);
 	jit_pushargi(p, formatstr);
 	jit_finish(p, printf);
 
@@ -346,19 +345,23 @@ void test8()
 	jit_prolog(p, &f1);
 	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
 
+
 	jit_movi(p, R(1), &s); // struct
+
 	jit_ldi(p, R(2), &s + offsetof(struct mystruct, items), sizeof(void *)); // array
 	jit_movi(p, R(3), 0); // index
 
 	jit_movi(p, R(5), 0);		// sum
 	jit_label * loop = jit_get_label(p);
+
+
 	jit_ldxr(p, R(4), R(2), R(3), sizeof(short));
 	jit_addr(p, R(5), R(5), R(4));
 	
 	jit_addi(p, R(3), R(3), sizeof(short));
 	jit_subi(p, R(0), R(0), 1);
-	jit_bgti(p, loop, R(0), 0);
 
+	jit_bgti(p, loop, R(0), 0);
 	jit_sti(p, &s + offsetof(struct mystruct, sum), R(5), sizeof(int));
 	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
 
@@ -368,26 +371,25 @@ void test8()
 	jit_movi(p, R(1), offsetof(struct mystruct, avg));
 	jit_stxr(p, R(0), R(1), R(5), sizeof(int));
 
-	jit_ldi(p, R(5), &s + offsetof(struct mystruct, avg), sizeof(int));
+	//jit_ldi(p, R(5), &s + offsetof(struct mystruct, avg), sizeof(short));
+
+	jit_ldi(p, R(0), &s + offsetof(struct mystruct, avg), sizeof(int));
+	jit_ldi(p, R(1), &s + offsetof(struct mystruct, sum), sizeof(short));
 
 	jit_prepare(p, 3);
-	jit_ldi(p, R(0), &s + offsetof(struct mystruct, avg), sizeof(int));
 	jit_pushargr(p, R(0));
-	jit_ldi(p, R(0), &s + offsetof(struct mystruct, sum), sizeof(int));
-	jit_pushargr(p, R(0));
-
-//	jit_movi(p, R(0), formatstr);
+	jit_pushargr(p, R(1));
 	jit_pushargi(p, formatstr);
 
 	jit_finish(p, printf);
 
 	jit_reti(p, 0);
+
 	jit_generate_code(p);
 //	jit_print_ops(p); return;
 //	jit_dump(p); return;
 	r = f1();
-//	printf("::%i\n", r);
-//
+
 	jit_free(p);
 }
 
@@ -399,8 +401,8 @@ int main()
 	test2(); 
 	test3();
 	test4(); // XXX
-      	test5(); // XXX
+     	test5(); // XXX
 	test6(); // XXX
 	test7(); // XXX
-	test8(); // XXX
+	test8(); 
 }

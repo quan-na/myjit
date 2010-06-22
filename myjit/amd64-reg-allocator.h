@@ -112,35 +112,56 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	free_unused_regs(jit, op);
 
 	if (GET_OP(op) == JIT_PREPARE) {
+		int args = op->arg[0];
 		// FIXME: 2 -> magic constant
 		for (i = 2; i < jit->reg_count; i++) {
 			if (op->regmap[i]) {
 				struct __hw_reg  * hreg = op->regmap[i];
-				if (hreg->id != AMD64_RAX) continue;
+				if (hreg->id == AMD64_RAX) {
 
-				// checks whether there is a free callee-saved register
-				// that can be used to store the eax register
-				struct __hw_reg * freereg = get_free_callee_save_reg(al);
-				if (freereg) {
-					// should have its own name
-					jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), i, i, 0, 0);
-					o->r_arg[0] = freereg->id;
-					o->r_arg[1] = AMD64_RAX;
+					// checks whether there is a free callee-saved register
+					// that can be used to store the eax register
+					struct __hw_reg * freereg = get_free_callee_save_reg(al);
+					if (freereg) {
+						// should have its own name
+						jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), i, i, 0, 0);
+						o->r_arg[0] = freereg->id;
+						o->r_arg[1] = AMD64_RAX;
+
+						jit_op_prepend(op, o);
+						op->regmap[i] = freereg;
+
+					} else {
+						jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
+						o->r_arg[0] = o->arg[0];
+						o->r_arg[1] = o->arg[1];
+
+						jit_op_prepend(op, o);
+					}
+				}
+				if (((hreg->id == AMD64_RDI) && (args > 0))
+				|| ((hreg->id == AMD64_RSI) && (args > 1))
+				|| ((hreg->id == AMD64_RDX) && (args > 2))
+				|| ((hreg->id == AMD64_RCX) && (args > 3))
+				|| ((hreg->id == AMD64_R8) && (args > 4))
+				|| ((hreg->id == AMD64_R9) && (args > 5))) {
+					//jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
+					jit_op * o = __new_op(JIT_UREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
+					o->r_arg[0] = o->arg[0];
+					o->r_arg[1] = o->arg[1];
 
 					jit_op_prepend(op, o);
-					op->regmap[i] = freereg;
-					break;
 
-					
-				} 
-				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
-				o->r_arg[0] = o->arg[0];
-				o->r_arg[1] = o->arg[1];
-
-				jit_op_prepend(op, o);
-				break;
+					al->hwreg_pool[++al->hwreg_pool_pos] = op->regmap[i];
+					op->regmap[i] = NULL;
+				}
 			}
 		}
+	}
+
+	if ((GET_OP(op) == JIT_PUSHARG)) {
+		// PUSHARG takes care of register allocation by itself 
+		return;
 	}
 
 	if ((GET_OP(op) == JIT_FINISH) || (GET_OP(op) == JIT_CALL)) {

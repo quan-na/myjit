@@ -81,6 +81,7 @@ int main()
 
 	// compiles the above defined code
 	jit_generate_code(p);
+	jit_print_ops(p);
 	 jit_dump(p);
 
 	// check
