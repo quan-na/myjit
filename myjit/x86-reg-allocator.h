@@ -42,9 +42,9 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 {
 	int spill_candidate = -1;
 	int age = -1;
-	for (int i = 0; i < jit->reg_count; i++) {
-		if (op->regmap[R(i)]) {
-			struct __hw_reg * hreg = op->regmap[R(i)];
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
+		if (op->regmap[i]) {
+			struct __hw_reg * hreg = op->regmap[i];
 			if ((int)hreg->used > age) {
 				spill_candidate = i;
 				age = hreg->used;
@@ -52,9 +52,9 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 		}
 	}
 
-	struct __hw_reg * hreg = op->regmap[R(spill_candidate)];
-	unload_reg(jit->reg_al, op, hreg, R(spill_candidate));
-	op->regmap[R(spill_candidate)] = NULL;
+	struct __hw_reg * hreg = op->regmap[spill_candidate];
+	unload_reg(jit->reg_al, op, hreg, spill_candidate);
+	op->regmap[spill_candidate] = NULL;
 	hreg->used = 0;
 	return hreg;
 }
@@ -62,13 +62,13 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 // moves unused registers back to the register pool
 static inline void free_unused_regs(struct jit * jit, jit_op * op)
 {
-	for (int i = 0; i < jit->reg_count; i++) {
-		if ((op->regmap[R(i)] != NULL) 
-			&& !(jitset_get(op->live_in, R(i)) || jitset_get(op->live_out, R(i))))
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
+		if ((op->regmap[i] != NULL) 
+			&& !(jitset_get(op->live_in, i) || jitset_get(op->live_out, i)))
 		{
 			struct jit_reg_allocator * al = jit->reg_al;
-			al->hwreg_pool[++al->hwreg_pool_pos] = op->regmap[R(i)];
-			op->regmap[R(i)] = NULL;
+			al->hwreg_pool[++al->hwreg_pool_pos] = op->regmap[i];
+			op->regmap[i] = NULL;
 		}
 	}
 }
@@ -95,13 +95,13 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
-	if (op->prev) memcpy(op->regmap, op->prev->regmap, sizeof(int) * (jit->reg_count + 2));
+	if (op->prev) memcpy(op->regmap, op->prev->regmap, sizeof(long) * jit->reg_count);
 	free_unused_regs(jit, op);
 
 	if (GET_OP(op) == JIT_PREPARE) {
-		for (i = 0; i < jit->reg_count; i++) {
-			if (op->regmap[R(i)]) {
-				struct __hw_reg  * hreg = op->regmap[R(i)];
+		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
+			if (op->regmap[i]) {
+				struct __hw_reg  * hreg = op->regmap[i];
 				if (hreg->id != X86_EAX) continue;
 
 				// checks whether there is a free callee-saved register
@@ -109,17 +109,17 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				struct __hw_reg * freereg = get_free_callee_save_reg(al);
 				if (freereg) {
 					// should have its own name
-					jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), R(i), R(i), 0, 0);
+					jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), i, i, 0, 0);
 					o->r_arg[0] = freereg->id;
 					o->r_arg[1] = X86_EAX;
 
 					jit_op_prepend(op, o);
-					op->regmap[R(i)] = freereg;
+					op->regmap[i] = freereg;
 					break;
 
 					
 				} 
-				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), R(i), hreg->id, 0, 0);
+				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
 				o->r_arg[0] = o->arg[0];
 				o->r_arg[1] = o->arg[1];
 
@@ -130,12 +130,12 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if ((GET_OP(op) == JIT_FINISH) || (GET_OP(op) == JIT_CALL)) {
-		for (i = 0; i < jit->reg_count; i++) {
-			if (op->regmap[R(i)]) {
-				struct __hw_reg  * hreg = op->regmap[R(i)];
+		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
+			if (op->regmap[i]) {
+				struct __hw_reg  * hreg = op->regmap[i];
 				if (hreg->id == X86_EAX) {
 					al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
-					op->regmap[R(i)] = NULL;
+					op->regmap[i] = NULL;
 
 					break;
 				}
@@ -183,8 +183,8 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	// increasing age of each register
-	for (int i = 0; i < jit->reg_count; i++) {
-		struct __hw_reg * reg = op->regmap[R(i)];
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
+		struct __hw_reg * reg = op->regmap[i];
 		if (reg) reg->used++;
 	}
 }
@@ -194,13 +194,13 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 	if (GET_OP(op) != JIT_JMP) return;
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
-	for (int i = 0; i < jit->reg_count; i++)
-		if (cur_regmap[R(i)] != tgt_regmap[R(i)])
-			if (cur_regmap[R(i)]) unload_reg(jit->reg_al, op, cur_regmap[R(i)], R(i));
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
+		if (cur_regmap[i] != tgt_regmap[i])
+			if (cur_regmap[i]) unload_reg(jit->reg_al, op, cur_regmap[i], i);
 
-	for (int i = 0; i < jit->reg_count; i++)
-		if (tgt_regmap[R(i)] && (cur_regmap[R(i)] != tgt_regmap[R(i)]))
-			load_reg(op, tgt_regmap[R(i)], R(i));
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
+		if (tgt_regmap[i] && (cur_regmap[i] != tgt_regmap[i]))
+			load_reg(op, tgt_regmap[i], i);
 }
 
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
@@ -218,8 +218,8 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
 	int adjust = 0;
-	for (int i = 0; i < jit->reg_count; i++)
-		if (cur_regmap[R(i)] != tgt_regmap[R(i)]) {
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
+		if (cur_regmap[i] != tgt_regmap[i]) {
 			//printf("branch needs an adjustment\n");
 			adjust = 1;
 			break;
@@ -237,8 +237,8 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 		jit_op * o = __new_op(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		
 		o->r_arg[0] = op->r_arg[0];
 	
-		o->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * (jit->reg_count + 2));
-		memcpy(o->regmap, op->regmap, sizeof(struct hw_reg *) * (jit->reg_count + 2));
+		o->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * jit->reg_count);
+		memcpy(o->regmap, op->regmap, sizeof(struct hw_reg *) * jit->reg_count);
 
 		o->live_in = jitset_clone(op->live_in); 
 		o->live_out = jitset_clone(op->live_out); 
@@ -299,11 +299,11 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 void jit_assign_regs(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		op->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * (jit->reg_count + 2));
+		op->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * jit->reg_count);
 		op->regmap[JIT_FP] = &(jit->reg_al->hw_reg[6]);
 		op->regmap[JIT_RETREG] = &(jit->reg_al->hw_reg[0]);
-		for (int i = 0; i < jit->reg_count; i++)
-			op->regmap[R(i)] = NULL;
+		for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
+			op->regmap[i] = NULL;
 	}
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
