@@ -199,8 +199,6 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int amd64_c
 
 	op->patch_addr = jit->ip;
 
-	//amd64_branch(jit->ip, amd64_cond, (unsigned char *)op->r_arg[0], sign);
-	//amd64_branch32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 	amd64_branch(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
@@ -526,21 +524,23 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 {
 	int arg_id = op->r_arg[1];
 	int reg_id = arg_id + JIT_FIRST_REG + 1; /* 1 -- is JIT_IMMREG */
+	int dreg = op->r_arg[0];
 
 	if (op->regmap[reg_id] == NULL) {
 		/* the register is not associated and the value has to be read from the memory */
-		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(reg_id), REG_SIZE);
-		else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(reg_id), op->arg_size);
+		int reg_offset = __GET_REG_POS(reg_id);
+		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, REG_SIZE);
+		else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
 		else {
-			amd64_alu_reg_reg(jit->ip, X86_XOR, op->r_arg[0], op->r_arg[0]); // register cleanup
-			amd64_mov_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(reg_id), op->arg_size);
+			amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
+			amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
 		}
 		return;
 	}
 
-	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, op->r_arg[0], reg, 8);
-	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, op->r_arg[0], reg, op->arg_size);
-	else amd64_movzx_reg_reg(jit->ip, op->r_arg[0], reg, op->arg_size);
+	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, dreg, reg, 8);
+	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, dreg, reg, op->arg_size);
+	else amd64_movzx_reg_reg(jit->ip, dreg, reg, op->arg_size);
 }
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
@@ -606,7 +606,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op), 0); break;
 		case JIT_FINISH: __funcall(jit, op, IS_IMM(op), 1); break;
 
-		//case JIT_PATCH: x86_patch(((struct jit_op *)a1)->patch_addr, jit->ip); break;
 		case JIT_PATCH: amd64_patch(((struct jit_op *)a1)->patch_addr, jit->ip); break;
 		case JIT_JMP:
 			op->patch_addr = jit->ip;
@@ -662,14 +661,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  __push_caller_saved_regs(jit, op);
 				  break;
 
-		case JIT_PUSHARG | REG: //amd64_push_reg(jit->ip, a1); 
-				  	jit->args[jit->argspos].isreg = 1;
+		case JIT_PUSHARG | REG: jit->args[jit->argspos].isreg = 1;
 				  	jit->args[jit->argspos++].value = op->arg[0];
 					break;
-		case JIT_PUSHARG | IMM: 
-					jit->args[jit->argspos].isreg = 0;
+
+		case JIT_PUSHARG | IMM: jit->args[jit->argspos].isreg = 0;
 				  	jit->args[jit->argspos++].value = op->arg[0];
-					//amd64_push_imm(jit->ip, a1);
 					break;
 
 		case JIT_PROLOG:
