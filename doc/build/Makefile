@@ -8,6 +8,7 @@ web: readme.htm
 	mkdir -p ../web
 	grep -v "</body>\|</html>" readme.htm > ../web/index.htm
 	cat ga.htm >> ../web/index.htm
+	cat sflogo.htm >> ../web/index.htm
 	echo -e "</body>\n</html>\n" >> ../web/index.htm
 
 clean:

@@ -165,7 +165,7 @@ Let us make few notes on function calls:
 
 + You should not nest prepare operations.
 
-+ Modifications to the register performed after ``prepare`` need not to be preserved, thus, it is not a good idea to make modifications of registers inside the ``prepare-finish``  block.
++ Only ``pushargr`` or ``pushargi`` operations are allowed within the ``prepare-finish`` block, otherwise, the behavior of the library is unspecified.
 
 List of operations related to function calls:
 
@@ -314,9 +314,9 @@ Notes on Development
 
 + MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.
 
-+ Only the i386 platform is supported right now. (support for AMD64 and SPARC will be available shortly)
++ Only the i386 and AMD64 platforms are supported right now. (support for SPARC will be available shortly)
 
-+ At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to add support for floating point arithmetic, however, it is not the priority.
++ At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to include for floating point arithmetic, however, it is not the priority.
 
 + The library is still in the early stage of development and the API may slightly change in the near future.
 

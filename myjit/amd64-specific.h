@@ -209,7 +209,6 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int am
 
 	op->patch_addr = jit->ip;
 
-	//amd64_branch(jit->ip, amd64_cond, (unsigned char *)op->r_arg[0], 0);
 	amd64_branch(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
@@ -220,10 +219,8 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 
 	op->patch_addr = jit->ip;
 
-	//amd64_branch(jit->ip, X86_CC_O, (unsigned char *)op->r_arg[0], 0);
 	amd64_branch(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
-
 
 /* determines whether the argument value was spilled or not,
  * if the register is associated with the hardware register
@@ -636,7 +633,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
 					amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size); 
 				}
-
 			}
 			break;
 			
