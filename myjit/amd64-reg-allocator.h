@@ -42,8 +42,7 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 {
 	int spill_candidate = -1;
 	int age = -1;
-	// FIXME: 2 -> magic constant
-	for (int i = 2; i < jit->reg_count; i++) {
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 		if (op->regmap[i]) {
 			struct __hw_reg * hreg = op->regmap[i];
 			if ((int)hreg->used > age) {
@@ -63,8 +62,7 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 // moves unused registers back to the register pool
 static inline void free_unused_regs(struct jit * jit, jit_op * op)
 {
-	// FIXME: 2 is a magic constant
-	for (int i = 2; i < jit->reg_count; i++) {
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 		if ((op->regmap[i] != NULL) 
 			&& !(jitset_get(op->live_in, i) || jitset_get(op->live_out, i)))
 		{
@@ -113,8 +111,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	if (GET_OP(op) == JIT_PREPARE) {
 		int args = op->arg[0];
-		// FIXME: 2 -> magic constant
-		for (i = 2; i < jit->reg_count; i++) {
+		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 			if (op->regmap[i]) {
 				struct __hw_reg  * hreg = op->regmap[i];
 				if (hreg->id == AMD64_RAX) {
@@ -165,8 +162,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if ((GET_OP(op) == JIT_FINISH) || (GET_OP(op) == JIT_CALL)) {
-		// FIXME: 2 -> magic constant
-		for (i = 2; i < jit->reg_count; i++) {
+		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 			if (op->regmap[i]) {
 				struct __hw_reg  * hreg = op->regmap[i];
 				if (hreg->id == AMD64_RAX) {
@@ -219,8 +215,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	// increasing age of each register
-	// FIXME: 2 is a magic constant
-	for (int i = 2; i < jit->reg_count; i++) {
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 		struct __hw_reg * reg = op->regmap[i];
 		if (reg) reg->used++;
 	}
@@ -231,13 +226,12 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 	if (GET_OP(op) != JIT_JMP) return;
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
-	// FIXME: 2 -> magic constant
-	for (int i = 2; i < jit->reg_count; i++)
+
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
 		if (cur_regmap[i] != tgt_regmap[i])
 			if (cur_regmap[i]) unload_reg(jit->reg_al, op, cur_regmap[i], i);
 
-	// FIXME: 2 -> magic constant
-	for (int i = 2; i < jit->reg_count; i++)
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
 		if (tgt_regmap[i] && (cur_regmap[i] != tgt_regmap[i]))
 			load_reg(op, tgt_regmap[i], i);
 }
@@ -257,10 +251,9 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
 	int adjust = 0;
-	// FIXME: 2 -> magic constant
-	for (int i = 2; i < jit->reg_count; i++)
+
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
 		if (cur_regmap[i] != tgt_regmap[i]) {
-			//printf("branch needs an adjustment\n");
 			adjust = 1;
 			break;
 		}

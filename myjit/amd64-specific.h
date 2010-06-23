@@ -19,6 +19,17 @@
 
 #include "amd64-codegen.h"
 
+// number of register aliases
+//#define JIT_ALIAS_CNT   	(2)     /* JIT_RETREG + JIT_FP */
+
+// number of special purpose registers
+//#define JIT_SPP_REGS_CNT	(1 + 6) /* immediate + register for input arguments */
+
+// id of the first register
+//#define JIT_FIRST_REG   (JIT_ALIAS_CNT)
+
+//#define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
+
 struct __hw_reg {
 	int id;
 	unsigned long used;
@@ -512,8 +523,7 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 		if ((GET_OP(op) == JIT_CALL) || (GET_OP(op) == JIT_FINISH)) break;
 		op = op->next;
 	}
-	// FIXME: magic constant
-	for (int i = 2; i < jit->reg_count; i++) {
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 		if (!jitset_get(op->live_in, i)) continue;
 		if (op->regmap[i]) {
 			if (op->regmap[i]->id == AMD64_RCX) amd64_push_reg(jit->ip, AMD64_RCX);
@@ -788,27 +798,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 /* platform specific */
 void jit_dump_registers(struct jit * jit, long * hwregs)
 {
-	// FIXME: asi je to rozbite
-	/*
-	for (int i = 0; i < jit->reg_count; i++) {
-		char * sysname = "";
-		long reg_value;
-		if (i == 0) fprintf(stderr, "FP:\t0x%lx (ebp)\n", hwregs[6]);
-		if (i == 1) fprintf(stderr, "RETREG:\t0x%lx\n", hwregs[0]);
-		if (jit->reg_al->virt_reg[i].hw_reg) {
-			switch (jit->reg_al->virt_reg[i].hw_reg->id) {
-				case AMD64_RAX: reg_value = hwregs[0], sysname = "(eax)"; break;
-				case AMD64_RBX: reg_value = hwregs[1], sysname = "(ebx)"; break;
-				case AMD64_RCX: reg_value = hwregs[2], sysname = "(ecx)"; break;
-				case AMD64_RDX: reg_value = hwregs[3], sysname = "(edx)"; break;
-				case AMD64_RSI: reg_value = hwregs[4], sysname = "(esi)"; break;
-				case AMD64_RDI: reg_value = hwregs[5], sysname = "(edi)"; break;
-				default: reg_value = jit->regs[i];
-			}
-		} else reg_value = jit->regs[i];
-		if (i > 2) fprintf(stderr, "%i:\t0x%lx %s\n", i - 2, reg_value, sysname);
-	}
-	*/
+	// FIXME: missing
+	fprintf(stderr, "We are very sorry but this function is out of order now.");
 }
 
 void jit_optimize(struct jit * jit)

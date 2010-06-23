@@ -23,16 +23,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-
-// pretty lousy processor detection
-// FIXME: the same code is also in jitlib.h
-#ifdef __arch32__
-#define JIT_ARCH_I386
-#else
-#define JIT_ARCH_AMD64
-#warning "AMD64 processors are supported only partially!"
-#endif
-
+#include "cpu-detect.h"
 
 #include "jitlib-core.h"
 #include "jitlib-debug.c"
@@ -52,13 +43,9 @@ struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 {
 	void * mem;
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
-// FIXME: should be platform specific
-#ifdef JIT_ARCH_I386
-	reg_count += 2; // two lower registers remain reserved for JIT_FP, JIT_RETREG
-#endif
+	reg_count += JIT_ALIAS_CNT; 	// lower registers remain reserved for JIT_FP, JIT_RETREG, etc.
+	reg_count += JIT_SPP_REGS_CNT;  // these registers server are used to store e.g. passed arguments
 #ifdef JIT_ARCH_AMD64
-	reg_count += 3; // three lower registers are reserved for JIT_FP, JIT_RETREG, JIT_IMM
-	reg_count += 6; // these registers server are used to store passed arguments
 	if (reg_count % 2) reg_count ++; // stack has to be aligned to 16 bytes
 #endif
 

@@ -30,21 +30,7 @@
 #define JIT_RETREG	(1)
 #define JIT_IMMREG	(2) /* used by amd64 */
 
-
-// FIXME: should be platform specific
-#ifdef JIT_ARCH_I386
-#define R(x)	(x + 2)
-#endif
-
-#ifdef JIT_ARCH_AMD64
-#define R(x)	(x + 9)
-#endif
-
 #define JIT_FORWARD	(NULL)
-
-#ifndef JIT_ARCH
-#define JIT_ARCH x86
-#endif
 
 #ifndef JIT_MALLOC
 #define JIT_MALLOC(x)	(malloc(x))

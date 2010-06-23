@@ -17,32 +17,52 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef JITLIB_H
-#define JITLIB_H
+/*
+ * Detects CPU and setups platform specific constants and macros used across the library
+ */
+
+#ifndef CPU_DETECT_H
+#define CPU_DETECT_H
 
 // pretty lousy processor detection
-/*
 #ifdef __arch32__
 #define JIT_ARCH_I386
 #else
 #define JIT_ARCH_AMD64
-#warning "AMD64 processors are supported only partially!"
-#endif
-*/
-
-#include "cpu-detect.h"
-
-#include "set.h"
-#include "jitlib-core.h"
-
-#ifdef JIT_ARCH_I386
-#include "x86-specific.h"
-#include "x86-reg-allocator.h"
 #endif
 
+/*
+ * i386 related macros
+ */
 #ifdef JIT_ARCH_AMD64
-#include "amd64-specific.h"
-#include "amd64-reg-allocator.h"
+
+// number of register aliases
+#define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
+
+// number of special purpose registers
+#define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
+
 #endif
 
+/*
+ * AMD64 related macros
+ */
+#ifdef JIT_ARCH_AMD64
+
+// number of register aliases
+#define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
+
+// number of special purpose registers
+#define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
+#endif
+
+
+/*
+ * Common macros
+ */
+
+// id of the first register
+#define JIT_FIRST_REG   (JIT_ALIAS_CNT)
+
+#define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
 #endif

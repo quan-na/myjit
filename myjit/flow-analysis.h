@@ -41,15 +41,15 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 		if (ARG_TYPE(op, i + 1) == TREG) jitset_set(op->live_in, op->arg[i], 0);
 
 #ifdef JIT_ARCH_AMD64
-	// FIXME: magic constants
+	// marks registers which are used to pass arguments
 	if (GET_OP(op) == JIT_PROLOG) {
+		
 		int argcount = jit->argpos;
-		if (argcount > 0) jitset_set(op->live_in, 3, 0);
-		if (argcount > 1) jitset_set(op->live_in, 4, 0);
-		if (argcount > 2) jitset_set(op->live_in, 5, 0);
-		if (argcount > 3) jitset_set(op->live_in, 6, 0);
-		if (argcount > 4) jitset_set(op->live_in, 7, 0);
-		if (argcount > 5) jitset_set(op->live_in, 8, 0);
+		if (argcount > 6) argcount = 6;
+		for (int j = 0; j < argcount; j++) {
+			// the first real register is used to set immediate values
+			jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 0); 
+		}
 	}
 #endif
 
@@ -58,20 +58,15 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 			jitset_set(op->live_in, op->arg[i], 1);
 
 #ifdef JIT_ARCH_AMD64
-	// FIXME: magic constants
 	if (GET_OP(op) == JIT_GETARG) {
-		if (op->arg[1] == 0) jitset_set(op->live_in, 3, 1);
-		if (op->arg[1] == 1) jitset_set(op->live_in, 4, 1);
-		if (op->arg[1] == 2) jitset_set(op->live_in, 5, 1);
-		if (op->arg[1] == 3) jitset_set(op->live_in, 6, 1);
-		if (op->arg[1] == 4) jitset_set(op->live_in, 7, 1);
-		if (op->arg[1] == 5) jitset_set(op->live_in, 8, 1);
+		if ((op->arg[1] >= 0) && (op->arg[1] <= 5)) {
+			// the first real register is used to set immediate values
+			jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 1); 
+		}
 	}
 #endif
 
-
 	jitset_free(op->live_out);
-
 
 	if (GET_OP(op) == JIT_RET) {
 		op->live_out = jitset_new(out1->size);
