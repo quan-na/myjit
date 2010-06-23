@@ -279,7 +279,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int 
 		} else {
 			int x = pos - 6;
 			if (jit->args[x].isreg) {
-				if (__is_spilled(jit->args[i].value, prepare, &sreg)) {
+				if (__is_spilled(jit->args[x].value, prepare, &sreg)) {
 					amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(jit->args[x].value));
 				} else {
 					amd64_push_reg(jit->ip, sreg);
@@ -524,12 +524,19 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 
 void __get_arg(struct jit * jit, jit_op * op, int reg)
 {
-	if (op->regmap[op->r_arg[1] + 3] == NULL) {
-		printf("Problem: %i:%i\n", op->r_arg[1], __GET_REG_POS((op->r_arg[1] + 3)));
-		amd64_movsx_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(op->r_arg[1] + 3), op->arg_size);
+	int arg_id = op->r_arg[1];
+	int reg_id = arg_id + JIT_FIRST_REG + 1; /* 1 -- is JIT_IMMREG */
+
+	if (op->regmap[reg_id] == NULL) {
+		/* the register is not associated and the value has to be read from the memory */
+		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(reg_id), REG_SIZE);
+		else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(reg_id), op->arg_size);
+		else {
+			amd64_alu_reg_reg(jit->ip, X86_XOR, op->r_arg[0], op->r_arg[0]); // register cleanup
+			amd64_mov_reg_membase(jit->ip, op->r_arg[0], AMD64_RBP, __GET_REG_POS(reg_id), op->arg_size);
+		}
 		return;
 	}
-
 
 	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, op->r_arg[0], reg, 8);
 	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, op->r_arg[0], reg, op->arg_size);
