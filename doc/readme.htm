@@ -175,7 +175,7 @@ nei       O1 = (O2 != O3)
 <li>There are two variants of function calls <tt class="docutils literal"><span class="pre">finish</span></tt> and <tt class="docutils literal"><span class="pre">call</span></tt>. The difference is that <tt class="docutils literal"><span class="pre">call</span></tt> does not destroy the prepared arguments and these can be reused to call the same or some other function. However, and this have to be emphasized, each <tt class="docutils literal"><span class="pre">prepare</span></tt> operation have to be paired with some <tt class="docutils literal"><span class="pre">finish</span></tt> operation otherwise it causes undefined behavior.</li>
 <li>If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.</li>
 <li>You should not nest prepare operations.</li>
-<li>Modifications to the register performed after <tt class="docutils literal"><span class="pre">prepare</span></tt> need not to be preserved, thus, it is not a good idea to make modifications of registers inside the <tt class="docutils literal"><span class="pre">prepare-finish</span></tt>  block.</li>
+<li>Only <tt class="docutils literal"><span class="pre">pushargr</span></tt> or <tt class="docutils literal"><span class="pre">pushargi</span></tt> operations are allowed within the <tt class="docutils literal"><span class="pre">prepare-finish</span></tt> block, otherwise, the behavior of the library is unspecified.</li>
 </ul>
 <p>List of operations related to function calls:</p>
 <ul class="simple">
@@ -308,8 +308,8 @@ gcc -o demo1 -g -Wall -std=c99 -pedantic demo1.o jitlib-core.o
 <ul class="simple">
 <li>The primary use of this library is in our compiler of the Schemik programming language and the development of this library affected requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.</li>
 <li>MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.</li>
-<li>Only the i386 platform is supported right now. (support for AMD64 and SPARC will be available shortly)</li>
-<li>At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to add support for floating point arithmetic, however, it is not the priority.</li>
+<li>Only the i386 and AMD64 platforms are supported right now. (support for SPARC will be available shortly)</li>
+<li>At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to include for floating point arithmetic, however, it is not the priority.</li>
 <li>The library is still in the early stage of development and the API may slightly change in the near future.</li>
 <li>If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.</li>
 <li>The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still under development. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (<a class="reference external" href="mailto:myjit-devel&#64;lists.sourceforge.net">myjit-devel&#64;lists.sourceforge.net</a>). If you  would like to participate on documentation improvements, please, let us know, we will really appreciate it.</li>
@@ -318,7 +318,7 @@ gcc -o demo1 -g -Wall -std=c99 -pedantic demo1.o jitlib-core.o
 </div>
 <div class="footer">
 <hr class="footer" />
-Generated on: 2010-06-05 17:55 UTC.
+Generated on: 2010-06-23 14:30 UTC.
 
 </div>
 </body>

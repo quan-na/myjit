@@ -1,4 +1,4 @@
-all: readme.htm 
+all: readme.htm  ga.htm sflogo.htm
 
 readme.htm: ../README main.css
 	rst2html.py -d -t --embed-stylesheet --stylesheet-path="main.css" ../README > readme.htm
