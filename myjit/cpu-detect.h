@@ -25,7 +25,7 @@
 #define CPU_DETECT_H
 
 // pretty lousy processor detection
-#ifdef __arch32__
+#ifdef __i386__
 #define JIT_ARCH_I386
 #else
 #define JIT_ARCH_AMD64
@@ -34,7 +34,7 @@
 /*
  * i386 related macros
  */
-#ifdef JIT_ARCH_AMD64
+#ifdef JIT_ARCH_I386
 
 // number of register aliases
 #define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
