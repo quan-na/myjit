@@ -19,17 +19,6 @@
 
 #include "amd64-codegen.h"
 
-// number of register aliases
-//#define JIT_ALIAS_CNT   	(2)     /* JIT_RETREG + JIT_FP */
-
-// number of special purpose registers
-//#define JIT_SPP_REGS_CNT	(1 + 6) /* immediate + register for input arguments */
-
-// id of the first register
-//#define JIT_FIRST_REG   (JIT_ALIAS_CNT)
-
-//#define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
-
 struct __hw_reg {
 	int id;
 	unsigned long used;
@@ -63,7 +52,7 @@ static inline int jit_arg(struct jit * jit)
 
 static inline int jit_allocai(struct jit * jit, int size)
 {
-	int real_size = (size + 15) & 0xffffffe0; // 16-bytes aligned
+	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
 	jit->allocai_mem += real_size;	
 	return -(jit->allocai_mem);
 }
@@ -238,9 +227,30 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 }
 
 
+/* determines whether the argument value was spilled or not,
+ * if the register is associated with the hardware register
+ * it is returned through the reg argument
+ */
+static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
+{
+	int args = prepare_op->arg[0];
+	struct __hw_reg * hreg = prepare_op->regmap[arg_id];
+	if ((!hreg)
+	|| ((hreg->id == AMD64_RDI) && (args > 0))
+	|| ((hreg->id == AMD64_RSI) && (args > 1))
+	|| ((hreg->id == AMD64_RDX) && (args > 2))
+	|| ((hreg->id == AMD64_RCX) && (args > 3))
+	|| ((hreg->id == AMD64_R8) && (args > 4))
+	|| ((hreg->id == AMD64_R9) && (args > 5)))
+		return 1;
+
+	*reg = hreg->id;
+	return 0;
+}
+
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int cleanup)
 {
-	int pos, i;
+	int pos, i, sreg;
 
 	jit_op * prepare = op;
 	while (GET_OP(prepare) != JIT_PREPARE)
@@ -258,53 +268,27 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int 
 				case 5: reg = AMD64_R9; break;
 			}
 
-
 			if (jit->args[i].isreg) {
-				int r = -1;
-				int args = prepare->arg[0];
-				struct __hw_reg * hreg = prepare->regmap[jit->args[i].value];
-				if (hreg) r = hreg->id;
-				printf("XXX:%i\n", r);
-				if (!hreg /*|| ((r == AMD64_RDI) || (r == AMD64_RSI)
-				|| (r == AMD64_RDX) || (r == AMD64_RCX)
-				|| (r == AMD64_R8) || (r == AMD64_R9)))*/
-					|| ((hreg->id == AMD64_RDI) && (args > 0))
-					 || ((hreg->id == AMD64_RSI) && (args > 1))
-					 || ((hreg->id == AMD64_RDX) && (args > 2))
-					 || ((hreg->id == AMD64_RCX) && (args > 3))
-					 || ((hreg->id == AMD64_R8) && (args > 4))
-					 || ((hreg->id == AMD64_R9) && (args > 5)))
-				
-				{
-					amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP,  __GET_REG_POS(jit->args[i].value), REG_SIZE);
+				if (__is_spilled(jit->args[i].value, prepare, &sreg)) {
+					amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit->args[i].value), REG_SIZE);
 				} else {
-					amd64_mov_reg_reg(jit->ip, reg, hreg->id, REG_SIZE);
+					amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
 				}
 			} else amd64_mov_reg_imm_size(jit->ip, reg, jit->args[i].value, 8);
 
 		} else {
 			int x = pos - 6;
 			if (jit->args[x].isreg) {
-				int r = -1;
-				for (int h = 0; h < jit->reg_count; h++)
-					printf("LL:%i:%li\n", h, prepare->regmap[h]);
-				struct __hw_reg * hreg = prepare->regmap[jit->args[x].value];
-				if (hreg) r = hreg->id;
-				printf("XXX:%i\n", r);
-				// FIXME
-				if (!hreg || ((r == AMD64_RDI) || (r == AMD64_RSI)
-				|| (r == AMD64_RDX) || (r == AMD64_RCX)
-				|| (r == AMD64_R8) || (r == AMD64_R9))) {
+				if (__is_spilled(jit->args[i].value, prepare, &sreg)) {
 					amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(jit->args[x].value));
 				} else {
-					amd64_push_reg(jit->ip, hreg->id);
+					amd64_push_reg(jit->ip, sreg);
 				}
 
-				//amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(jit->args[i].value));
-//				amd64_push_reg(jit->ip, jit->args[x].value);
 			} else amd64_push_imm(jit->ip, jit->args[x].value);
 		}
 	}
+	/* al is used to pass number of floating point arguments */
 	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
 	if (!imm) {
 		amd64_call_reg(jit->ip, op->r_arg[0]);
@@ -840,7 +824,6 @@ void jit_optimize(struct jit * jit)
 			op->prev->code = JIT_NOP;
 			op->prev->spec = SPEC(NO, NO, NO);
 		}
-
 	}
 }
 
