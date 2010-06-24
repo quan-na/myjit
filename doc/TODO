@@ -10,8 +10,8 @@ ROADMAP
 	* pusharg support for amd64 calling convention 
 
 + generic (release 0.3.0)
+	* main buffer issue 
 	+ support for unlimited number of registers
-	+ main buffer issue 
 	+ documentation update 
 	+ x86/amd64 code merge 
 	+ finish->call

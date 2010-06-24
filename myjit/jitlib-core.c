@@ -29,9 +29,8 @@
 #include "jitlib-debug.c"
 #include "flow-analysis.h"
 
-// FIXME: higher values
-#define BUF_SIZE		(20)
-#define MINIMAL_BUF_SPACE	(15)
+#define BUF_SIZE		(4096)
+#define MINIMAL_BUF_SPACE	(1024)
 
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
@@ -89,8 +88,6 @@ static inline void __buf_expand(struct jit * jit)
 	jit->buf = JIT_REALLOC(jit->buf, jit->buf_capacity);
 	jit->ip = jit->buf + pos;
 }
-// FIXME: REMOVEME
-#include "x86-codegen.h"
 
 void jit_generate_code(struct jit * jit)
 {
