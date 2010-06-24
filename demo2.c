@@ -53,6 +53,7 @@ int main()
 
 	// compiles the above defined code
 	jit_generate_code(p);
+	jit_dump(p);
 
 	// check
 	printf("Check #1: 1! = %li\n", factorial(1));

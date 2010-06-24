@@ -36,6 +36,10 @@
 #define JIT_MALLOC(x)	(malloc(x))
 #endif
 
+#ifndef JIT_REALLOC
+#define JIT_REALLOC(x, size)	(realloc((x), (size)))
+#endif
+
 #ifndef JIT_FREE
 #define JIT_FREE(x)	(free(x))
 #endif
@@ -76,7 +80,7 @@ typedef struct jit_op {
 	unsigned char assigned;
 	long arg[3];
 	long r_arg[3];
-	unsigned char * patch_addr;
+	long patch_addr;
 	struct jit_op * jmp_addr;
 	struct jit_op * next;
 	struct jit_op * prev;
@@ -86,7 +90,7 @@ typedef struct jit_op {
 } jit_op;
 
 typedef struct jit_label {
-	unsigned char * pos;
+	long pos;
 	jit_op * op;
 	struct jit_label * next;
 } jit_label;
@@ -95,10 +99,15 @@ typedef struct jit_label {
 struct jit_reg_allocator;
 struct jit {
 	// FIXME: comments
+
+	/* buffer used to store generated code */
 	unsigned char * buf;
+	unsigned int buf_capacity;
+
+	/* pointer to the buffer */
 	unsigned char * ip;
+
 	unsigned int reg_count;
-	size_t buffer_size;
 	int argpos;
 	unsigned int prepare_args;
 	struct jit_op * ops;
@@ -132,6 +141,7 @@ void jit_dump(struct jit * jit);
 void jit_print_ops(struct jit * jit);
 void __print_op(struct jit * jit, struct jit_op * op);
 void jit_get_reg_name(char * r, int reg, jit_op * op);
+void jit_patch_external_calls(struct jit * jit);
 #ifdef JIT_ARCH_AMD64
 void jit_correct_long_imms(struct jit * jit);
 #endif
@@ -405,7 +415,7 @@ static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, 
 	r->arg_size = arg_size;
 	r->next = NULL;
 	r->prev = NULL;
-	r->patch_addr = NULL;
+	r->patch_addr = 0;
 	r->jmp_addr = NULL;
 	r->regmap = NULL;
 	r->live_in = NULL;

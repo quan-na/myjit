@@ -29,6 +29,10 @@
 #include "jitlib-debug.c"
 #include "flow-analysis.h"
 
+// FIXME: higher values
+#define BUF_SIZE		(20)
+#define MINIMAL_BUF_SPACE	(15)
+
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
 	struct jit_op * r = __new_op(code, spec, arg1, arg2, arg3, arg_size);
@@ -49,15 +53,8 @@ struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 	if (reg_count % 2) reg_count ++; // stack has to be aligned to 16 bytes
 #endif
 
-
-	posix_memalign(&mem, sysconf(_SC_PAGE_SIZE), buffer_size * 5);
-	int x = mprotect(mem, buffer_size, PROT_READ | PROT_EXEC | PROT_WRITE);
-
 	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;
-	r->buf = mem;
-	r->ip = mem;
-	r->buffer_size = buffer_size;
 	r->allocai_mem = reg_count * REG_SIZE;
 	r->labels = NULL;
 
@@ -84,6 +81,17 @@ static inline void __expand_patches_and_labels(struct jit * jit)
 	}
 }
 
+static inline void __buf_expand(struct jit * jit)
+{
+	//printf("expanding buffer\n");
+	long pos = jit->ip - jit->buf;
+	jit->buf_capacity *= 2;
+	jit->buf = JIT_REALLOC(jit->buf, jit->buf_capacity);
+	jit->ip = jit->buf + pos;
+}
+// FIXME: REMOVEME
+#include "x86-codegen.h"
+
 void jit_generate_code(struct jit * jit)
 {
 	__expand_patches_and_labels(jit);
@@ -94,8 +102,34 @@ void jit_generate_code(struct jit * jit)
 	jit_optimize(jit);
 	jit_assign_regs(jit);
 
-	for (struct jit_op * op = jit->ops; op != NULL; op = op->next)
+	jit->buf_capacity = BUF_SIZE;
+	jit->buf = JIT_MALLOC(jit->buf_capacity);
+	jit->ip = jit->buf;
+
+	for (struct jit_op * op = jit->ops; op != NULL; op = op->next) {
+		if (jit->buf_capacity - (jit->ip - jit->buf) < MINIMAL_BUF_SPACE) __buf_expand(jit);
 		jit_gen_op(jit, op);
+	}
+
+	/* moves the code to its final destination */
+	int code_size = jit->ip - jit->buf;  
+	void * mem;
+	posix_memalign(&mem, sysconf(_SC_PAGE_SIZE), code_size);
+	mprotect(mem, code_size, PROT_READ | PROT_EXEC | PROT_WRITE);
+	memcpy(mem, jit->buf, code_size);
+	JIT_FREE(jit->buf);
+
+	long pos = jit->ip - jit->buf;
+	jit->buf = mem;
+	jit->ip = jit->buf + pos;
+
+	jit_patch_external_calls(jit);
+
+	/* assigns functions */
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (GET_OP(op) == JIT_PROLOG)
+			*(void **)(op->arg[0]) = jit->buf + (long)op->patch_addr;
+	}
 }
 
 static void __free_ops(struct jit_op * op)

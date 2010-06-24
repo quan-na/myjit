@@ -36,8 +36,10 @@ struct jit_reg_allocator {
 #define JIT_X86_STI	(0x0100 << 3)
 #define JIT_X86_STXI	(0x0101 << 3)
 
-#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (unsigned char *)imm : (unsigned char *)((jit_label *)imm)->pos)
+#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
+		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 #define __GET_REG_POS(r) ((- r * REG_SIZE) - REG_SIZE)
+#define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 void jit_dump_registers(struct jit * jit, long * hwregs);
 
@@ -196,10 +198,10 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int x86_con
 	if (imm) x86_cmp_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else x86_cmp_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = jit->ip;
+	op->patch_addr = __PATCH_ADDR(jit);
 
 	//x86_branch(jit->ip, x86_cond, (unsigned char *)op->r_arg[0], sign);
-	x86_branch(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
 static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm)
@@ -207,10 +209,10 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x8
 	if (imm) x86_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else x86_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = jit->ip;
+	op->patch_addr = __PATCH_ADDR(jit);
 
 	//x86_branch(jit->ip, x86_cond, (unsigned char *)op->r_arg[0], 0);
-	x86_branch(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
@@ -218,10 +220,10 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	if (imm) x86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 	else x86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = jit->ip;
+	op->patch_addr = __PATCH_ADDR(jit); 
 
 	//x86_branch(jit->ip, X86_CC_O, (unsigned char *)op->r_arg[0], 0);
-	x86_branch(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	x86_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 
@@ -230,8 +232,9 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int 
 	if (!imm) {
 		x86_call_reg(jit->ip, op->r_arg[0]);
 	} else {
-		op->patch_addr = jit->ip;
-		x86_call_code(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]));
+		op->patch_addr = __PATCH_ADDR(jit); 
+		//x86_call_code(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]));
+		x86_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
 	}
 	if (cleanup) {
 		if (jit->prepare_args) 
@@ -428,6 +431,14 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	}
 }
 
+void jit_patch_external_calls(struct jit * jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if ((op->code == (JIT_FINISH | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
+			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
+		}
+	}
+}
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
@@ -492,11 +503,17 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op), 0); break;
 		case JIT_FINISH: __funcall(jit, op, IS_IMM(op), 1); break;
 
-		case JIT_PATCH: x86_patch(((struct jit_op *)a1)->patch_addr, jit->ip); break;
+		//case JIT_PATCH: x86_patch(((struct jit_op *)a1)->patch_addr, jit->ip); break;
+		case JIT_PATCH: do {
+					long pa = ((struct jit_op *)a1)->patch_addr;
+					x86_patch(jit->buf + pa, jit->ip);
+				} while (0);
+				break;
 		case JIT_JMP:
-			op->patch_addr = jit->ip;
+			op->patch_addr = __PATCH_ADDR(jit); 
 			if (op->code & REG) x86_jump_reg(jit->ip, a1);
-			else x86_jump_code(jit->ip, __JIT_GET_ADDR(jit, a1));
+			//else x86_jump_code(jit->ip, __JIT_GET_ADDR(jit, a1));
+			else x86_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
 		case JIT_RET:
 			if (!IS_IMM(op) && (a1 != X86_EAX)) x86_mov_reg_reg(jit->ip, X86_EAX, a1, 4);
@@ -535,7 +552,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PUSHARG | IMM: x86_push_imm(jit->ip, a1); break;
 
 		case JIT_PROLOG:
-			*(void **)(a1) = jit->ip;
+			//*(void **)(a1) = jit->ip;
+			//op->patch_addr = jit->ip - (long)jit->buf;
+			op->patch_addr = __PATCH_ADDR(jit);
 			x86_push_reg(jit->ip, X86_EBP);
 			x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
 			if (jit->allocai_mem) x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, jit->allocai_mem);
@@ -546,7 +565,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (a1 != X86_EAX) x86_mov_reg_reg(jit->ip, a1, X86_EAX, REG_SIZE);
 			break;
 
-		case JIT_LABEL: ((jit_label *)a1)->pos = jit->ip; break;
+		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break;
 
 		case (JIT_LD | IMM | SIGNED): 
 			if (op->arg_size == REG_SIZE) x86_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
