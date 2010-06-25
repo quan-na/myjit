@@ -96,7 +96,10 @@ void jit_generate_code(struct jit * jit)
 	jit_correct_long_imms(jit);
 #endif
 	jit_flw_analysis(jit);
-	jit_optimize(jit);
+
+#if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
+	jit_optimize_st_ops(jit);
+#endif
 	jit_assign_regs(jit);
 
 	jit->buf_capacity = BUF_SIZE;
