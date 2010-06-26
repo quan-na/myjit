@@ -18,13 +18,7 @@
 #ifndef AMD64_H
 #define AMD64_H
 
-//#include <glib.h>
-
-// XXX: REMOVEME
-typedef size_t gsize;
-typedef unsigned long guint64;
-typedef long gint64;
-//
+#include <assert.h>
 
 typedef enum {
 	AMD64_RAX = 0,
@@ -119,7 +113,7 @@ typedef enum
 	} while (0)
 
 typedef union {
-	gsize val;
+	size_t val;
 	unsigned char b [8];
 } amd64_imm_buf;
 
@@ -167,12 +161,12 @@ typedef union {
 #define amd64_sib_index(sib) (((sib) >> 3) & 0x7)
 #define amd64_sib_base(sib) ((sib) & 0x7)
 
-#define amd64_is_imm32(val) ((gint64)val >= -((gint64)1<<31) && (gint64)val <= (((gint64)1<<31)-1))
+#define amd64_is_imm32(val) ((long)val >= -((long)1<<31) && (long)val <= (((long)1<<31)-1))
 
 #define x86_imm_emit64(inst,imm)     \
 	do {	\
 			amd64_imm_buf imb; 	\
-			imb.val = (gsize) (imm);	\
+			imb.val = (size_t) (imm);	\
 			*(inst)++ = imb.b [0];	\
 			*(inst)++ = imb.b [1];	\
 			*(inst)++ = imb.b [2];	\
@@ -431,14 +425,14 @@ typedef union {
 		amd64_emit_rex(inst, (size), 0, 0, (reg)); \
 		*(inst)++ = (unsigned char)0xb8 + ((reg) & 0x7);	\
 		if ((size) == 8) \
-			x86_imm_emit64 ((inst), (gsize)(imm));	\
+			x86_imm_emit64 ((inst), (size_t)(imm));	\
 		else \
-			x86_imm_emit32 ((inst), (int)(gsize)(imm));	\
+			x86_imm_emit32 ((inst), (int)(size_t)(imm));	\
 	} while (0)
 
 #define amd64_mov_reg_imm(inst,reg,imm)	\
 	do {	\
-		int _amd64_width_temp = ((gsize)(imm) == (gsize)(int)(gsize)(imm)); \
+		int _amd64_width_temp = ((size_t)(imm) == (size_t)(int)(size_t)(imm)); \
         amd64_mov_reg_imm_size ((inst), (reg), (imm), (_amd64_width_temp ? 4 : 8)); \
 	} while (0)
 
@@ -611,11 +605,11 @@ typedef union {
 #define amd64_jump_membase_size(inst,basereg,disp,size) do { amd64_emit_rex ((inst),0,0,0,(basereg)); *(inst)++ = (unsigned char)0xff; amd64_membase_emit ((inst), 4, (basereg), (disp)); } while (0)
     
 #define amd64_jump_code_size(inst,target,size) do { \
-	if (amd64_is_imm32 ((gint64)(target) - (gint64)(inst))) {		\
+	if (amd64_is_imm32 ((long)(target) - (long)(inst))) {		\
 		x86_jump_code((inst),(target));									\
 	} else {															\
 	    amd64_jump_membase ((inst), AMD64_RIP, 0);							\
-		*(guint64*)(inst) = (guint64)(target);							\
+		*(unsigned long*)(inst) = (unsigned long)(target);							\
 		(inst) += 8; \
 	} \
 } while (0)

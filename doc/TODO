@@ -11,11 +11,11 @@ ROADMAP
 
 + generic (release 0.3.0)
 	* main buffer issue 
+	* finish->call
+	* amd64 glib dependency
 	+ support for unlimited number of registers
 	+ documentation update 
 	+ x86/amd64 code merge 
-	+ finish->call
-	+ amd64 glib dependency
 
 + SPARC (release 0.3.x)
 	+ TODO
