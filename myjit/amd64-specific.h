@@ -246,7 +246,7 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 	return 0;
 }
 
-static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int cleanup)
+static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
 	int pos, i, sreg;
 
@@ -294,13 +294,13 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm, int 
 		op->patch_addr = __PATCH_ADDR(jit);
 		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
 	}
-	if (cleanup) {
-		if (jit->prepare_args > 6) {
-			amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, (jit->prepare_args - 6) * PTR_SIZE);
-			JIT_FREE(jit->args);
-		}
-		jit->prepare_args = 0;
+
+	if (jit->prepare_args > 6) {
+		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, (jit->prepare_args - 6) * PTR_SIZE);
+		JIT_FREE(jit->args);
 	}
+	jit->prepare_args = 0;
+
 	/* pops caller saved registers */
 	for (int i = jit->reg_count - 1; i >= 2; i--) {
 		if (!jitset_get(op->live_in, i)) continue;
@@ -502,7 +502,7 @@ static inline void __pop_callee_saved_regs(struct jit * jit)
 static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	while (op) {
-		if ((GET_OP(op) == JIT_CALL) || (GET_OP(op) == JIT_FINISH)) break;
+		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
 	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
@@ -546,7 +546,7 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 void jit_patch_external_calls(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if ((op->code == (JIT_FINISH | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
+		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
 			amd64_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
 		}
 	}
@@ -612,17 +612,13 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_DIV: __div(jit, op, IS_IMM(op), IS_SIGNED(op), 0); break;
 		case JIT_MOD: __div(jit, op, IS_IMM(op), IS_SIGNED(op), 1); break;
 
-		case JIT_CALL: __funcall(jit, op, IS_IMM(op), 0); break;
-		case JIT_FINISH: __funcall(jit, op, IS_IMM(op), 1); break;
-
-		//case JIT_PATCH: amd64_patch(((struct jit_op *)a1)->patch_addr, jit->ip); break;
+		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
 		case JIT_PATCH: do {
 					long pa = ((struct jit_op *)a1)->patch_addr;
 					amd64_patch(jit->buf + pa, jit->ip);
 				} while (0);
 				break;
 		case JIT_JMP:
-			//op->patch_addr = jit->ip;
 			op->patch_addr = __PATCH_ADDR(jit);
 			if (op->code & REG) amd64_jump_reg(jit->ip, a1);
 			else amd64_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));

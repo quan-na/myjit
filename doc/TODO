@@ -15,6 +15,7 @@ ROADMAP
 	+ documentation update 
 	+ x86/amd64 code merge 
 	+ finish->call
+	+ amd64 glib dependency
 
 + SPARC (release 0.3.x)
 	+ TODO

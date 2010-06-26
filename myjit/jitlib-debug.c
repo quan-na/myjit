@@ -68,7 +68,6 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_JMP:		return "jmp";
 		case JIT_PATCH:		return "patch";
 		case JIT_PREPARE:	return "prepare";
-		case JIT_FINISH:	return "finish";
 		case JIT_PUSHARG:	return "pusharg";
 		case JIT_CALL:		return "call";
 		case JIT_RET:		return "ret";

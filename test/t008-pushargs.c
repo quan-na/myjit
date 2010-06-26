@@ -45,7 +45,7 @@ int main()
 	jit_pushargr(p, R(2));
 	jit_pushargr(p, R(1));
 	jit_pushargr(p, R(0));
-	jit_finish(p, foobar);
+	jit_call(p, foobar);
 
 	jit_retr(p, R(0));
 

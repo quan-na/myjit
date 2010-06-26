@@ -161,7 +161,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		return;
 	}
 
-	if ((GET_OP(op) == JIT_FINISH) || (GET_OP(op) == JIT_CALL)) {
+	if (GET_OP(op) == JIT_CALL) {
 		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
 			if (op->regmap[i]) {
 				struct __hw_reg  * hreg = op->regmap[i];

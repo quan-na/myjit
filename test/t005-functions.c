@@ -130,7 +130,7 @@ void test4()
 
 	jit_prepare(p, 1);
 	jit_pushargr(p, R(0));
-	jit_finish(p, fib);
+	jit_call(p, fib);
 
 	jit_retval(p, R(1));
 
@@ -138,7 +138,7 @@ void test4()
 	jit_subi(p, R(0), R(0), 2);
 	jit_prepare(p, 1);
 	jit_pushargr(p, R(0));
-	jit_finish(p, fib);
+	jit_call(p, fib);
 
 	jit_retval(p, R(2));
 
@@ -247,7 +247,7 @@ void test6()
 	jit_prepare(p, 2);
 	jit_pushargr(p, R(1));
 	jit_pushargr(p, R(0));
-	jit_finishr(p, R(2));
+	jit_callr(p, R(2));
 
 	jit_retval(p, R(3));
 
@@ -306,7 +306,7 @@ void test7()
 	jit_prepare(p, 2);
 	jit_pushargr(p, R(1));
 	jit_pushargi(p, formatstr);
-	jit_finish(p, printf);
+	jit_call(p, printf);
 
 	jit_addi(p, R(0), R(0), REG_SIZE);
 	jit_subi(p, R(2), R(2), 1);
@@ -381,7 +381,7 @@ void test8()
 	jit_pushargr(p, R(1));
 	jit_pushargi(p, formatstr);
 
-	jit_finish(p, printf);
+	jit_call(p, printf);
 
 	jit_reti(p, 0);
 

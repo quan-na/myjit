@@ -171,7 +171,7 @@ char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 #define JIT_PATCH 	(0x11 << 3)
 #define JIT_PREPARE 	(0x12 << 3)
 //#define JIT_PREPARE_EXT	(0x13 << 3)
-#define JIT_FINISH 	(0x14 << 3)
+//#define JIT_FINISH 	(0x14 << 3)
 #define JIT_PUSHARG 	(0x15 << 3)
 #define JIT_CALL 	(0x16 << 3)
 #define JIT_RET		(0x17 << 3)
@@ -236,12 +236,8 @@ char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 #define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_pushargr(jit, a) jit_add_op(jit, JIT_PUSHARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 #define jit_pushargi(jit, a) jit_add_op(jit, JIT_PUSHARG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
-#define jit_finish(jit, a) jit_add_op(jit, JIT_FINISH | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
-#define jit_finishr(jit, a) jit_add_op(jit, JIT_FINISH | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_calli(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
+#define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-
-#define jit_finishx(jit, a, b) jit_add_op(jit, JIT_FINISH | IMM, SPEC(TREG, IMM, NO), a, (long)b, 0, 0)
 
 #define jit_prolog(jit, a) jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0)

@@ -42,7 +42,7 @@ int main()
 	jit_pushargr(p, R(0));
 
 	// calls the functions
-	jit_finish(p, fibfn);
+	jit_call(p, fibfn);
 
 	// stores the result into R(1)
 	jit_retval(p, R(1));
@@ -51,7 +51,7 @@ int main()
 	jit_subi(p, R(0), R(0), 1);
 	jit_prepare(p, 1);
 	jit_pushargr(p, R(0));
-	jit_finish(p, fibfn);
+	jit_call(p, fibfn);
 
 	// stores the result into R(2)
 	jit_retval(p, R(2));
