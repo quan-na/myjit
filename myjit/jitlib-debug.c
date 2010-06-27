@@ -138,12 +138,14 @@ void jit_get_reg_name(char * r, int reg, jit_op * op)
 	else sprintf(r, "R%i/%s", reg - 2, ((struct __hw_reg_xxx *)op->regmap[reg])->name);
 }
 
-static inline int jitset_get(jitset * s, unsigned int bit);
+//static inline int jitset_get(jitset * s, unsigned int bit);
 static inline void print_reg_liveness(struct jitset * s)
-{
+{/*
 	if (!s) return;
 	for (int i = 0; i < s->size; i++)
 		printf("%i", (jitset_get(s, i) > 0));
+		*/
+	printf("FIXME: broken\n");
 }
 
 static inline void print_arg(struct jit_op * op, int arg)

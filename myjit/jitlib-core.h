@@ -32,22 +32,6 @@
 
 #define JIT_FORWARD	(NULL)
 
-#ifndef JIT_MALLOC
-#define JIT_MALLOC(x)	(malloc(x))
-#endif
-
-#ifndef JIT_REALLOC
-#define JIT_REALLOC(x, size)	(realloc((x), (size)))
-#endif
-
-#ifndef JIT_FREE
-#define JIT_FREE(x)	(free(x))
-#endif
-
-#define INT_SIZE (sizeof(int))
-#define PTR_SIZE (sizeof(void *))
-#define REG_SIZE (sizeof(void *))
-
 #define GET_OP(op) (op->code & 0xfff8)
 #define GET_OP_SUFFIX(op) (op->code & 0x0007)
 #define IS_IMM(op) (op->code & IMM)
@@ -67,11 +51,7 @@
 #define SIGNED 0x00 
 #define SIGN_MASK (0x04)
 
-typedef struct jitset {
-	unsigned int size; // universe size
-	int data;
-} jitset;
-
+struct jitset;
 
 typedef struct jit_op {
 	unsigned short code;

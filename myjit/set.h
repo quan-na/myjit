@@ -17,66 +17,65 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/*
-typedef struct jitset {
-	unsigned int size; // universe size
-	int data;
-} jitset;
-
-*/
-#include "jitlib-core.h"
+#ifndef SET_H
+#define SET_H
 
 #include <assert.h>
 
+#include "jitlib-core.h"
+#include "llrb.c"
+
+typedef struct jitset {
+	rb_node * root;
+} jitset;
+
+// FIXME: remove size
 static inline jitset * jitset_new(unsigned int size)
 {
 	assert(size < 1000);
 	jitset * s = JIT_MALLOC(sizeof(jitset));
-	s->size = size;
-	s->data = 0;
+	s->root = NULL;
 	return s;
 }
 
 static inline jitset * jitset_clone(jitset * s)
 {
-	jitset * clone = jitset_new(s->size);
-//	clone->size = s->size;
-	clone->data = s->data;
+	jitset * clone = jitset_new(666); // FIXME
+	clone->root = rb_clone(s->root);
 	return clone;
 }
 
 static inline void jitset_free(jitset * s)
 {
-	JIT_FREE(s);
+	// FIXME:
+	//JIT_FREE(s);
+//	jit_dict_free(s);
 }
 
 static inline void jitset_or(jitset * target, jitset * s)
 {
-	target->data |= s->data;
-}
-
-static inline void jitset_and(jitset * target, jitset * s)
-{
-	target->data &= s->data;
-}
-
-static inline void jitset_diff(jitset * target, jitset * s)
-{
-	target->data = target->data & ~s->data;
+	target->root = rb_addall(target->root, s->root);
 }
 
 static inline int jitset_get(jitset * s, unsigned int bit)
 {
-	return s->data & (1 << bit);
+	return (rb_search(s->root, bit) != NULL);
 }
 
 static inline void jitset_set(jitset * s, unsigned int bit, int value)
 {
-	if (value) s->data |= (1 << bit);
-	else s->data &= ~(1 << bit);
+	if (value) s->root = rb_insert(s->root, bit, (void *)1, NULL);
+	else s->root = rb_delete(s->root, bit, NULL);
+}
+
+static inline int __equal(rb_node * root, rb_node * n)
+{
+	if (n == NULL) return 1;
+	return rb_search(root, n->key) && __equal(root, n->left) && __equal(root, n->right);
 }
 
 static inline int jitset_equal(jitset * s1, jitset * s2) 
 {
-	return (s1->data == s2->data);
+	return __equal(s1->root, s2->root);
 }
+#endif

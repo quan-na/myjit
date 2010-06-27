@@ -69,7 +69,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 	jitset_free(op->live_out);
 
 	if (GET_OP(op) == JIT_RET) {
-		op->live_out = jitset_new(out1->size);
+		op->live_out = jitset_new(666); // FIXME
 		goto skip;
 	}
 
@@ -79,7 +79,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 	}
 
 	if (op->next) op->live_out = jitset_clone(op->next->live_in);
-	else op->live_out = jitset_new(out1->size);
+	else op->live_out = jitset_new(666); // FIXME
 
 	if (op->jmp_addr) jitset_or(op->live_out, op->jmp_addr->live_in);
 skip:

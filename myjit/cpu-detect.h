@@ -66,3 +66,20 @@
 
 #define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
 #endif
+
+#ifndef JIT_MALLOC
+#define JIT_MALLOC(x)	(malloc(x))
+#endif
+
+#ifndef JIT_REALLOC
+#define JIT_REALLOC(x, size)	(realloc((x), (size)))
+#endif
+
+#ifndef JIT_FREE
+#define JIT_FREE(x)	(free(x))
+#endif
+
+#define INT_SIZE (sizeof(int))
+#define PTR_SIZE (sizeof(void *))
+#define REG_SIZE (sizeof(void *))
+
