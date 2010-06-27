@@ -44,7 +44,6 @@ struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char 
 
 struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
 {
-	void * mem;
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
 	reg_count += JIT_ALIAS_CNT; 	// lower registers remain reserved for JIT_FP, JIT_RETREG, etc.
 	reg_count += JIT_SPP_REGS_CNT;  // these registers server are used to store e.g. passed arguments
@@ -137,8 +136,8 @@ static void __free_ops(struct jit_op * op)
 	if (op == NULL) return;
 	__free_ops(op->next);
 
-	jitset_free(op->live_in);
-	jitset_free(op->live_out);
+	if (op->live_in) jitset_free(op->live_in);
+	if (op->live_out) jitset_free(op->live_out);
 	JIT_FREE(op->regmap);
 
 	JIT_FREE(op);

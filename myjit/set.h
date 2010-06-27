@@ -29,10 +29,8 @@ typedef struct jitset {
 	rb_node * root;
 } jitset;
 
-// FIXME: remove size
-static inline jitset * jitset_new(unsigned int size)
+static inline jitset * jitset_new()
 {
-	assert(size < 1000);
 	jitset * s = JIT_MALLOC(sizeof(jitset));
 	s->root = NULL;
 	return s;
@@ -40,16 +38,15 @@ static inline jitset * jitset_new(unsigned int size)
 
 static inline jitset * jitset_clone(jitset * s)
 {
-	jitset * clone = jitset_new(666); // FIXME
+	jitset * clone = jitset_new();
 	clone->root = rb_clone(s->root);
 	return clone;
 }
 
 static inline void jitset_free(jitset * s)
 {
-	// FIXME:
-	//JIT_FREE(s);
-//	jit_dict_free(s);
+	rb_free(s->root);
+	JIT_FREE(s);
 }
 
 static inline void jitset_or(jitset * target, jitset * s)

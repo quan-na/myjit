@@ -22,8 +22,8 @@ static inline void jit_flw_initialize(struct jit * jit)
 {
 	jit_op * op = jit_op_first(jit->ops);
 	while (op) {
-		op->live_in = jitset_new(jit->reg_count);
-		op->live_out = jitset_new(jit->reg_count);
+		op->live_in = jitset_new();
+		op->live_out = jitset_new();
 		op = op->next;
 	}
 }
@@ -69,7 +69,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 	jitset_free(op->live_out);
 
 	if (GET_OP(op) == JIT_RET) {
-		op->live_out = jitset_new(666); // FIXME
+		op->live_out = jitset_new(); 
 		goto skip;
 	}
 
@@ -79,7 +79,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 	}
 
 	if (op->next) op->live_out = jitset_clone(op->next->live_in);
-	else op->live_out = jitset_new(666); // FIXME
+	else op->live_out = jitset_new();
 
 	if (op->jmp_addr) jitset_or(op->live_out, op->jmp_addr->live_in);
 skip:

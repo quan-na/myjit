@@ -201,7 +201,7 @@ static inline rb_node * rb_clone(rb_node * root)
 }
 
 /////////////////
-static inline void rb_print(rb_node * h, int level)
+static inline void rb_print_tree(rb_node * h, int level)
 {
 	int i;
 	if (h == NULL) return;
@@ -209,44 +209,17 @@ static inline void rb_print(rb_node * h, int level)
 		printf(" ");
 
 	printf("%i:%li\n", h->key, (long)h->value);
-	rb_print(h->left, level + 1);
-	rb_print(h->right, level + 1);
+	rb_print_tree(h->left, level + 1);
+	rb_print_tree(h->right, level + 1);
 }
 
-// FIXME: rb_free
-
-/*
-int main()
+static inline void rb_free(rb_node * h)
 {
-	rb_node * root = NULL;
-	int i;
-	root = rb_insert(root, 1, "foo", &i);
-	root = rb_insert(root, 1, "foo", &i);
-//	root = rb_delete(root, 1, &i);
-	printf("XXX:%i\n", i);
-	root = rb_delete(root, 1, &i);
-	printf("XXX:%i\n", i);
-	root = rb_insert(root, 5, "bar");
-	root = rb_insert(root, 10, "baz");
-	root = rb_insert(root, 3, "qux");
-	root = rb_insert(root, 7, "quux");
-	root = rb_insert(root, 8, "corge");
-	root = rb_insert(root, 2, "grault");
-	root = rb_delete(root, 1);
-	root = rb_delete(root, 2);
-	root = rb_delete(root, 5);
-
-	root = rb_insert(root, 5, "baz");
-	root = rb_insert(root, 1, "foo");
-	root = rb_insert(root, 2, "bar");
-	root = rb_insert(root, 7, "qux");
-	root = rb_insert(root, 11, "quux");
-
-	rb_print(root, 0);
-
-//	printf("::%s\n", rb_search(root, 3)->value);
-
-	return 0;
+	if (h == NULL) return;
+	rb_free(h->left);
+	rb_free(h->right);
+	JIT_FREE(h);
 }
-*/
+
+
 #endif
