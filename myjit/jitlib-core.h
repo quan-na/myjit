@@ -57,13 +57,18 @@ struct __hw_reg {
 	int id;
 	unsigned long used;
 	char * name;
+	char callee_saved;
 };
 
 struct jit_reg_allocator {
 	int hw_reg_cnt;
-	struct __hw_reg * hw_reg;
-	struct __hw_reg ** hwreg_pool;
 	int hwreg_pool_pos;
+	int fp_reg; 			// register used to access local variables
+	int ret_reg; 			// register used to return value
+	struct __hw_reg * hw_regs;	// array of available hardware registers
+	struct __hw_reg ** hwreg_pool;	// pool of available registers
+	int arg_registers_cnt;		// number of registers used to pass arguments
+	int * arg_registers;		// array of registers used to pass arguments (in the given order) 
 };
 
 
@@ -119,13 +124,6 @@ struct jit {
 		long value;
 	} * args;
 #endif
-};
-
-struct __hw_reg;
-struct __virtual_reg {
-	int id;
-	char * name;
-	struct __hw_reg * hw_reg;
 };
 
 struct jit * jit_init(size_t buffer_size, unsigned int reg_count);

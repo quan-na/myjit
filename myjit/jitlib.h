@@ -33,7 +33,6 @@
 #include "cpu-detect.h"
 
 #include "set.h"
-#include "jitlib-core.h"
 #include "rmap.h"
 
 #ifdef JIT_ARCH_I386
@@ -49,5 +48,7 @@
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
 #include "generic-x86-optimizations.h"
 #endif
+
+#include "jitlib-core.h"
 
 #endif

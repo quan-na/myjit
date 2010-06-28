@@ -667,3 +667,36 @@ void jit_dump_registers(struct jit * jit, long * hwregs)
 	}
 	*/
 }
+
+/* register allocator initilization */
+// FIXME: regcnt -- REMOVEME
+struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
+{
+	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
+	a->hw_reg_cnt = 6;
+	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
+	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
+
+	a->hw_regs[0] = (struct __hw_reg) { X86_EAX, 0, "eax", 0 };
+	a->hw_regs[1] = (struct __hw_reg) { X86_EBX, 0, "ebx", 1 };
+	a->hw_regs[2] = (struct __hw_reg) { X86_ECX, 0, "ecx", 0 };
+	a->hw_regs[3] = (struct __hw_reg) { X86_EDX, 0, "edx", 0 };
+	a->hw_regs[4] = (struct __hw_reg) { X86_ESI, 0, "esi", 1 };
+	a->hw_regs[5] = (struct __hw_reg) { X86_EDI, 0, "edi", 1 };
+	a->hw_regs[6] = (struct __hw_reg) { X86_EBP, 0, "ebp", 0 };
+
+	a->fp_reg = X86_EBP;
+	a->ret_reg = X86_EAX;
+
+	a->arg_registers_cnt = 0;
+	
+	a->hwreg_pool_pos = 5;
+	a->hwreg_pool[0] = &(a->hw_regs[5]);
+	a->hwreg_pool[1] = &(a->hw_regs[3]);
+	a->hwreg_pool[2] = &(a->hw_regs[4]);
+	a->hwreg_pool[3] = &(a->hw_regs[2]);
+	a->hwreg_pool[4] = &(a->hw_regs[1]);
+	a->hwreg_pool[5] = &(a->hw_regs[0]);
+	return a;
+}
+

@@ -52,9 +52,10 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocato
 {
 	struct __hw_reg * result = NULL;
 	for (int i = 0; i <= al->hwreg_pool_pos; i++) {
-		if ((al->hwreg_pool[i]->id == X86_EBX)
-		|| (al->hwreg_pool[i]->id == X86_ESI)
-		|| (al->hwreg_pool[i]->id == X86_EDI)) {
+		//if ((al->hwreg_pool[i]->id == X86_EBX)
+		//|| (al->hwreg_pool[i]->id == X86_ESI)
+		//|| (al->hwreg_pool[i]->id == X86_EDI)) {
+		if (al->hwreg_pool[i]->callee_saved) {
 			result = al->hwreg_pool[i];
 			if (i < al->hwreg_pool_pos) al->hwreg_pool[i] = al->hwreg_pool[al->hwreg_pool_pos];
 			al->hwreg_pool_pos--;
@@ -73,8 +74,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
 
 	if (GET_OP(op) == JIT_PREPARE) {
-		//struct __hw_reg  * hreg = rmap_get_retreg(jit, op->regmap, &r);
-		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, X86_EAX, &r);
+		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->ret_reg, &r);
 		if (hreg) {
 			// checks whether there is a free callee-saved register
 			// that can be used to store the eax register
@@ -83,7 +83,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				// should have its own name
 				jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), r, r, 0, 0);
 				o->r_arg[0] = freereg->id;
-				o->r_arg[1] = X86_EAX;
+				o->r_arg[1] = al->ret_reg;
 
 				jit_op_prepend(op, o);
 				rmap_assoc(op->regmap, r, freereg);
@@ -98,7 +98,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if (GET_OP(op) == JIT_CALL) {
-		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, X86_EAX, &r);
+		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->ret_reg, &r);
 		if (hreg) {
 			al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
 			rmap_unassoc(op->regmap, r);
@@ -118,11 +118,11 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	for (i = 0; i < 3; i++) {
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
 			if (op->arg[i] == JIT_RETREG) {
-				op->r_arg[i] = X86_EAX;
+				op->r_arg[i] = al->ret_reg;
 				continue;
 			}
 			if (op->arg[i] == JIT_FP) {
-				op->r_arg[i] = X86_EBP;
+				op->r_arg[i] = al->fp_reg;
 				continue;
 			}
 
@@ -212,41 +212,6 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	}
 }
 
-/*
- * API provided by allocator
- */
-struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
-{
-	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->hw_reg_cnt = 6;
-	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
-
-	a->hw_reg = malloc(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
-
-	a->hw_reg[0] = (struct __hw_reg) { X86_EAX, 0, "eax" };
-	a->hw_reg[1] = (struct __hw_reg) { X86_EBX, 0, "ebx" };
-	a->hw_reg[2] = (struct __hw_reg) { X86_ECX, 0, "ecx" };
-	a->hw_reg[3] = (struct __hw_reg) { X86_EDX, 0, "edx" };
-	a->hw_reg[4] = (struct __hw_reg) { X86_ESI, 0, "esi" };
-	a->hw_reg[5] = (struct __hw_reg) { X86_EDI, 0, "edi" };
-	a->hw_reg[6] = (struct __hw_reg) { X86_EBP, 0, "ebp" };
-
-	/*
-	a->hwreg_pool_pos = 2;
-	a->hwreg_pool[0] = &(a->hw_reg[2]);
-	a->hwreg_pool[1] = &(a->hw_reg[1]);
-	a->hwreg_pool[2] = &(a->hw_reg[0]);
-*/
-	a->hwreg_pool_pos = 5;
-	a->hwreg_pool[0] = &(a->hw_reg[5]);
-	a->hwreg_pool[1] = &(a->hw_reg[3]);
-	a->hwreg_pool[2] = &(a->hw_reg[4]);
-	a->hwreg_pool[3] = &(a->hw_reg[2]);
-	a->hwreg_pool[4] = &(a->hw_reg[1]);
-	a->hwreg_pool[5] = &(a->hw_reg[0]);
-	return a;
-}
-
 void jit_assign_regs(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
@@ -265,13 +230,13 @@ void jit_assign_regs(struct jit * jit)
 void jit_reg_allocator_free(struct jit_reg_allocator * a)
 {
 	JIT_FREE(a->hwreg_pool);
-	JIT_FREE(a->hw_reg);
+	JIT_FREE(a->hw_regs);
 	JIT_FREE(a);
 }
 
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg)
 {
 	for (int i = 0; i < al->hw_reg_cnt; i++)
-		if (al->hw_reg[i].id == reg) return al->hw_reg[i].name;
+		if (al->hw_regs[i].id == reg) return al->hw_regs[i].name;
 	return NULL;
 }
