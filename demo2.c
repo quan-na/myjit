@@ -10,9 +10,8 @@ typedef long (* plfl)(long);
 int main()
 {
 	// we create a new instance of a compiler
-	// the first argument is an expected size of the machine code generated 
-	// by the compiler; the second one indicates that the compiler has 4 registers
-	struct jit * p = jit_init(4096, 4);
+	// the first indicates number of used registers (4)
+	struct jit * p = jit_init(4);
 
 	plfl factorial;
 

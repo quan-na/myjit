@@ -42,11 +42,11 @@ struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char 
 	return r;
 }
 
-struct jit * jit_init(size_t buffer_size, unsigned int reg_count)
+struct jit * jit_init(unsigned int reg_count)
 {
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
 	reg_count += JIT_ALIAS_CNT; 	// lower registers remain reserved for JIT_FP, JIT_RETREG, etc.
-	reg_count += JIT_SPP_REGS_CNT;  // these registers server are used to store e.g. passed arguments
+	reg_count += JIT_SPP_REGS_CNT;  // these registers are used to store e.g. passed arguments
 #ifdef JIT_ARCH_AMD64
 	if (reg_count % 2) reg_count ++; // stack has to be aligned to 16 bytes
 #endif

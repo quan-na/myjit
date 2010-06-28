@@ -111,8 +111,8 @@ struct jit {
 	/* pointer to the buffer */
 	unsigned char * ip;
 
-	unsigned int reg_count;
 	int argpos;
+	int reg_count;
 	unsigned int prepare_args;
 	struct jit_op * ops;
 	struct jit_op * last_op;
@@ -129,7 +129,7 @@ struct jit {
 #endif
 };
 
-struct jit * jit_init(size_t buffer_size, unsigned int reg_count);
+struct jit * jit_init(unsigned int reg_count);
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size);
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);

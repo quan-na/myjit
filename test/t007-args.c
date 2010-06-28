@@ -7,7 +7,7 @@ typedef long (* plf10s)(short, short, short, short, short, short, short, short, 
 
 int main()
 {
-	struct jit * p = jit_init(4096, 20);
+	struct jit * p = jit_init(20);
 
 	plf10s foo;
 
