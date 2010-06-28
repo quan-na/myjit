@@ -136,6 +136,17 @@ static inline struct __hw_reg * rmap_spill_candidate(struct jit * jit, jit_op * 
 		}
 	}
 	return res;
-
 }
 
+static inline void rmap_make_older(struct jit * jit, rmap_t * regmap)
+{
+	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
+		struct __hw_reg * reg = regmap[i];
+		if (reg) reg->used++;
+	}
+}
+
+static inline void rmap_free(rmap_t * regmap)
+{
+	JIT_FREE(regmap);
+}

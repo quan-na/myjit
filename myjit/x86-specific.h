@@ -228,7 +228,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	jit->prepare_args = 0;
 
 	/* pops caller saved registers */
-	int regs[] = { X86_ECX, X86_EDX };
+	static int regs[] = { X86_ECX, X86_EDX };
 	for (int i = 1; i >= 0; i--) {
 		int reg;
 		struct __hw_reg * hreg;

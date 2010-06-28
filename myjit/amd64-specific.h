@@ -19,21 +19,6 @@
 
 #include "amd64-codegen.h"
 
-struct __hw_reg {
-	int id;
-	unsigned long used;
-	char * name;
-};
-
-struct jit_reg_allocator {
-	int hw_reg_cnt;
-	struct __hw_reg * hw_reg;
-	struct __hw_reg ** hwreg_pool;
-	int hwreg_pool_pos;
-};
-
-
-
 #define JIT_X86_STI	(0x0100 << 3)
 #define JIT_X86_STXI	(0x0101 << 3)
 
@@ -232,7 +217,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
 	int args = prepare_op->arg[0];
-	struct __hw_reg * hreg = prepare_op->regmap[arg_id];
+	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 	if ((!hreg)
 	|| ((hreg->id == AMD64_RDI) && (args > 0))
 	|| ((hreg->id == AMD64_RSI) && (args > 1))
@@ -302,19 +287,12 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	jit->prepare_args = 0;
 
 	/* pops caller saved registers */
-	for (int i = jit->reg_count - 1; i >= 2; i--) {
-		if (!jitset_get(op->live_in, i)) continue;
-		if (op->regmap[i]) {
-			if (op->regmap[i]->id == AMD64_RCX) amd64_pop_reg(jit->ip, AMD64_RCX);
-			if (op->regmap[i]->id == AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
-			if (op->regmap[i]->id == AMD64_RSI) amd64_pop_reg(jit->ip, AMD64_RSI);
-			if (op->regmap[i]->id == AMD64_RDI) amd64_pop_reg(jit->ip, AMD64_RDI);
-			if (op->regmap[i]->id == AMD64_R8) amd64_pop_reg(jit->ip, AMD64_R8);
-			if (op->regmap[i]->id == AMD64_R9) amd64_pop_reg(jit->ip, AMD64_R9);
-
-			if (op->regmap[i]->id == AMD64_R10) amd64_pop_reg(jit->ip, AMD64_R10);
-			if (op->regmap[i]->id == AMD64_R11) amd64_pop_reg(jit->ip, AMD64_R11);
-		}
+	static int regs[] = { AMD64_RCX, AMD64_RDX, AMD64_RSI, AMD64_RDI, AMD64_R8, AMD64_R9, AMD64_R10, AMD64_R11 };
+	for (int i = 7; i >= 0; i--) {
+		int reg;
+		struct __hw_reg * hreg;
+		hreg = rmap_is_associated(jit, op->regmap, regs[i], &reg);
+		if (hreg && jitset_get(op->live_in, reg)) amd64_pop_reg(jit->ip, regs[i]);
 	}
 }
 
@@ -505,18 +483,13 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		if (!jitset_get(op->live_in, i)) continue;
-		if (op->regmap[i]) {
-			if (op->regmap[i]->id == AMD64_RCX) amd64_push_reg(jit->ip, AMD64_RCX);
-			if (op->regmap[i]->id == AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
-			if (op->regmap[i]->id == AMD64_RSI) amd64_push_reg(jit->ip, AMD64_RSI);
-			if (op->regmap[i]->id == AMD64_RDI) amd64_push_reg(jit->ip, AMD64_RDI);
-			if (op->regmap[i]->id == AMD64_R8) amd64_push_reg(jit->ip, AMD64_R8);
-			if (op->regmap[i]->id == AMD64_R9) amd64_push_reg(jit->ip, AMD64_R9);
-			if (op->regmap[i]->id == AMD64_R10) amd64_push_reg(jit->ip, AMD64_R10);
-			if (op->regmap[i]->id == AMD64_R11) amd64_push_reg(jit->ip, AMD64_R11);
-		}
+
+	static int regs[] = { AMD64_RCX, AMD64_RDX, AMD64_RSI, AMD64_RDI, AMD64_R8, AMD64_R9, AMD64_R10, AMD64_R11 };
+	for (int i = 0; i < 8; i++) {
+		int reg;
+		struct __hw_reg * hreg;
+		hreg = rmap_is_associated(jit, op->regmap, regs[i], &reg);
+		if (hreg && jitset_get(op->live_in, reg)) amd64_push_reg(jit->ip, regs[i]);
 	}
 }
 
@@ -526,7 +499,7 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 	int reg_id = arg_id + JIT_FIRST_REG + 1; /* 1 -- is JIT_IMMREG */
 	int dreg = op->r_arg[0];
 
-	if (op->regmap[reg_id] == NULL) {
+	if (rmap_get(op->regmap, reg_id) == NULL) {
 		/* the register is not associated and the value has to be read from the memory */
 		int reg_offset = __GET_REG_POS(reg_id);
 		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, REG_SIZE);
@@ -829,4 +802,52 @@ void jit_correct_long_imms(struct jit * jit)
 			op->arg[imm_arg] = JIT_IMMREG;
 		}
 	}
+}
+
+// FIXME: regcnt -- REMOVEME
+struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
+{
+	static int __arg_regs[] = { AMD64_RDI, AMD64_RSI, AMD64_RDX, AMD64_RCX, AMD64_R8, AMD64_R9 };
+	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
+	a->hw_reg_cnt = 14;
+	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
+	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
+
+	a->hw_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0 };
+	a->hw_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1 };
+	a->hw_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0 };
+	a->hw_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0 };
+	a->hw_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0 };
+	a->hw_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 0 };
+	a->hw_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0 };
+	a->hw_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0 };
+	a->hw_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0 };
+	a->hw_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0 };
+	a->hw_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1 };
+	a->hw_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1 };
+	a->hw_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1 };
+	a->hw_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1 };
+
+	a->hw_regs[14] = (struct __hw_reg) { AMD64_RBP, 0, "rbp", 0 };
+
+	a->fp_reg = AMD64_RBP;
+	a->ret_reg = AMD64_RAX;
+
+	a->arg_registers_cnt = 6;
+	a->arg_registers = __arg_regs;
+
+	/*
+	// FIXME: more sophisticated order
+	a->hwreg_pool_pos = 7;
+	a->hwreg_pool[0] = &(a->hw_regs[13]);
+	a->hwreg_pool[1] = &(a->hw_regs[12]);
+	a->hwreg_pool[2] = &(a->hw_regs[11]);
+	a->hwreg_pool[3] = &(a->hw_regs[10]);
+	a->hwreg_pool[4] = &(a->hw_regs[9]);
+	a->hwreg_pool[5] = &(a->hw_regs[8]);
+	a->hwreg_pool[6] = &(a->hw_regs[1]);
+	a->hwreg_pool[7] = &(a->hw_regs[0]);
+	*/
+
+	return a;
 }

@@ -22,6 +22,43 @@
  * Register allocator -- auxiliary functions
  */
 
+static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_reg * hreg)
+{
+	al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
+}
+
+static inline struct __hw_reg * jit_reg_pool_get(struct jit_reg_allocator * al)
+{
+	if (al->hwreg_pool_pos < 0) return NULL;
+	else return al->hwreg_pool[al->hwreg_pool_pos--];
+}
+
+static inline void jit_reg_pool_initialize(struct jit_reg_allocator * al)
+{
+	al->hwreg_pool_pos = -1;
+	for (int i = 0; i < al->hw_reg_cnt; i++) {
+		struct __hw_reg * hreg = &(al->hw_regs[i]);
+
+		int is_argument = 0;
+		for (int j = 0; j < al->arg_registers_cnt; j++) {
+			if (hreg->id == al->arg_registers[j]) {
+				is_argument = 1;
+				break;
+			}
+		}
+		if (!is_argument) jit_reg_pool_put(al, hreg);
+	}
+}
+
+static inline struct __hw_reg * __get_reg(struct jit_reg_allocator * al, int reg_id)
+{
+	for (int i = 0; i < al->hw_reg_cnt; i++)
+		if (al->hw_regs[i].id == reg_id) return &(al->hw_regs[i]);
+	return NULL;
+}
+
+///////////////////////////////////////////////////////////////////
+
 static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg)
 {
 	jit_op * o = __new_op(JIT_UREG, SPEC(IMM, IMM, NO), virt_reg, hreg->id, 0, 0);
@@ -52,9 +89,6 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocato
 {
 	struct __hw_reg * result = NULL;
 	for (int i = 0; i <= al->hwreg_pool_pos; i++) {
-		//if ((al->hwreg_pool[i]->id == X86_EBX)
-		//|| (al->hwreg_pool[i]->id == X86_ESI)
-		//|| (al->hwreg_pool[i]->id == X86_EDI)) {
 		if (al->hwreg_pool[i]->callee_saved) {
 			result = al->hwreg_pool[i];
 			if (i < al->hwreg_pool_pos) al->hwreg_pool[i] = al->hwreg_pool[al->hwreg_pool_pos];
@@ -65,13 +99,27 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocato
 	return result;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 static inline void assign_regs(struct jit * jit, struct jit_op * op)
 {
 	int i, r;
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
-	if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
+	// PROLOG needs special care
+	if ((al->arg_registers_cnt > 0) && (GET_OP(op) == JIT_PROLOG)) {
+		
+		op->regmap = rmap_init(jit->reg_count);
+		jit_reg_pool_initialize(al);
+
+		for (int i = 0; i < al->arg_registers_cnt; i++)
+			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->arg_registers[i]));
+
+	} else {
+		// initializes register mappings for standard operations
+		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
+	}
 
 	if (GET_OP(op) == JIT_PREPARE) {
 		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->ret_reg, &r);
@@ -95,12 +143,30 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				jit_op_prepend(op, o);
 			}
 		}
+
+		// unloads registers which are used to pass the arguments
+		int args = op->arg[0];
+		int reg;
+		for (int q = 0; q < args; q++) {
+			struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->arg_registers[q], &reg);
+			if (hreg) {
+				unload_reg(op, hreg, reg);
+				jit_reg_pool_put(al, hreg);
+				rmap_unassoc(op->regmap, reg);
+			}
+		}
+	}
+
+	// if the calling convention is using registers to pass the arguments,
+	// PUSHARG have to take care of register allocation by itself
+	if ((al->arg_registers_cnt > 0) && (GET_OP(op) == JIT_PUSHARG)) {
+		return;
 	}
 
 	if (GET_OP(op) == JIT_CALL) {
 		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->ret_reg, &r);
 		if (hreg) {
-			al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
+			jit_reg_pool_put(al, hreg);
 			rmap_unassoc(op->regmap, r);
 		}
 	}
@@ -129,8 +195,8 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
 			if (reg) op->r_arg[i] = reg->id;
 			else {
-				if (al->hwreg_pool_pos < 0) reg = make_free_reg(jit, op); 
-				else reg = al->hwreg_pool[al->hwreg_pool_pos--];
+				reg = jit_reg_pool_get(al);
+				if (reg == NULL) reg = make_free_reg(jit, op);
 
 				rmap_assoc(op->regmap, op->arg[i], reg);
 
@@ -145,10 +211,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	// increasing age of each register
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		struct __hw_reg * reg = op->regmap[i];
-		if (reg) reg->used++;
-	}
+	rmap_make_older(jit, op->regmap);
 }
 
 static inline void jump_adjustment(struct jit * jit, jit_op * op)
@@ -240,3 +303,4 @@ char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg)
 		if (al->hw_regs[i].id == reg) return al->hw_regs[i].name;
 	return NULL;
 }
+
