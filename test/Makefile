@@ -27,7 +27,7 @@ t008: t008-pushargs.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t008 t008-pushargs.c jitlib-core.o 
 
 
-jitlib-core.o: ../myjit/jitlib.h ../myjit/jitlib-core.h ../myjit/jitlib-core.c ../myjit/jitlib-debug.c ../myjit/x86-codegen.h ../myjit/x86-specific.h ../myjit/x86-reg-allocator.h ../myjit/flow-analysis.h ../myjit/set.h
+jitlib-core.o: ../myjit/jitlib.h ../myjit/jitlib-core.h ../myjit/jitlib-core.c ../myjit/jitlib-debug.c ../myjit/x86-codegen.h ../myjit/x86-specific.h ../myjit/reg-allocator.h ../myjit/flow-analysis.h ../myjit/set.h ../myjit/amd64-specific.h ../myjit/amd64-codegen.h ../myjit/llrb.c ../myjit/reg-allocator.h ../myjit/rmap.h 
 	        gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 ../myjit/jitlib-core.c
 
 

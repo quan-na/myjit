@@ -37,19 +37,17 @@
 
 #ifdef JIT_ARCH_I386
 #include "x86-specific.h"
-#include "x86-reg-allocator.h"
 #endif
 
 #ifdef JIT_ARCH_AMD64
 #include "amd64-specific.h"
-//#include "amd64-reg-allocator.h"
-#include "x86-reg-allocator.h"
 #endif
 
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
 #include "generic-x86-optimizations.h"
 #endif
 
+#include "reg-allocator.h"
 #include "jitlib-core.h"
 
 #endif
