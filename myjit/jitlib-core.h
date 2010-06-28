@@ -53,6 +53,22 @@
 
 struct jitset;
 
+struct __hw_reg {
+	int id;
+	unsigned long used;
+	char * name;
+};
+
+struct jit_reg_allocator {
+	int hw_reg_cnt;
+	struct __hw_reg * hw_reg;
+	struct __hw_reg ** hwreg_pool;
+	int hwreg_pool_pos;
+};
+
+
+typedef struct __hw_reg * rmap_t;
+
 typedef struct jit_op {
 	unsigned short code;
 	unsigned char spec;
@@ -66,7 +82,7 @@ typedef struct jit_op {
 	struct jit_op * prev;
 	struct jitset * live_in; 
 	struct jitset * live_out; 
-	struct __hw_reg ** regmap; 
+	rmap_t * regmap; 
 } jit_op;
 
 typedef struct jit_label {

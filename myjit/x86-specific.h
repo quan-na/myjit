@@ -19,20 +19,6 @@
 
 #include "x86-codegen.h"
 
-struct __hw_reg {
-	int id;
-	unsigned long used;
-	char * name;
-};
-
-struct jit_reg_allocator {
-	int hw_reg_cnt;
-	struct __hw_reg * hw_reg;
-	struct __hw_reg ** hwreg_pool;
-	int hwreg_pool_pos;
-};
-
-
 #define JIT_X86_STI	(0x0100 << 3)
 #define JIT_X86_STXI	(0x0101 << 3)
 
@@ -242,13 +228,14 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	jit->prepare_args = 0;
 
 	/* pops caller saved registers */
-	for (int i = jit->reg_count - 1; i >= 0; i--) {
-		if (!jitset_get(op->live_in, R(i))) continue;
-		if (op->regmap[R(i)]) {
-			if (op->regmap[R(i)]->id == X86_ECX) x86_pop_reg(jit->ip, X86_ECX);
-			if (op->regmap[R(i)]->id == X86_EDX) x86_pop_reg(jit->ip, X86_EDX);
-		}
+	int regs[] = { X86_ECX, X86_EDX };
+	for (int i = 1; i >= 0; i--) {
+		int reg;
+		struct __hw_reg * hreg;
+		hreg = rmap_is_associated(jit, op->regmap, regs[i], &reg);
+		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
 	}
+
 }
 
 static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
@@ -422,12 +409,13 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
-	for (int i = 0; i < jit->reg_count; i++) {
-		if (!jitset_get(op->live_in, R(i))) continue;
-		if (op->regmap[R(i)]) {
-			if (op->regmap[R(i)]->id == X86_ECX) x86_push_reg(jit->ip, X86_ECX);
-			if (op->regmap[R(i)]->id == X86_EDX) x86_push_reg(jit->ip, X86_EDX);
-		}
+
+	int regs[] = { X86_ECX, X86_EDX };
+	for (int i = 0; i < 2; i++) {
+		int reg;
+		struct __hw_reg * hreg;
+		hreg = rmap_is_associated(jit, op->regmap, regs[i], &reg);
+		if (hreg && jitset_get(op->live_in, reg)) x86_push_reg(jit->ip, regs[i]);
 	}
 }
 

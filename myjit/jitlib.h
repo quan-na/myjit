@@ -34,6 +34,7 @@
 
 #include "set.h"
 #include "jitlib-core.h"
+#include "rmap.h"
 
 #ifdef JIT_ARCH_I386
 #include "x86-specific.h"

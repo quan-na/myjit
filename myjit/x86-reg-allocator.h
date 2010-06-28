@@ -22,7 +22,7 @@
  * Register allocator -- auxiliary functions
  */
 
-static inline void unload_reg(struct jit_reg_allocator * al, jit_op * op,  struct __hw_reg * hreg, long virt_reg)
+static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg)
 {
 	jit_op * o = __new_op(JIT_UREG, SPEC(IMM, IMM, NO), virt_reg, hreg->id, 0, 0);
 	o->r_arg[0] = o->arg[0];
@@ -40,37 +40,12 @@ static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg
 
 static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 {
-	int spill_candidate = -1;
-	int age = -1;
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		if (op->regmap[i]) {
-			struct __hw_reg * hreg = op->regmap[i];
-			if ((int)hreg->used > age) {
-				spill_candidate = i;
-				age = hreg->used;
-			}
-		}
-	}
-
-	struct __hw_reg * hreg = op->regmap[spill_candidate];
-	unload_reg(jit->reg_al, op, hreg, spill_candidate);
-	op->regmap[spill_candidate] = NULL;
+	int spill_candidate;
+	struct __hw_reg * hreg = rmap_spill_candidate(jit, op, &spill_candidate);
+	unload_reg(op, hreg, spill_candidate);
+	rmap_unassoc(op->regmap, spill_candidate);
 	hreg->used = 0;
 	return hreg;
-}
-
-// moves unused registers back to the register pool
-static inline void free_unused_regs(struct jit * jit, jit_op * op)
-{
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		if ((op->regmap[i] != NULL) 
-			&& !(jitset_get(op->live_in, i) || jitset_get(op->live_out, i)))
-		{
-			struct jit_reg_allocator * al = jit->reg_al;
-			al->hwreg_pool[++al->hwreg_pool_pos] = op->regmap[i];
-			op->regmap[i] = NULL;
-		}
-	}
 }
 
 static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocator * al)
@@ -91,59 +66,44 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocato
 
 static inline void assign_regs(struct jit * jit, struct jit_op * op)
 {
-	int i;
+	int i, r;
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
-	if (op->prev) memcpy(op->regmap, op->prev->regmap, sizeof(long) * jit->reg_count);
-	free_unused_regs(jit, op);
+	if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
 
 	if (GET_OP(op) == JIT_PREPARE) {
-		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-			if (op->regmap[i]) {
-				struct __hw_reg  * hreg = op->regmap[i];
-				if (hreg->id != X86_EAX) continue;
+		//struct __hw_reg  * hreg = rmap_get_retreg(jit, op->regmap, &r);
+		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, X86_EAX, &r);
+		if (hreg) {
+			// checks whether there is a free callee-saved register
+			// that can be used to store the eax register
+			struct __hw_reg * freereg = get_free_callee_save_reg(al);
+			if (freereg) {
+				// should have its own name
+				jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), r, r, 0, 0);
+				o->r_arg[0] = freereg->id;
+				o->r_arg[1] = X86_EAX;
 
-				// checks whether there is a free callee-saved register
-				// that can be used to store the eax register
-				struct __hw_reg * freereg = get_free_callee_save_reg(al);
-				if (freereg) {
-					// should have its own name
-					jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), i, i, 0, 0);
-					o->r_arg[0] = freereg->id;
-					o->r_arg[1] = X86_EAX;
-
-					jit_op_prepend(op, o);
-					op->regmap[i] = freereg;
-					break;
-
-					
-				} 
-				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), i, hreg->id, 0, 0);
+				jit_op_prepend(op, o);
+				rmap_assoc(op->regmap, r, freereg);
+			} else {
+				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
 				o->r_arg[0] = o->arg[0];
 				o->r_arg[1] = o->arg[1];
 
 				jit_op_prepend(op, o);
-				break;
 			}
 		}
 	}
 
 	if (GET_OP(op) == JIT_CALL) {
-		for (i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-			if (op->regmap[i]) {
-				struct __hw_reg  * hreg = op->regmap[i];
-				if (hreg->id == X86_EAX) {
-					al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
-					op->regmap[i] = NULL;
-
-					break;
-				}
-			}
+		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, X86_EAX, &r);
+		if (hreg) {
+			al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
+			rmap_unassoc(op->regmap, r);
 		}
 	}
-
-
 
 	// get registers used in the current operation
 	for (i = 0; i < 3; i++)
@@ -151,7 +111,8 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			// in order to eliminate unwanted spilling of registers used
 			// by the current operation, we ``touch'' the registers
 			// which are to be used in this operation
-			if (op->regmap[op->arg[i]]) op->regmap[op->arg[i]]->used = 0;
+			struct __hw_reg * hreg = rmap_get(op->regmap, op->arg[i]);
+			if (hreg) hreg->used = 0;
 		}
 
 	for (i = 0; i < 3; i++) {
@@ -165,16 +126,17 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				continue;
 			}
 
-			if (op->regmap[op->arg[i]] != NULL) op->r_arg[i] = op->regmap[op->arg[i]]->id;
+			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
+			if (reg) op->r_arg[i] = reg->id;
 			else {
-				struct __hw_reg * reg;
 				if (al->hwreg_pool_pos < 0) reg = make_free_reg(jit, op); 
 				else reg = al->hwreg_pool[al->hwreg_pool_pos--];
 
-				op->regmap[op->arg[i]] = reg;
+				rmap_assoc(op->regmap, op->arg[i], reg);
+
 				op->r_arg[i] = reg->id;
 				if (jitset_get(op->live_in, op->arg[i]))
-					load_reg(op, op->regmap[op->arg[i]], op->arg[i]);
+					load_reg(op, rmap_get(op->regmap, op->arg[i]), op->arg[i]);
 			}
 		} else if (ARG_TYPE(op, i + 1) == IMM) {
 			// assigns immediate values
@@ -194,13 +156,9 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 	if (GET_OP(op) != JIT_JMP) return;
 	struct __hw_reg ** cur_regmap = op->regmap;
 	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
-		if (cur_regmap[i] != tgt_regmap[i])
-			if (cur_regmap[i]) unload_reg(jit->reg_al, op, cur_regmap[i], i);
 
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
-		if (tgt_regmap[i] && (cur_regmap[i] != tgt_regmap[i]))
-			load_reg(op, tgt_regmap[i], i);
+	rmap_sync(jit, op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
+	rmap_sync(jit, op, tgt_regmap, cur_regmap, RMAP_LOAD);
 }
 
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
@@ -215,16 +173,10 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	if ((GET_OP(op) != JIT_BEQ) && (GET_OP(op) != JIT_BGT) && (GET_OP(op) != JIT_BGE)
 	   && (GET_OP(op) != JIT_BNE) && (GET_OP(op) != JIT_BLT) && (GET_OP(op) != JIT_BLE)) return;
 
-	struct __hw_reg ** cur_regmap = op->regmap;
-	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
-	int adjust = 0;
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
-		if (cur_regmap[i] != tgt_regmap[i]) {
-			//printf("branch needs an adjustment\n");
-			adjust = 1;
-			break;
-		}
-	if (adjust) {
+	rmap_t * cur_regmap = op->regmap;
+	rmap_t * tgt_regmap = op->jmp_addr->regmap;
+
+	if (!rmap_equal(jit, cur_regmap, tgt_regmap)) {
 		switch (GET_OP(op)) {
 			case JIT_BEQ: op->code = JIT_BNE | (op->code & 0x7); break;
 			case JIT_BGT: op->code = JIT_BLE | (op->code & 0x7); break;
@@ -236,10 +188,9 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	
 		jit_op * o = __new_op(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		
 		o->r_arg[0] = op->r_arg[0];
-	
-		o->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * jit->reg_count);
-		memcpy(o->regmap, op->regmap, sizeof(struct hw_reg *) * jit->reg_count);
 
+		o->regmap = rmap_clone(jit, op->regmap);
+	
 		o->live_in = jitset_clone(op->live_in); 
 		o->live_out = jitset_clone(op->live_out); 
 		o->jmp_addr = op->jmp_addr;
@@ -298,13 +249,8 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 
 void jit_assign_regs(struct jit * jit)
 {
-	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		op->regmap = JIT_MALLOC(sizeof(struct hw_reg *) * jit->reg_count);
-		op->regmap[JIT_FP] = &(jit->reg_al->hw_reg[6]);
-		op->regmap[JIT_RETREG] = &(jit->reg_al->hw_reg[0]);
-		for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
-			op->regmap[i] = NULL;
-	}
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
+		op->regmap = rmap_init(jit->reg_count);
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		assign_regs(jit, op);
