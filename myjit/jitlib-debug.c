@@ -135,7 +135,8 @@ void jit_get_reg_name(char * r, int reg, jit_op * op)
 	if (reg == JIT_FP) strcpy(r, "FP");
 	else if (reg == JIT_RETREG) strcpy(r, "RETREG");
 	else if (!op->regmap) sprintf(r, "R%i", reg - 2);
-	else sprintf(r, "R%i/%s", reg - 2, ((struct __hw_reg_xxx *)op->regmap[reg])->name);
+	else sprintf(r, "FIXME");
+	//else sprintf(r, "R%i/%s", reg - 2, ((struct __hw_reg_xxx *)op->regmap[reg])->name);
 }
 
 //static inline int jitset_get(jitset * s, unsigned int bit);

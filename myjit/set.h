@@ -73,6 +73,8 @@ static inline int __equal(rb_node * root, rb_node * n)
 
 static inline int jitset_equal(jitset * s1, jitset * s2) 
 {
+	// FIXME: direct call of rb_equal
 	return __equal(s1->root, s2->root);
+	//return rb_equal(s1->root, s2->root);
 }
 #endif

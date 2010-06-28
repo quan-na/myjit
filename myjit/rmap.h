@@ -33,10 +33,18 @@ static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_r
 
 static inline rmap_t * rmap_init(int reg_count)
 {
-	rmap_t * res = JIT_MALLOC(sizeof(struct hw_reg *) * reg_count);
-	for (int i = 0; i < reg_count; i++)
-		res[i] = NULL;
+	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
+	res->map = NULL;
+	res->revmap = NULL;
 	return res;
+}
+
+static inline struct __hw_reg * rmap_get(rmap_t * rmap, int reg)
+{
+	rb_node * found = rb_search(rmap->map, reg);
+	if (found) return (struct __hw_reg *) found->value;
+
+	return NULL;
 }
 
 /**
@@ -46,109 +54,135 @@ static inline rmap_t * rmap_init(int reg_count)
  */
 static inline struct __hw_reg * rmap_is_associated(struct jit * jit, rmap_t * rmap, int reg_id, int * virt_reg)
 {
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		if (rmap[i]) {
-			struct __hw_reg  * hreg = rmap[i];
-			if (hreg->id == reg_id) {
-				if (virt_reg) *virt_reg = i;
-				return hreg;
-			}
-		}
+	rb_node * found = rb_search(rmap->revmap, reg_id);
+	if (found) {
+		int r = (long)found->value;
+		if (virt_reg) *virt_reg = r;
+		return rmap_get(rmap, r);
 	}
 	return NULL;
 }
 
 static inline void rmap_assoc(rmap_t * rmap, int reg, struct __hw_reg * hreg)
 {
-	rmap[reg] = hreg;
+	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
+	rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(long)reg, NULL);
 }
 
 static inline void rmap_unassoc(rmap_t * rmap, int reg)
 {
-	rmap[reg] = NULL;
+	struct __hw_reg * hreg = (struct __hw_reg *)rb_search(rmap->map, reg);
+	rmap->map = rb_delete(rmap->map, reg, NULL);
+	rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
 }
 
 static inline rmap_t * rmap_clone(struct jit * jit, rmap_t * rmap)
 {
-	rmap_t * o = JIT_MALLOC(sizeof(struct hw_reg *) * jit->reg_count);
-	memcpy(o, rmap, sizeof(struct hw_reg *) * jit->reg_count);
-	return o;
-}
-
-static inline struct __hw_reg * rmap_get(rmap_t * rmap, int reg)
-{
-	return rmap[reg];
+	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
+	res->map = rb_clone(rmap->map);
+	res->revmap = rb_clone(rmap->revmap);
+	return res;
 }
 
 static inline int rmap_equal(struct jit * jit, rmap_t * r1, rmap_t * r2)
 {
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
-		if (r1[i] != r2[i]) return 0;
-	return 1;
+	return rb_equal(r1->map, r2->map);
 }
 
 /**
  * Syncronizes two register mappings
- * if (mode == LOAD)i: 	then it loads registers which are not in current mapping, 
+ * if (mode == LOAD): 	then it loads registers which are not in current mapping, 
  * 			however, are in the target mapping
  * if (mode == UNLOAD): then it unloads registers which are in the current mapping,
  * 			however, which are not in the target mapping
  */
-static inline void rmap_sync(struct jit * jit, jit_op * op, rmap_t * current, rmap_t * target, int mode)
-{
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++)
-		if ((current[i]) && (current[i] != target[i])) {
-			switch (mode) {
-				case RMAP_UNLOAD: unload_reg(op, current[i], i); break;
-				case RMAP_LOAD: load_reg(op, current[i], i); break;
-				default: assert(0);
-			}
-		}
-}
 
-static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
+static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 {
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		if ((prev_rmap[i] != NULL) 
-			&& !(jitset_get(op->live_in, i) || jitset_get(op->live_out, i)))
-		{
-			struct jit_reg_allocator * al = jit->reg_al;
-			//al->hwreg_pool[++al->hwreg_pool_pos] = prev_rmap[i];
-			jit_reg_pool_put(jit->reg_al, prev_rmap[i]);
-			rmap_unassoc(op->regmap, i);
-		} else {
-			rmap_assoc(op->regmap, i, prev_rmap[i]);
+	if (current == NULL) return;
+	rb_node * found = rb_search(target, current->key);
+	int i = current->key;
+	if ((!found) || (current->value != found->value)) {
+		struct __hw_reg * hreg = (struct __hw_reg *) current->value;
+		switch (mode) {
+			case RMAP_UNLOAD: unload_reg(op, hreg, i); break;
+			case RMAP_LOAD: load_reg(op, hreg, i); break;
+			default: assert(0);
 		}
 	}
+	__sync(current->left, target, op, mode);
+	__sync(current->right, target, op, mode);
+}
+
+static inline void rmap_sync(struct jit * jit, jit_op * op, rmap_t * current, rmap_t * target, int mode)
+{
+	__sync(current->map, target->map, op, mode);
+}
+
+static void __clone_wo_regs(struct jit_reg_allocator * al, rmap_t * target, rb_node * n, jit_op * op)
+{
+	if (n == NULL) return;
+
+	int i = n->key;
+	struct __hw_reg * hreg = (struct __hw_reg *) n->value;
+	if (!hreg) assert(0);
+	if (!(jitset_get(op->live_in, i) || jitset_get(op->live_out, i))) {
+		//rmap_unassoc(target, i);
+		jit_reg_pool_put(al, hreg);
+	} else {
+		rmap_assoc(target, i, hreg);
+	}
+	__clone_wo_regs(al, target, n->left, op);
+	__clone_wo_regs(al, target, n->right, op);
+
+}
+static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
+{
+	rmap_t * res = rmap_init(666); // FIXME
+	__clone_wo_regs(jit->reg_al, res, prev_rmap->map, op);
+	op->regmap = res;
+
 	return op->regmap;
+}
+
+static void __spill_candidate(rb_node * n, int * age, struct __hw_reg ** cand_hreg, int * candidate)
+{
+	if (n == NULL) return;
+
+	struct __hw_reg * hreg = (struct __hw_reg *) n->value; 
+	if ((int)hreg->used > *age) {
+		*candidate = n->key;
+		*age = hreg->used;
+		*cand_hreg = hreg;
+	}
+	__spill_candidate(n->left, age, cand_hreg, candidate);
+	__spill_candidate(n->right, age, cand_hreg, candidate);
 }
 
 static inline struct __hw_reg * rmap_spill_candidate(struct jit * jit, jit_op * op, int * candidate)
 {
-	int age = -1;
-	struct __hw_reg * res = NULL;
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		if (op->regmap[i]) {
-			struct __hw_reg * hreg = op->regmap[i];
-			if ((int)hreg->used > age) {
-				*candidate = i;
-				age = hreg->used;
-				res = hreg;
-			}
-		}
-	}
+	int age;
+	struct __hw_reg * res;
+	__spill_candidate(op->regmap->map, &age, &res, candidate);
 	return res;
+}
+
+static void __make_older(rb_node * n)
+{
+	if (n == NULL) return;
+	((struct __hw_reg *)n->value)->used++;
+	__make_older(n->left);
+	__make_older(n->right);
 }
 
 static inline void rmap_make_older(struct jit * jit, rmap_t * regmap)
 {
-	for (int i = JIT_FIRST_REG; i < jit->reg_count; i++) {
-		struct __hw_reg * reg = regmap[i];
-		if (reg) reg->used++;
-	}
+	__make_older(regmap->map);
 }
 
 static inline void rmap_free(rmap_t * regmap)
 {
+	rb_free(regmap->map);
+	rb_free(regmap->revmap);
 	JIT_FREE(regmap);
 }

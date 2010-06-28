@@ -27,6 +27,7 @@ static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_r
 	al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
 	
 	// reorder registers according to their priority
+	/*
 	int i = al->hwreg_pool_pos;
 	while (i > 0) {
 		if (al->hwreg_pool[i - 1] <= al->hwreg_pool[i]) break;
@@ -35,6 +36,7 @@ static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_r
 		al->hwreg_pool[i - 1] = x;
 		i--;
 	}
+	*/
 }
 
 static inline struct __hw_reg * jit_reg_pool_get(struct jit_reg_allocator * al)
@@ -155,8 +157,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		}
 
 		// unloads registers which are used to pass the arguments
-		int args = op->arg[0];
 		int reg;
+		int args = op->arg[0];
+		if (args > 6) args = 6;
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->arg_registers[q], &reg);
 			if (hreg) {
@@ -227,8 +230,8 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 static inline void jump_adjustment(struct jit * jit, jit_op * op)
 {
 	if (GET_OP(op) != JIT_JMP) return;
-	struct __hw_reg ** cur_regmap = op->regmap;
-	struct __hw_reg ** tgt_regmap = op->jmp_addr->regmap;
+	rmap_t * cur_regmap = op->regmap;
+	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
 	rmap_sync(jit, op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
 	rmap_sync(jit, op, tgt_regmap, cur_regmap, RMAP_LOAD);

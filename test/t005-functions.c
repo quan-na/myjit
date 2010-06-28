@@ -401,7 +401,7 @@ int main()
 	test2(); 
 	test3();
 	test4(); // XXX
-     	test5(); // XXX
+  	test5(); // XXX
 	test6(); // XXX
 	test7(); // XXX
 	test8(); 

@@ -221,5 +221,9 @@ static inline void rb_free(rb_node * h)
 	JIT_FREE(h);
 }
 
-
+static inline int rb_equal(rb_node * root, rb_node * n)
+{
+	if (n == NULL) return 1;
+	return rb_search(root, n->key) && rb_equal(root, n->left) && rb_equal(root, n->right);
+}
 #endif
