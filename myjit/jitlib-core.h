@@ -72,11 +72,9 @@ struct jit_reg_allocator {
 	int * arg_registers;		// array of registers used to pass arguments (in the given order) 
 };
 
-//typedef struct __hw_reg * rmap_t;
 typedef struct rmap_t {
 	struct rb_node * map;		// R/B tree which maps virtual registers to hardware registers
 	struct rb_node * revmap;	// R/B tree which maps hw. registers to virtual registers
-	struct __hw_reg ** xmap;
 } rmap_t;
 
 typedef struct jit_op {

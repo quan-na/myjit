@@ -31,7 +31,7 @@ static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_r
 
 ///////////////////////////////////////////////////////////////////////
 
-static inline rmap_t * rmap_init(int reg_count)
+static inline rmap_t * rmap_init()
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = NULL;
@@ -52,7 +52,7 @@ static inline struct __hw_reg * rmap_get(rmap_t * rmap, int reg)
  * If so, returns to pointer to this register and sets the id of the virtual
  * register
  */
-static inline struct __hw_reg * rmap_is_associated(struct jit * jit, rmap_t * rmap, int reg_id, int * virt_reg)
+static inline struct __hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int * virt_reg)
 {
 	rb_node * found = rb_search(rmap->revmap, reg_id);
 	if (found) {
@@ -76,7 +76,7 @@ static inline void rmap_unassoc(rmap_t * rmap, int reg)
 	rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
 }
 
-static inline rmap_t * rmap_clone(struct jit * jit, rmap_t * rmap)
+static inline rmap_t * rmap_clone(rmap_t * rmap)
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = rb_clone(rmap->map);
@@ -84,7 +84,7 @@ static inline rmap_t * rmap_clone(struct jit * jit, rmap_t * rmap)
 	return res;
 }
 
-static inline int rmap_equal(struct jit * jit, rmap_t * r1, rmap_t * r2)
+static inline int rmap_equal(rmap_t * r1, rmap_t * r2)
 {
 	return rb_equal(r1->map, r2->map);
 }
@@ -114,7 +114,7 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 	__sync(current->right, target, op, mode);
 }
 
-static inline void rmap_sync(struct jit * jit, jit_op * op, rmap_t * current, rmap_t * target, int mode)
+static inline void rmap_sync(jit_op * op, rmap_t * current, rmap_t * target, int mode)
 {
 	__sync(current->map, target->map, op, mode);
 }
@@ -136,9 +136,10 @@ static void __clone_wo_regs(struct jit_reg_allocator * al, rmap_t * target, rb_n
 	__clone_wo_regs(al, target, n->right, op);
 
 }
+
 static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
 {
-	rmap_t * res = rmap_init(666); // FIXME
+	rmap_t * res = rmap_init();
 	__clone_wo_regs(jit->reg_al, res, prev_rmap->map, op);
 	op->regmap = res;
 
@@ -159,7 +160,7 @@ static void __spill_candidate(rb_node * n, int * age, struct __hw_reg ** cand_hr
 	__spill_candidate(n->right, age, cand_hreg, candidate);
 }
 
-static inline struct __hw_reg * rmap_spill_candidate(struct jit * jit, jit_op * op, int * candidate)
+static inline struct __hw_reg * rmap_spill_candidate(jit_op * op, int * candidate)
 {
 	int age;
 	struct __hw_reg * res;
@@ -175,7 +176,7 @@ static void __make_older(rb_node * n)
 	__make_older(n->right);
 }
 
-static inline void rmap_make_older(struct jit * jit, rmap_t * regmap)
+static inline void rmap_make_older(rmap_t * regmap)
 {
 	__make_older(regmap->map);
 }

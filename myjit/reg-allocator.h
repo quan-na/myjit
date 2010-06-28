@@ -90,7 +90,7 @@ static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg
 static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 {
 	int spill_candidate;
-	struct __hw_reg * hreg = rmap_spill_candidate(jit, op, &spill_candidate);
+	struct __hw_reg * hreg = rmap_spill_candidate(op, &spill_candidate);
 	unload_reg(op, hreg, spill_candidate);
 	rmap_unassoc(op->regmap, spill_candidate);
 	hreg->used = 0;
@@ -134,7 +134,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if (GET_OP(op) == JIT_PREPARE) {
-		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->ret_reg, &r);
+		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
 		if (hreg) {
 			// checks whether there is a free callee-saved register
 			// that can be used to store the eax register
@@ -161,7 +161,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		int args = op->arg[0];
 		if (args > 6) args = 6;
 		for (int q = 0; q < args; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->arg_registers[q], &reg);
+			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->arg_registers[q], &reg);
 			if (hreg) {
 				unload_reg(op, hreg, reg);
 				jit_reg_pool_put(al, hreg);
@@ -177,7 +177,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if (GET_OP(op) == JIT_CALL) {
-		struct __hw_reg * hreg = rmap_is_associated(jit, op->regmap, al->ret_reg, &r);
+		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
 		if (hreg) {
 			jit_reg_pool_put(al, hreg);
 			rmap_unassoc(op->regmap, r);
@@ -224,7 +224,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	// increasing age of each register
-	rmap_make_older(jit, op->regmap);
+	rmap_make_older(op->regmap);
 }
 
 static inline void jump_adjustment(struct jit * jit, jit_op * op)
@@ -233,8 +233,8 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 	rmap_t * cur_regmap = op->regmap;
 	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
-	rmap_sync(jit, op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
-	rmap_sync(jit, op, tgt_regmap, cur_regmap, RMAP_LOAD);
+	rmap_sync(op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
+	rmap_sync(op, tgt_regmap, cur_regmap, RMAP_LOAD);
 }
 
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
@@ -252,7 +252,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	rmap_t * cur_regmap = op->regmap;
 	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
-	if (!rmap_equal(jit, cur_regmap, tgt_regmap)) {
+	if (!rmap_equal(cur_regmap, tgt_regmap)) {
 		switch (GET_OP(op)) {
 			case JIT_BEQ: op->code = JIT_BNE | (op->code & 0x7); break;
 			case JIT_BGT: op->code = JIT_BLE | (op->code & 0x7); break;
@@ -265,7 +265,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 		jit_op * o = __new_op(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		
 		o->r_arg[0] = op->r_arg[0];
 
-		o->regmap = rmap_clone(jit, op->regmap);
+		o->regmap = rmap_clone(op->regmap);
 	
 		o->live_in = jitset_clone(op->live_in); 
 		o->live_out = jitset_clone(op->live_out); 

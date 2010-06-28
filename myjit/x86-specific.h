@@ -232,7 +232,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	for (int i = 1; i >= 0; i--) {
 		int reg;
 		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(jit, op->regmap, regs[i], &reg);
+		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
 	}
 
@@ -414,7 +414,7 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	for (int i = 0; i < 2; i++) {
 		int reg;
 		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(jit, op->regmap, regs[i], &reg);
+		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_push_reg(jit->ip, regs[i]);
 	}
 }
