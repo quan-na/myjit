@@ -58,6 +58,7 @@ struct __hw_reg {
 	unsigned long used;
 	char * name;
 	char callee_saved;
+	short priority;
 };
 
 struct jit_reg_allocator {

@@ -25,6 +25,16 @@
 static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_reg * hreg)
 {
 	al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
+	
+	// reorder registers according to their priority
+	int i = al->hwreg_pool_pos;
+	while (i > 0) {
+		if (al->hwreg_pool[i - 1] <= al->hwreg_pool[i]) break;
+		struct __hw_reg * x = al->hwreg_pool[i];
+		al->hwreg_pool[i] = al->hwreg_pool[i - 1];
+		al->hwreg_pool[i - 1] = x;
+		i--;
+	}
 }
 
 static inline struct __hw_reg * jit_reg_pool_get(struct jit_reg_allocator * al)

@@ -27,6 +27,7 @@
 
 static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg);
 static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg);
+static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_reg * hreg);
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -112,7 +113,8 @@ static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t *
 			&& !(jitset_get(op->live_in, i) || jitset_get(op->live_out, i)))
 		{
 			struct jit_reg_allocator * al = jit->reg_al;
-			al->hwreg_pool[++al->hwreg_pool_pos] = prev_rmap[i];
+			//al->hwreg_pool[++al->hwreg_pool_pos] = prev_rmap[i];
+			jit_reg_pool_put(jit->reg_al, prev_rmap[i]);
 			rmap_unassoc(op->regmap, i);
 		} else {
 			rmap_assoc(op->regmap, i, prev_rmap[i]);

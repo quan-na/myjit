@@ -813,22 +813,22 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
 	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
 
-	a->hw_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0 };
-	a->hw_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1 };
-	a->hw_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0 };
-	a->hw_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0 };
-	a->hw_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0 };
-	a->hw_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 0 };
-	a->hw_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0 };
-	a->hw_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0 };
-	a->hw_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0 };
-	a->hw_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0 };
-	a->hw_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1 };
-	a->hw_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1 };
-	a->hw_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1 };
-	a->hw_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1 };
+	a->hw_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0, 14 };
+	a->hw_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1, 1 };
+	a->hw_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0, 11 };
+	a->hw_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0, 10 };
+	a->hw_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0, 12 };
+	a->hw_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 13,  };
+	a->hw_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 9 };
+	a->hw_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 8 };
+	a->hw_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 6 };
+	a->hw_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0, 7 };
+	a->hw_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1, 2 };
+	a->hw_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 3 };
+	a->hw_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 4 };
+	a->hw_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 5 };
 
-	a->hw_regs[14] = (struct __hw_reg) { AMD64_RBP, 0, "rbp", 0 };
+	a->hw_regs[14] = (struct __hw_reg) { AMD64_RBP, 0, "rbp", 0, 100 };
 
 	a->fp_reg = AMD64_RBP;
 	a->ret_reg = AMD64_RAX;
