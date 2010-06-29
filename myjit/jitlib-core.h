@@ -147,7 +147,7 @@ void jit_correct_long_imms(struct jit * jit);
 
 /* FIXME: presunout do generic-reg-allocator.h */
 void jit_assign_regs(struct jit * jit);
-struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt);
+struct jit_reg_allocator * jit_reg_allocator_create();
 void jit_reg_allocator_free(struct jit_reg_allocator * a);
 void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);

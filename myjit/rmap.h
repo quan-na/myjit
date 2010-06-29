@@ -162,7 +162,7 @@ static void __spill_candidate(rb_node * n, int * age, struct __hw_reg ** cand_hr
 
 static inline struct __hw_reg * rmap_spill_candidate(jit_op * op, int * candidate)
 {
-	int age;
+	int age = -1;
 	struct __hw_reg * res;
 	__spill_candidate(op->regmap->map, &age, &res, candidate);
 	return res;

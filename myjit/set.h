@@ -65,16 +65,8 @@ static inline void jitset_set(jitset * s, unsigned int bit, int value)
 	else s->root = rb_delete(s->root, bit, NULL);
 }
 
-static inline int __equal(rb_node * root, rb_node * n)
-{
-	if (n == NULL) return 1;
-	return rb_search(root, n->key) && __equal(root, n->left) && __equal(root, n->right);
-}
-
 static inline int jitset_equal(jitset * s1, jitset * s2) 
 {
-	// FIXME: direct call of rb_equal
-	return __equal(s1->root, s2->root);
-	//return rb_equal(s1->root, s2->root);
+	return rb_equal(s1->root, s2->root);
 }
 #endif

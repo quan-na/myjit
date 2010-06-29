@@ -804,8 +804,7 @@ void jit_correct_long_imms(struct jit * jit)
 	}
 }
 
-// FIXME: regcnt -- REMOVEME
-struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
+struct jit_reg_allocator * jit_reg_allocator_create()
 {
 	static int __arg_regs[] = { AMD64_RDI, AMD64_RSI, AMD64_RDX, AMD64_RCX, AMD64_R8, AMD64_R9 };
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
@@ -835,19 +834,6 @@ struct jit_reg_allocator * jit_reg_allocator_create(unsigned int regcnt)
 
 	a->arg_registers_cnt = 6;
 	a->arg_registers = __arg_regs;
-
-	/*
-	// FIXME: more sophisticated order
-	a->hwreg_pool_pos = 7;
-	a->hwreg_pool[0] = &(a->hw_regs[13]);
-	a->hwreg_pool[1] = &(a->hw_regs[12]);
-	a->hwreg_pool[2] = &(a->hw_regs[11]);
-	a->hwreg_pool[3] = &(a->hw_regs[10]);
-	a->hwreg_pool[4] = &(a->hw_regs[9]);
-	a->hwreg_pool[5] = &(a->hw_regs[8]);
-	a->hwreg_pool[6] = &(a->hw_regs[1]);
-	a->hwreg_pool[7] = &(a->hw_regs[0]);
-	*/
 
 	return a;
 }

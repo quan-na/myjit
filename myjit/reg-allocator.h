@@ -120,9 +120,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	// initialize mappings
 	// PROLOG needs special care
-	if ((al->arg_registers_cnt > 0) && (GET_OP(op) == JIT_PROLOG)) {
+	if (GET_OP(op) == JIT_PROLOG) {
 		
-		op->regmap = rmap_init(jit->reg_count);
+		op->regmap = rmap_init();
 		jit_reg_pool_initialize(al);
 
 		for (int i = 0; i < al->arg_registers_cnt; i++)
@@ -159,7 +159,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		// unloads registers which are used to pass the arguments
 		int reg;
 		int args = op->arg[0];
-		if (args > 6) args = 6;
+		if (args > al->arg_registers_cnt) args = al->arg_registers_cnt;
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->arg_registers[q], &reg);
 			if (hreg) {
@@ -291,7 +291,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 void jit_assign_regs(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
-		op->regmap = rmap_init(jit->reg_count);
+		op->regmap = rmap_init();
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		assign_regs(jit, op);

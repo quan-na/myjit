@@ -38,8 +38,9 @@ pre, .pre {
 
 <p>MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of Schemik (<a class="reference external" href="http://schemik.sourceforge.net">http://schemik.sourceforge.net</a>) and it was considered as a replacement for the GNU lightning library (<a class="reference external" href="http://www.gnu.org/software/lightning/">http://www.gnu.org/software/lightning/</a>). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:</p>
 <ul class="simple">
-<li>unlimited number of registers (in this case &quot;unlimited&quot; means 32, this is to be fixed very soon)</li>
+<li>unlimited number of registers</li>
 <li>thread-safety</li>
+<li>support for i386 and AMD64 architectures (support for SPARC processors will be available shortly)</li>
 <li>easy to use and easy to extend design</li>
 <li>particular backward compatibility with GNU lightning</li>
 <li>the library allows for debugging (the debugging is broken right now)</li>
@@ -48,7 +49,8 @@ pre, .pre {
 </ul>
 <div class="section" id="getting-myjit">
 <h1>Getting MyJIT</h1>
-<p>The source code including this documentation and examples is available at <a class="reference external" href="http://sourceforge.net/projects/myjit/files">http://sourceforge.net/projects/myjit/files</a></p>
+<p>The source code including this documentation and examples is available at SourceFroge (<a class="reference external" href="http://sourceforge.net/projects/myjit/files">http://sourceforge.net/projects/myjit/files</a>) as of other information (<a class="reference external" href="http://sourceforge.net/projects/myjit">http://sourceforge.net/projects/myjit</a>)</p>
+<p>You can also checkout the latest release from the Bazaar repository (bzr://myjit.bzr.sourceforge.net/bzrroot/myjit).</p>
 </div>
 <div class="section" id="instruction-set">
 <h1>Instruction Set</h1>
@@ -169,22 +171,19 @@ nei       O1 = (O2 != O3)
 </div>
 <div class="section" id="function-calls">
 <h1>Function calls</h1>
-<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">pusharg</span></tt>. It should be stressed that the <em>arguments are passed in the reverse order!</em> Afterwards, the function is called using a <tt class="docutils literal"><span class="pre">finish</span></tt> or <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
+<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">pusharg</span></tt>. It should be stressed that the <em>arguments are passed in the reverse order!</em> Afterwards, the function is called with the <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
 <p>Let us make few notes on function calls:</p>
 <ul class="simple">
-<li>There are two variants of function calls <tt class="docutils literal"><span class="pre">finish</span></tt> and <tt class="docutils literal"><span class="pre">call</span></tt>. The difference is that <tt class="docutils literal"><span class="pre">call</span></tt> does not destroy the prepared arguments and these can be reused to call the same or some other function. However, and this have to be emphasized, each <tt class="docutils literal"><span class="pre">prepare</span></tt> operation have to be paired with some <tt class="docutils literal"><span class="pre">finish</span></tt> operation otherwise it causes undefined behavior.</li>
 <li>If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.</li>
 <li>You should not nest prepare operations.</li>
-<li>Only <tt class="docutils literal"><span class="pre">pushargr</span></tt> or <tt class="docutils literal"><span class="pre">pushargi</span></tt> operations are allowed within the <tt class="docutils literal"><span class="pre">prepare-finish</span></tt> block, otherwise, the behavior of the library is unspecified.</li>
+<li>Only <tt class="docutils literal"><span class="pre">pushargr</span></tt> or <tt class="docutils literal"><span class="pre">pushargi</span></tt> operations are allowed within the <tt class="docutils literal"><span class="pre">prepare-call</span></tt> block, otherwise, the behavior of the library is unspecified.</li>
 </ul>
 <p>List of operations related to function calls:</p>
 <ul class="simple">
 <li><tt class="docutils literal"><span class="pre">prepare</span> <span class="pre">imm</span></tt> -- prepares a function call (generic)</li>
 <li><tt class="docutils literal"><span class="pre">pushargr</span> <span class="pre">reg</span></tt> -- passes the argument to a function</li>
 <li><tt class="docutils literal"><span class="pre">pushargi</span> <span class="pre">imm</span></tt> -- passes the argument to a function</li>
-<li><tt class="docutils literal"><span class="pre">finish</span> <span class="pre">imm</span></tt> -- calls a function</li>
-<li><tt class="docutils literal"><span class="pre">finishr</span> <span class="pre">reg</span></tt></li>
-<li><tt class="docutils literal"><span class="pre">call</span> <span class="pre">imm</span></tt> -- calls a function, however, leaves the arguments prepared for another call</li>
+<li><tt class="docutils literal"><span class="pre">call</span> <span class="pre">imm</span></tt> -- calls a function</li>
 <li><tt class="docutils literal"><span class="pre">callr</span> <span class="pre">reg</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">retval</span> <span class="pre">reg</span></tt> -- retrieves return value</li>
 </ul>
@@ -193,7 +192,7 @@ nei       O1 = (O2 != O3)
 <h1>Jumps</h1>
 <p>Operations <tt class="docutils literal"><span class="pre">jmpi</span></tt> and <tt class="docutils literal"><span class="pre">jmpr</span></tt> can be used to implement unconditional jumps. Both operations accept one argument, address to jump to. To obtain this address you can use the <tt class="docutils literal"><span class="pre">get_label</span></tt> operation or use the forward declaration along with the <tt class="docutils literal"><span class="pre">patch</span></tt> operation.</p>
 <ul class="simple">
-<li><tt class="docutils literal"><span class="pre">get_label</span></tt> is not an actual operation; it is a function that returns a <tt class="docutils literal"><span class="pre">jit_label</span></tt> value which corresponds to the current position in the code. This value can be passed to jmpi/call/finish/ or to a branch operation.</li>
+<li><tt class="docutils literal"><span class="pre">get_label</span></tt> is not an actual operation; it is a function that returns a <tt class="docutils literal"><span class="pre">jit_label</span></tt> value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.</li>
 <li>It may happen that one need to jump into the code which was not defined yet. Therefore, we can use forward declaration and set the address later. This means, we declare that the operation <tt class="docutils literal"><span class="pre">jmpi</span></tt> or branch operations jumps to the place defined by the macro JIT_FORWARD, and subsequently, we store the operation in some value <tt class="docutils literal"><span class="pre">jit_op</span> <span class="pre">*</span></tt>. In the place we want to jump to, we call the <tt class="docutils literal"><span class="pre">patch</span></tt> operation with an argument which is the patched operation. The following code illustrates the situation.</li>
 </ul>
 <pre class="literal-block">
@@ -248,9 +247,9 @@ typedef long (* plfl)(long);
 int main()
 {
         // we create a new instance of a compiler
-        // the first argument is an expected size of the machine code generated
-        // by the compiler; the second one indicates that the compiler has 4 registers
-        struct jit * p = jit_init(4096, 4);
+        // the first argument is the number of registers provided by the compiler,
+        // i.e., in this case compiler will provide four registers
+        struct jit * p = jit_init(4);
 
         plfl foo;
 
@@ -318,7 +317,7 @@ gcc -o demo1 -g -Wall -std=c99 -pedantic demo1.o jitlib-core.o
 </div>
 <div class="footer">
 <hr class="footer" />
-Generated on: 2010-06-23 14:30 UTC.
+Generated on: 2010-06-29 17:39 UTC.
 
 </div>
 </body>

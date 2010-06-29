@@ -57,7 +57,7 @@ struct jit * jit_init(unsigned int reg_count)
 	r->labels = NULL;
 
 	r->reg_count = reg_count;
-	r->reg_al = jit_reg_allocator_create(reg_count);
+	r->reg_al = jit_reg_allocator_create();
 	r->argpos = 0;
 
 	return r;

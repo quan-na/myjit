@@ -4,8 +4,9 @@ MyJIT
 
 MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of Schemik (http://schemik.sourceforge.net) and it was considered as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:
 
-+ unlimited number of registers (in this case "unlimited" means 32, this is to be fixed very soon)
++ unlimited number of registers
 + thread-safety
++ support for i386 and AMD64 architectures (support for SPARC processors will be available shortly)
 + easy to use and easy to extend design
 + particular backward compatibility with GNU lightning
 + the library allows for debugging (the debugging is broken right now)
@@ -15,7 +16,9 @@ MyJIT is a library that allows to generate machine code at run-time and afterwar
 Getting MyJIT
 -------------
 
-The source code including this documentation and examples is available at http://sourceforge.net/projects/myjit/files
+The source code including this documentation and examples is available at SourceFroge (http://sourceforge.net/projects/myjit/files) as of other information (http://sourceforge.net/projects/myjit)
+
+You can also checkout the latest release from the Bazaar repository (bzr://myjit.bzr.sourceforge.net/bzrroot/myjit).
 
 Instruction Set
 ---------------
@@ -155,36 +158,31 @@ The following operations and auxiliary macros helps to create a function, read i
 Function calls
 --------------
 
-Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using ``pusharg``. It should be stressed that the *arguments are passed in the reverse order!* Afterwards, the function is called using a ``finish`` or ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
+Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using ``pusharg``. It should be stressed that the *arguments are passed in the reverse order!* Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
 
 Let us make few notes on function calls:
-
-+ There are two variants of function calls ``finish`` and ``call``. The difference is that ``call`` does not destroy the prepared arguments and these can be reused to call the same or some other function. However, and this have to be emphasized, each ``prepare`` operation have to be paired with some ``finish`` operation otherwise it causes undefined behavior.
 
 + If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.
 
 + You should not nest prepare operations.
 
-+ Only ``pushargr`` or ``pushargi`` operations are allowed within the ``prepare-finish`` block, otherwise, the behavior of the library is unspecified.
++ Only ``pushargr`` or ``pushargi`` operations are allowed within the ``prepare-call`` block, otherwise, the behavior of the library is unspecified.
 
 List of operations related to function calls:
 
 + ``prepare imm`` -- prepares a function call (generic)
 + ``pushargr reg`` -- passes the argument to a function
 + ``pushargi imm`` -- passes the argument to a function
-+ ``finish imm`` -- calls a function
-+ ``finishr reg``
-+ ``call imm`` -- calls a function, however, leaves the arguments prepared for another call
++ ``call imm`` -- calls a function
 + ``callr reg``
 + ``retval reg`` -- retrieves return value
-
 
 Jumps
 -----
 
 Operations ``jmpi`` and ``jmpr`` can be used to implement unconditional jumps. Both operations accept one argument, address to jump to. To obtain this address you can use the ``get_label`` operation or use the forward declaration along with the ``patch`` operation.
 
-+ ``get_label`` is not an actual operation; it is a function that returns a ``jit_label`` value which corresponds to the current position in the code. This value can be passed to jmpi/call/finish/ or to a branch operation.
++ ``get_label`` is not an actual operation; it is a function that returns a ``jit_label`` value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.
 
 + It may happen that one need to jump into the code which was not defined yet. Therefore, we can use forward declaration and set the address later. This means, we declare that the operation ``jmpi`` or branch operations jumps to the place defined by the macro JIT_FORWARD, and subsequently, we store the operation in some value ``jit_op *``. In the place we want to jump to, we call the ``patch`` operation with an argument which is the patched operation. The following code illustrates the situation.
 
@@ -246,9 +244,9 @@ We start with a really simple example---with a function returning its argument i
 	int main()
 	{
 		// we create a new instance of a compiler
-		// the first argument is an expected size of the machine code generated 
-		// by the compiler; the second one indicates that the compiler has 4 registers
-		struct jit * p = jit_init(4096, 4);
+		// the first argument is the number of registers provided by the compiler,
+		// i.e., in this case compiler will provide four registers
+		struct jit * p = jit_init(4);
 	
 		plfl foo;
 	

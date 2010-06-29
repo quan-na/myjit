@@ -13,8 +13,9 @@ ROADMAP
 	* main buffer issue 
 	* finish->call
 	* amd64 glib dependency
-	* x86/amd64 code merge 
-	+ documentation update 
+	* x86/amd64 code merge
+	* support for unlimited registers
+	* documentation update 
 
 + SPARC (release 0.3.x)
 	+ TODO

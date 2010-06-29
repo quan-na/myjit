@@ -1,0 +1,22 @@
+Version 0.3.0.0
+===============
++ support for unlimited number of registers
++ automatic buffer size adjustment, i.e., it is not necessary set the size of
+the output buffer in advance
++ particular parts of x86 and AMD64 code has been merged
++ configurable register allocator which can shared by multiple processor types
++ red-black trees are used to implement register mappings and sets
++ API changes
+	+ jit_init has only one argument
+	+ jit_call has the same meaning as the jit_finish (jit_finish was
+	removed)
+
+Version 0.2.5.0
+================
++ support for AMD64 (x86_64) processors
++ CPU detection
+
+Version 0.2.4.2
+===============
++ initial release
++ only x86 based processors are supported
