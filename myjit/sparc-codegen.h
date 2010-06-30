@@ -958,5 +958,15 @@ typedef struct {
 #define sparc_ldi sparc_ld
 #endif
 
+#define sparc_patch(target, pos) do { \
+	long __p =  (long)(pos); \
+	long __t =  (long)(target); \
+	long __location = (__p - __t) / 4; \
+	/*printf(":XXX:%li:%li:%li\n", __p, __t, __location);*/ \
+	/* branch */ \
+	*(int *)(target) &= ~(0x04ffff); /* 22 bits */\
+	*(int *)(target) |= (0x04fffff & __location); /* 22 bits */\
+} while (0);
+
 #endif /* __SPARC_CODEGEN_H__ */
 

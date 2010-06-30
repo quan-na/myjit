@@ -20,8 +20,7 @@
 #include "sparc-codegen.h"
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
-		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
+		((((long)jit->buf + (long)((jit_label *)(imm))->pos - (long)jit->ip)) / 4))
 #define __GET_REG_POS(r) ((- (r) * REG_SIZE) - REG_SIZE)
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
@@ -116,17 +115,16 @@ static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int
 	sparc_movcc_imm(jit->ip, sparc_xcc, cond, 1, op->r_arg[0]);
 }
 
-/*
-static inline void __branch_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
+static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-	if (imm) amd64_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-	else amd64_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-
+	if (imm) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
+	else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
 	op->patch_addr = __PATCH_ADDR(jit);
-
-	amd64_branch_disp(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	sparc_branch (jit->ip, FALSE, sparc_bl, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	sparc_nop(jit->ip);
 }
 
+/*
 static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm)
 {
 	if (imm) amd64_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -579,10 +577,13 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_GE: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
 		case JIT_EQ: __cond_op(jit, op, sparc_be, IS_IMM(op)); break;
 		case JIT_NE: __cond_op(jit, op, sparc_bne, IS_IMM(op)); break;
-
+		case JIT_BLT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
+		case JIT_BGT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
+		case JIT_BLE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
+		case JIT_BGE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgeu, IS_IMM(op)); break;
+		
 
 /*
-		case JIT_BLT: __branch_op(jit, op, X86_CC_LT, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_BLE: __branch_op(jit, op, X86_CC_LE, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_BGT: __branch_op(jit, op, X86_CC_GT, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_BGE: __branch_op(jit, op, X86_CC_GE, IS_IMM(op), IS_SIGNED(op)); break;
@@ -596,11 +597,13 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BOSUB: __branch_overflow_op(jit, op, X86_SUB, IS_IMM(op)); break;
 
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
+				*/
 		case JIT_PATCH: do {
 					long pa = ((struct jit_op *)a1)->patch_addr;
-					amd64_patch(jit->buf + pa, jit->ip);
+					sparc_patch(jit->buf + pa, jit->ip);
 				} while (0);
 				break;
+		/*
 		case JIT_JMP:
 			op->patch_addr = __PATCH_ADDR(jit);
 			if (op->code & REG) amd64_jump_reg(jit->ip, a1);
@@ -675,8 +678,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (a1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, a1, AMD64_RAX, REG_SIZE);
 			break;
 
+*/
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
-
+/*
 		case (JIT_LD | IMM | SIGNED): 
 			if (op->arg_size == REG_SIZE) amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
 			else amd64_movsx_reg_mem(jit->ip, a1, a2, op->arg_size);
@@ -740,7 +744,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 		case JIT_DUMPREG: assert(0);
-			default: printf("sparc: unknown operation (opcode: 0x%x)\n", GET_OP(op));
+		default: printf("sparc: unknown operation (opcode: 0x%x)\n", GET_OP(op));
 	}
 }
 
