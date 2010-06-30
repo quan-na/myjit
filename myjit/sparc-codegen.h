@@ -133,7 +133,7 @@ typedef enum {
 	sparc_bg   = 10,
 	sparc_bge  = 11,
 	sparc_bgu  = 12,
-	sparc_bcc  = 13, sparc_beu = 13,
+	sparc_bcc  = 13, sparc_bgeu = 13,
 	sparc_bpos = 14,
 	sparc_bvc  = 15
 } SparcCond;
@@ -542,7 +542,7 @@ typedef struct {
 		(ins) = (unsigned int*)__f + 1;	\
 	} while (0)
 
-#define sparc_encode_format4c(ins,opval,oper,cc,bcond,r2,dest) \
+#define sparc_encode_format4c(ins,opval,oper,xcc,bcond,r2,dest) \
 	do {	\
 		sparc_format4c *__f = (sparc_format4c*)(ins);	\
 		__f->op = (opval);	\

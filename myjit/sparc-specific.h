@@ -52,64 +52,6 @@ static inline jit_label * jit_get_label(struct jit * jit)
 }
 
 /*
-static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_imm(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-
-	}  else {
-		if (op->r_arg[0] == op->r_arg[1]) {
-			amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-		} else if (op->r_arg[0] == op->r_arg[2]) {
-			amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[1]);
-		} else {
-			amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-			amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-		}	
-	}
-}
-
-static inline void __sub_op(struct jit * jit, struct jit_op * op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) amd64_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
-		else amd64_alu_reg_imm(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-		return;
-
-	}
-	if (op->r_arg[0] == op->r_arg[1]) {
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-		amd64_neg_reg(jit->ip, op->r_arg[0]);
-	} else {
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-	}	
-}
-
-static inline void __subx_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_imm(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-		return;
-
-	}
-	if (op->r_arg[0] == op->r_arg[1]) {
-		amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		amd64_push_reg(jit->ip, op->r_arg[2]);
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_membase(jit->ip, amd64_op, op->r_arg[0], AMD64_RSP, 0);
-		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
-	} else {
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-	}	
-}
-
 static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
@@ -165,21 +107,13 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 }
 	*/
 
-static inline void __cond_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
+static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-/*
-	if (imm) amd64_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-	else amd64_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-	if ((op->r_arg[0] != AMD64_RSI) && (op->r_arg[0] != AMD64_RDI)) {
-		amd64_mov_reg_imm(jit->ip, op->r_arg[0], 0);
-		amd64_set_reg(jit->ip, amd64_cond, op->r_arg[0], sign);
-	} else {
-		amd64_xchg_reg_reg(jit->ip, AMD64_RAX, op->r_arg[0], REG_SIZE);
-		amd64_mov_reg_imm(jit->ip, AMD64_RAX, 0);
-		amd64_set_reg(jit->ip, amd64_cond, AMD64_RAX, sign);
-		amd64_xchg_reg_reg(jit->ip, AMD64_RAX, op->r_arg[0], REG_SIZE);
-	}
-	*/
+
+	if (imm) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
+	else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
+	sparc_or_imm(jit->ip, FALSE, sparc_g0, 0, op->r_arg[0]); // clear
+	sparc_movcc_imm(jit->ip, sparc_xcc, cond, 1, op->r_arg[0]);
 }
 
 /*
@@ -639,15 +573,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else sparc_sdiv(jit->ip, FALSE, a2, a3, sparc_g0);
 			sparc_rdy(jit->ip, a1);
 			break;
+		case JIT_LT: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
+		case JIT_LE: __cond_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
+		case JIT_GT: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
+		case JIT_GE: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
+		case JIT_EQ: __cond_op(jit, op, sparc_be, IS_IMM(op)); break;
+		case JIT_NE: __cond_op(jit, op, sparc_bne, IS_IMM(op)); break;
+
 
 /*
-		case JIT_LT: __cond_op(jit, op, X86_CC_LT, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_LE: __cond_op(jit, op, X86_CC_LE, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_GT: __cond_op(jit, op, X86_CC_GT, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_GE: __cond_op(jit, op, X86_CC_GE, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_EQ: __cond_op(jit, op, X86_CC_EQ, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_NE: __cond_op(jit, op, X86_CC_NE, IS_IMM(op), IS_SIGNED(op)); break;
-
 		case JIT_BLT: __branch_op(jit, op, X86_CC_LT, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_BLE: __branch_op(jit, op, X86_CC_LE, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_BGT: __branch_op(jit, op, X86_CC_GT, IS_IMM(op), IS_SIGNED(op)); break;

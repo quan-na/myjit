@@ -19,7 +19,8 @@ ROADMAP
 
 + SPARC (release 0.3.x)
 	* detection
-	+ arithmetics
+	* conditions
+	* arithmetics
 	+ reg. allocator
 	+ reading arguments
 	+ jumps
@@ -27,7 +28,6 @@ ROADMAP
 	+ passing arguments
 	+ branches
 	+ large immediates
-	+ conditionals
 
 + generic (release 0.4.x)
 	+ floating point arithmetics
