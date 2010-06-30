@@ -28,7 +28,11 @@
 #ifdef __i386__
 #define JIT_ARCH_I386
 #else
-#define JIT_ARCH_AMD64
+	#ifdef __sparc__
+		#define JIT_ARCH_SPARC
+	#else
+		#define JIT_ARCH_AMD64
+	#endif
 #endif
 
 /*
@@ -55,6 +59,20 @@
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
 #endif
+
+/*
+ * SPARC related macros
+ */
+#ifdef JIT_ARCH_SPARC
+
+// number of register aliases
+#define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
+
+// number of special purpose registers
+#define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
+
+#endif
+
 
 
 /*
