@@ -5,7 +5,7 @@
 #include "myjit/jitlib.h"
 
 // pointer to a function accepting one argument of type long and returning long value
-typedef long (* plfl)(long)__attribute__((cdecl));
+typedef long (* plfl)(long);
 
 int main()
 {

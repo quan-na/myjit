@@ -40,7 +40,8 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 	for (int i = 0; i < 3; i++)
 		if (ARG_TYPE(op, i + 1) == TREG) jitset_set(op->live_in, op->arg[i], 0);
 
-#ifdef JIT_ARCH_AMD64
+// FIXME: should be generic for all architectures
+#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	// marks registers which are used to pass arguments
 	if (GET_OP(op) == JIT_PROLOG) {
 		
@@ -57,7 +58,8 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 		if (ARG_TYPE(op, i + 1) == REG)
 			jitset_set(op->live_in, op->arg[i], 1);
 
-#ifdef JIT_ARCH_AMD64
+// FIXME: should be generic for all architectures
+#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (GET_OP(op) == JIT_GETARG) {
 		if ((op->arg[1] >= 0) && (op->arg[1] <= 5)) {
 			// the first real register is used to set immediate values

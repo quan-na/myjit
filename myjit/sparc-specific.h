@@ -501,7 +501,7 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	}
 	*/
 }
-/*
+
 void __get_arg(struct jit * jit, jit_op * op, int reg)
 {
 
@@ -509,7 +509,9 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
 	int dreg = op->r_arg[0];
 
+
 	if (rmap_get(op->regmap, reg_id) == NULL) {
+	/*
 		// the register is not associated and the value has to be read from the memory
 		int reg_offset = __GET_REG_POS(reg_id);
 		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, REG_SIZE);
@@ -518,14 +520,18 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 			amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
 			amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
 		}
+		*/
 		return;
 	}
 
+
+	sparc_mov_reg_reg(jit->ip, reg, dreg);
+/*
 	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, dreg, reg, 8);
 	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, dreg, reg, op->arg_size);
 	else amd64_movzx_reg_reg(jit->ip, dreg, reg, op->arg_size);
+	*/
 }
-*/
 
 void jit_patch_external_calls(struct jit * jit)
 {
@@ -547,32 +553,94 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 	int found = 1;
 	switch (GET_OP(op)) {
-/*	
 		case JIT_ADD: 
-			if ((a1 != a2) && (a1 != a3)) {
-				if (IS_IMM(op)) amd64_lea_membase(jit->ip, a1, a2, a3);
-				else amd64_lea_memindex(jit->ip, a1, a2, 0, a3, 0);
-			} else __alu_op(jit, op, X86_ADD, IS_IMM(op)); 
+			if (IS_IMM(op)) sparc_add_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_add(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_ADDX: 
+			if (IS_IMM(op)) sparc_add_imm(jit->ip, sparc_cc, a2, a3, a1);
+			else sparc_add(jit->ip, sparc_cc, a2, a3, a1);
+			break;
+		case JIT_ADDC: 
+			if (IS_IMM(op)) sparc_addx_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_addx(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_SUB: 
+			if (IS_IMM(op)) sparc_sub_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_sub(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_SUBX: 
+			if (IS_IMM(op)) sparc_sub_imm(jit->ip, sparc_cc, a2, a3, a1);
+			else sparc_sub(jit->ip, sparc_cc, a2, a3, a1);
+			break;
+		case JIT_SUBC: 
+			if (IS_IMM(op)) sparc_subx_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_subx(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_RSB: 
+			if (IS_IMM(op)) sparc_sub_imm(jit->ip, FALSE, a3, a2, a1);
+			else sparc_sub(jit->ip, FALSE, a3, a2, a1);
 			break;
 
-		case JIT_ADDC: __alu_op(jit, op, X86_ADD, IS_IMM(op)); break;
-		case JIT_ADDX: __alu_op(jit, op, X86_ADC, IS_IMM(op)); break;
-		case JIT_SUB: __sub_op(jit, op, IS_IMM(op)); break;
-		case JIT_SUBC: __subx_op(jit, op, X86_SUB, IS_IMM(op)); break; 
-		case JIT_SUBX: __subx_op(jit, op, X86_SBB, IS_IMM(op)); break; 
-		case JIT_RSB: __rsb_op(jit, op, IS_IMM(op)); break; 
-		case JIT_NEG: if (a1 != a2) amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
-			      amd64_neg_reg(jit->ip, a1); 
+		case JIT_NEG: if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1);
+			      sparc_neg(jit->ip, a1); 
 			      break;
-		case JIT_OR: __alu_op(jit, op, X86_OR, IS_IMM(op)); break; 
-		case JIT_XOR: __alu_op(jit, op, X86_XOR, IS_IMM(op)); break; 
-		case JIT_AND: __alu_op(jit, op, X86_AND, IS_IMM(op)); break; 
-		case JIT_NOT: if (a1 != a2) amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
-			      amd64_not_reg(jit->ip, a1);
-			      break;
-		case JIT_LSH: __shift_op(jit, op, X86_SHL, IS_IMM(op)); break;
-		case JIT_RSH: __shift_op(jit, op, IS_SIGNED(op) ? X86_SAR : X86_SHR, IS_IMM(op)); break;
 
+		case JIT_NOT: if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1);
+			      sparc_not(jit->ip, a1); 
+			      break;
+		case JIT_OR: 
+			if (IS_IMM(op)) sparc_or_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_or(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_XOR:
+			if (IS_IMM(op)) sparc_xor_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_xor(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_AND: 
+			if (IS_IMM(op)) sparc_and_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_and(jit->ip, FALSE, a2, a3, a1);
+			break;
+		case JIT_LSH:
+			if (IS_IMM(op)) sparc_sll_imm(jit->ip, a2, a3, a1);
+			else sparc_sll(jit->ip, a2, a3, a1);
+			break;
+		case JIT_RSH:
+			if (IS_SIGNED(op)) {
+				if (IS_IMM(op)) sparc_sra_imm(jit->ip, a2, a3, a1);
+				else sparc_sra(jit->ip, a2, a3, a1);
+			} else {
+				if (IS_IMM(op)) sparc_srl_imm(jit->ip, a2, a3, a1);
+				else sparc_srl(jit->ip, a2, a3, a1);
+			}
+			break;
+
+		case JIT_MUL: 
+			// FIXME: shift left optimizations
+			if (IS_IMM(op)) sparc_smul_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_smul(jit->ip, FALSE, a2, a3, a1);
+			break;
+
+		case JIT_HMUL: 
+			if (IS_IMM(op)) sparc_smul_imm(jit->ip, FALSE, a2, a3, sparc_g0);
+			else sparc_smul(jit->ip, FALSE, a2, a3, sparc_g0);
+			sparc_rdy(jit->ip, a1);
+			break;
+
+		case JIT_DIV: 
+			// FIXME: shift right optimizations
+			if (IS_IMM(op)) sparc_sdiv_imm(jit->ip, FALSE, a2, a3, a1);
+			else sparc_sdiv(jit->ip, FALSE, a2, a3, a1);
+			break;
+
+		case JIT_MOD: 
+			// FIXME: shift right optimizations
+			if (IS_IMM(op)) sparc_sdiv_imm(jit->ip, FALSE, a2, a3, sparc_g0);
+			else sparc_sdiv(jit->ip, FALSE, a2, a3, sparc_g0);
+			sparc_rdy(jit->ip, a1);
+			break;
+
+/*
 		case JIT_LT: __cond_op(jit, op, X86_CC_LT, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_LE: __cond_op(jit, op, X86_CC_LE, IS_IMM(op), IS_SIGNED(op)); break;
 		case JIT_GT: __cond_op(jit, op, X86_CC_GT, IS_IMM(op), IS_SIGNED(op)); break;
@@ -593,11 +661,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BOADD: __branch_overflow_op(jit, op, X86_ADD, IS_IMM(op)); break;
 		case JIT_BOSUB: __branch_overflow_op(jit, op, X86_SUB, IS_IMM(op)); break;
 
-		case JIT_MUL: __mul(jit, op, IS_IMM(op), IS_SIGNED(op), 0); break;
-		case JIT_HMUL: __mul(jit, op, IS_IMM(op), IS_SIGNED(op), 1); break;
-		case JIT_DIV: __div(jit, op, IS_IMM(op), IS_SIGNED(op), 0); break;
-		case JIT_MOD: __div(jit, op, IS_IMM(op), IS_SIGNED(op), 1); break;
-
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
 		case JIT_PATCH: do {
 					long pa = ((struct jit_op *)a1)->patch_addr;
@@ -611,8 +674,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 			*/
 		case JIT_RET:
-			sparc_mov_reg_reg(jit->ip, sparc_g0, sparc_i0);
-			sparc_set32(jit->ip, 10, sparc_i0);
+			if (!IS_IMM(op) && (a1 != sparc_i0)) sparc_mov_reg_reg(jit->ip, a1, sparc_i0);
+			if (IS_IMM(op)) sparc_set32(jit->ip, a1, sparc_i0);
+//			sparc_mov_reg_reg(jit->ip, sparc_g0, sparc_i0);
+//			sparc_set32(jit->ip, 10, sparc_i0);
 			sparc_ret(jit->ip);
 			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
 //			if (!IS_IMM(op) && (a1 != AMD64_RAX)) amd64_mov_reg_reg(jit->ip, AMD64_RAX, a1, 8);
@@ -622,15 +687,16 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 //			amd64_pop_reg(jit->ip, AMD64_RBP);
 //			amd64_ret(jit->ip);
 			break;
-/*
 		case JIT_GETARG:
-			if (a2 == 0) __get_arg(jit, op, AMD64_RDI);
-			if (a2 == 1) __get_arg(jit, op, AMD64_RSI);
-			if (a2 == 2) __get_arg(jit, op, AMD64_RDX);
-			if (a2 == 3) __get_arg(jit, op, AMD64_RCX);
-			if (a2 == 4) __get_arg(jit, op, AMD64_R8);
-			if (a2 == 5) __get_arg(jit, op, AMD64_R9);
+			if (a2 == 0) __get_arg(jit, op, sparc_i0);
+			if (a2 == 1) __get_arg(jit, op, sparc_i1);
+			if (a2 == 2) __get_arg(jit, op, sparc_i2);
+			if (a2 == 3) __get_arg(jit, op, sparc_i3);
+			if (a2 == 4) __get_arg(jit, op, sparc_i4);
+			if (a2 == 5) __get_arg(jit, op, sparc_i5);
 			if (a2 > 5) {
+				assert(0);
+				/*
 				if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, REG_SIZE); 
 				else if (IS_SIGNED(op)) {
 					amd64_movsx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size);
@@ -638,23 +704,18 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
 					amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size); 
 				}
+				*/
 			}
 			break;
-		*/
 		default: found = 0;
 	}
 
 	if (found) return;
 
 	switch (op->code) {
+		case (JIT_MOV | REG): if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1); break;
+		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
 	/*
-		case (JIT_MOV | REG): if (a1 != a2) amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
-		case (JIT_MOV | IMM):
-			if (a2 == 0) amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1);
-			//else amd64_mov_reg_imm(jit->ip, a1, a2); 
-			else amd64_mov_reg_imm_size(jit->ip, a1, a2, 8); 
-			break;
-
 		case JIT_PREPARE: jit->prepare_args = a1; 
 				  jit->argspos = 0;
 				  jit->args = JIT_MALLOC(sizeof(struct arg) * a1);
@@ -672,7 +733,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 */
 		case JIT_PROLOG:
 			*(void **)(a1) = jit->ip;
-			sparc_save_imm(jit->ip, sparc_sp, -96 + allocai_mem, sparc_sp);
+			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
 //			__push_callee_saved_regs(jit, op);
 			break;
 /*
@@ -792,9 +853,9 @@ void jit_correct_long_imms(struct jit * jit)
 
 struct jit_reg_allocator * jit_reg_allocator_create()
 {
-	//static int __arg_regs[] = { AMD64_RDI, AMD64_RSI, AMD64_RDX, AMD64_RCX, AMD64_R8, AMD64_R9 };
+	static int __arg_regs[] = { sparc_i0, sparc_i1, sparc_i2, sparc_i3, sparc_i4, sparc_i5 };
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->hw_reg_cnt = 8;
+	a->hw_reg_cnt = 14;
 	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
 	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
 
@@ -806,6 +867,14 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->hw_regs[5] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 14 };
 	a->hw_regs[6] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 14 };
 	a->hw_regs[7] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 14 };
+
+	a->hw_regs[8] = (struct __hw_reg) { sparc_i0, 0, "i0", 0, 14 };
+	a->hw_regs[9] = (struct __hw_reg) { sparc_i1, 0, "i1", 0, 14 };
+	a->hw_regs[10] = (struct __hw_reg) { sparc_i2, 0, "i2", 0, 14 };
+	a->hw_regs[11] = (struct __hw_reg) { sparc_i3, 0, "i3", 0, 14 };
+	a->hw_regs[12] = (struct __hw_reg) { sparc_i4, 0, "i4", 0, 14 };
+	a->hw_regs[13] = (struct __hw_reg) { sparc_i5, 0, "i5", 0, 14 };
+
 	/*
 	a->hw_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 9 };
 	a->hw_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 8 };
@@ -816,13 +885,13 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->hw_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 4 };
 	a->hw_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 5 };
 */
-	a->hw_regs[8] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 100 };
+	a->hw_regs[14] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 100 };
 
 	a->fp_reg = sparc_fp;
 	a->ret_reg = sparc_i7;
 
-	a->arg_registers_cnt = 0;
-	//a->arg_registers = __arg_regs;
+	a->arg_registers_cnt = 6;
+	a->arg_registers = __arg_regs;
 
 	return a;
 }

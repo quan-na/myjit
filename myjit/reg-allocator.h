@@ -127,7 +127,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 		for (int i = 0; i < al->arg_registers_cnt; i++)
 			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->arg_registers[i]));
-
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
