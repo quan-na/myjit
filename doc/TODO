@@ -21,12 +21,12 @@ ROADMAP
 	* detection
 	* conditions
 	* arithmetics
+	* branches
 	+ reg. allocator
 	+ reading arguments
 	+ jumps
 	+ function calls
 	+ passing arguments
-	+ branches
 	+ large immediates
 
 + generic (release 0.4.x)

@@ -411,33 +411,18 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 
 void __get_arg(struct jit * jit, jit_op * op, int reg)
 {
-
 	int arg_id = op->r_arg[1];
 	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
 	int dreg = op->r_arg[0];
 
 
 	if (rmap_get(op->regmap, reg_id) == NULL) {
-	/*
 		// the register is not associated and the value has to be read from the memory
-		int reg_offset = __GET_REG_POS(reg_id);
-		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, REG_SIZE);
-		else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
-		else {
-			amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
-			amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
-		}
-		*/
+		sparc_ld_imm(jit->ip, sparc_sp, 96 + reg_id * 4, dreg);
 		return;
 	}
 
-
 	sparc_mov_reg_reg(jit->ip, reg, dreg);
-/*
-	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, dreg, reg, 8);
-	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, dreg, reg, op->arg_size);
-	else amd64_movzx_reg_reg(jit->ip, dreg, reg, op->arg_size);
-	*/
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -556,6 +541,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BGT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
 		case JIT_BLE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
 		case JIT_BGE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
+		case JIT_BEQ: __branch_op(jit, op, sparc_be, IS_IMM(op)); break;
+		case JIT_BNE: __branch_op(jit, op, sparc_bne, IS_IMM(op)); break;
 		case JIT_BMS: __branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
 		case JIT_BMC: __branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
 		case JIT_BOADD: __branch_overflow_op(jit, op, JIT_ADD, IS_IMM(op)); break;
@@ -596,18 +583,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (a2 == 3) __get_arg(jit, op, sparc_i3);
 			if (a2 == 4) __get_arg(jit, op, sparc_i4);
 			if (a2 == 5) __get_arg(jit, op, sparc_i5);
-			if (a2 > 5) {
-				assert(0);
-				/*
-				if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, REG_SIZE); 
-				else if (IS_SIGNED(op)) {
-					amd64_movsx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size);
-				} else {
-					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
-					amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size); 
-				}
-				*/
-			}
+			if (a2 > 5) sparc_ld_imm(jit->ip, sparc_fp, 92 + (a2 - 6) * 4, a1);
 			break;
 		default: found = 0;
 	}
@@ -638,10 +614,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
 //			__push_callee_saved_regs(jit, op);
 			break;
+			/*
 		case JIT_RETVAL: 
 			if (a1 != sparc_i0) sparc_mov_reg_reg(jit->ip, a1, sparc_i0); 
 			break;
-
+*/
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 /*
 		case (JIT_LD | IMM | SIGNED): 
@@ -700,10 +677,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
 		case (JIT_STX | REG): amd64_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
-		case (JIT_UREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(a1), a2, REG_SIZE); break;
-		case (JIT_LREG): amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(a2), REG_SIZE); break;
-		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(a1), a2, REG_SIZE);  break;
-		*/
+*/
+		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
+		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
+		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_sp, 96 + a2 * 4, a1); break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 		case JIT_DUMPREG: assert(0);
@@ -756,10 +733,12 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 {
 	static int __arg_regs[] = { sparc_i0, sparc_i1, sparc_i2, sparc_i3, sparc_i4, sparc_i5 };
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->hw_reg_cnt = 14;
+	//a->hw_reg_cnt = 14;
+	a->hw_reg_cnt = 10;
 	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
 	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
 
+/*
 	a->hw_regs[0] = (struct __hw_reg) { sparc_l0, 0, "l0", 1, 14 };
 	a->hw_regs[1] = (struct __hw_reg) { sparc_l1, 0, "l1", 1, 14 };
 	a->hw_regs[2] = (struct __hw_reg) { sparc_l2, 0, "l2", 1, 14 };
@@ -775,18 +754,21 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->hw_regs[11] = (struct __hw_reg) { sparc_i3, 0, "i3", 0, 14 };
 	a->hw_regs[12] = (struct __hw_reg) { sparc_i4, 0, "i4", 0, 14 };
 	a->hw_regs[13] = (struct __hw_reg) { sparc_i5, 0, "i5", 0, 14 };
+	*/
 
-	/*
-	a->hw_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 9 };
-	a->hw_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 8 };
-	a->hw_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 6 };
-	a->hw_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0, 7 };
-	a->hw_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1, 2 };
-	a->hw_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 3 };
-	a->hw_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 4 };
-	a->hw_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 5 };
-*/
-	a->hw_regs[14] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 100 };
+	a->hw_regs[0] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 14 };
+	a->hw_regs[1] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 14 };
+	a->hw_regs[2] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 14 };
+	a->hw_regs[3] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 14 };
+
+	a->hw_regs[4] = (struct __hw_reg) { sparc_i0, 0, "i0", 0, 14 };
+	a->hw_regs[5] = (struct __hw_reg) { sparc_i1, 0, "i1", 0, 14 };
+	a->hw_regs[6] = (struct __hw_reg) { sparc_i2, 0, "i2", 0, 14 };
+	a->hw_regs[7] = (struct __hw_reg) { sparc_i3, 0, "i3", 0, 14 };
+	a->hw_regs[8] = (struct __hw_reg) { sparc_i4, 0, "i4", 0, 14 };
+	a->hw_regs[9] = (struct __hw_reg) { sparc_i5, 0, "i5", 0, 14 };
+
+	a->hw_regs[10] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 100 };
 
 	a->fp_reg = sparc_fp;
 	a->ret_reg = sparc_i7;
