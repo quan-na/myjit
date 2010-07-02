@@ -399,7 +399,7 @@ typedef struct {
 		sparc_format1 *__f = (sparc_format1*)(ins);	\
 		__f->op = 1;	\
 		__f->disp = ((unsigned int)(addr) >> 2);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format2a(ins,val,oper,dest) \
@@ -409,7 +409,7 @@ typedef struct {
 		__f->rd = (dest);	\
 		__f->op2 = (oper);	\
 		__f->disp = (val) & 0x3fffff;	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format2b(ins,aval,bcond,oper,disp22) \
@@ -420,7 +420,7 @@ typedef struct {
 		__f->cond = (bcond);	\
 		__f->op2 = (oper);	\
 		__f->disp = (disp22);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format2c(ins,aval,bcond,oper,xcc,predict,disp19) \
@@ -433,7 +433,7 @@ typedef struct {
         __f->cc01 = (xcc); \
         __f->p = (predict); \
         __f->d19 = (disp19); \
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format2d(ins,aval,bcond,oper,predict,r1,disp16) \
@@ -448,7 +448,7 @@ typedef struct {
         __f->p = (predict); \
         __f->rs1 = (r1);    \
 		__f->d16lo = ((disp16) & 0x3fff);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format3a(ins,opval,asival,r1,r2,oper,dest) \
@@ -461,7 +461,7 @@ typedef struct {
 		__f->rs1 = (r1);	\
 		__f->rs2 = (r2);	\
 		__f->op3 = (oper);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format3ax(ins,opval,asival,r1,r2,oper,dest) \
@@ -475,7 +475,7 @@ typedef struct {
 		__f->rs1 = (r1);	\
 		__f->rs2 = (r2);	\
 		__f->op3 = (oper);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format3b(ins,opval,r1,val,oper,dest) \
@@ -487,7 +487,7 @@ typedef struct {
 		__f->rd = (dest);	\
 		__f->rs1 = (r1);	\
 		__f->op3 = (oper);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format3bx(ins,opval,r1,val,oper,dest) \
@@ -500,7 +500,7 @@ typedef struct {
 		__f->rd = (dest);	\
 		__f->rs1 = (r1);	\
 		__f->op3 = (oper);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *) ((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format3c(ins,opval,opfval,r1,oper,r2,dest) \
@@ -512,7 +512,7 @@ typedef struct {
 		__f->rs1 = (r1);	\
 		__f->rs2 = (r2);	\
 		__f->op3 = (oper);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format4a(ins,opval,oper,cc,r1,r2,dest) \
@@ -526,7 +526,7 @@ typedef struct {
         __f->cc01= (cc) & 0x3; \
         __f->res = 0;       \
 		__f->rs2 = (r2);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format4b(ins,opval,oper,cc,r1,imm,dest) \
@@ -539,7 +539,7 @@ typedef struct {
         __f->i   = 1;       \
         __f->cc01= (cc) & 0x3; \
 		__f->simm = (imm);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format4c(ins,opval,oper,xcc,bcond,r2,dest) \
@@ -554,7 +554,7 @@ typedef struct {
         __f->cc01= (xcc) & 0x3; \
         __f->res = 0;       \
 		__f->rs2 = (r2);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 #define sparc_encode_format4d(ins,opval,oper,xcc,bcond,imm,dest) \
@@ -568,7 +568,7 @@ typedef struct {
         __f->i   = 1;       \
         __f->cc01= (xcc) & 0x3; \
 		__f->simm = (imm);	\
-		(ins) = (unsigned int*)__f + 1;	\
+		(ins) = (unsigned char *)((unsigned int*)__f + 1);	\
 	} while (0)
 
 /* is it useful to provide a non-default value? */
