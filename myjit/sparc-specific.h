@@ -71,41 +71,6 @@ static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
 	}
 }
 */
-/*
-static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
-{
-	if (imm) { 
-		if (op->r_arg[0] != op->r_arg[1]) amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_shift_reg_imm(jit->ip, shift_op, op->r_arg[0], op->r_arg[2]);
-	} else {
-		int destreg = op->r_arg[0];
-		int valreg = op->r_arg[1];
-		int shiftreg = op->r_arg[2];
-		int ecx_pathology = 0;
-
-		if (destreg == AMD64_RCX) {
-			ecx_pathology = 1;
-			amd64_push_reg(jit->ip, AMD64_RDI); // TODO: test if the EDI is in use, or not
-			destreg = AMD64_RDI;
-		}
-
-		if (shiftreg != AMD64_RCX) {
-			amd64_push_reg(jit->ip, AMD64_RCX); // TODO: test if the ECX register is in use, or not 
-			amd64_mov_reg_reg(jit->ip, AMD64_RCX, shiftreg, REG_SIZE);
-		}
-		if (destreg != valreg) amd64_mov_reg_reg(jit->ip, destreg, valreg, REG_SIZE); 
-		amd64_shift_reg(jit->ip, shift_op, destreg);
-		if (ecx_pathology) {
-			amd64_mov_reg_reg(jit->ip, AMD64_RCX, AMD64_RDI, REG_SIZE);
-			if (shiftreg != AMD64_RCX) amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
-			amd64_pop_reg(jit->ip, AMD64_RDI);
-		} else {
-			if (shiftreg != AMD64_RCX) amd64_pop_reg(jit->ip, AMD64_RCX);
-		}
-	}
-}
-	*/
-
 static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
 
@@ -120,32 +85,42 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, i
 	if (imm) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
 	op->patch_addr = __PATCH_ADDR(jit);
-	sparc_branch (jit->ip, FALSE, sparc_bl, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
 }
 
-/*
-static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm)
+static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-	if (imm) amd64_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
-	else amd64_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
-
+	if (imm) sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
+	else sparc_and(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
 	op->patch_addr = __PATCH_ADDR(jit);
-
-	amd64_branch_disp(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	sparc_nop(jit->ip);
 }
 
 static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
 {
-	if (imm) amd64_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
-	else amd64_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
-
+	long a1 = op->r_arg[0];
+	long a2 = op->r_arg[1];
+	long a3 = op->r_arg[2];
+	if (imm) {
+		switch (alu_op) {
+			case JIT_ADD: sparc_add_imm(jit->ip, sparc_cc, a2, a3, a1); break;
+			case JIT_SUB: sparc_sub_imm(jit->ip, sparc_cc, a2, a3, a1); break;
+			default: assert(0);
+		}
+	} else {
+		switch (alu_op) {
+			case JIT_ADD: sparc_add(jit->ip, sparc_cc, a2, a3, a1); break;
+			case JIT_SUB: sparc_sub(jit->ip, sparc_cc, a2, a3, a1); break;
+			default: assert(0);
+		}
+	}
 	op->patch_addr = __PATCH_ADDR(jit);
-
-	amd64_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	sparc_branch (jit->ip, FALSE, sparc_boverflow, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	sparc_nop(jit->ip);
 }
 
-	*/
 /* determines whether the argument value was spilled or not,
  * if the register is associated with the hardware register
  * it is returned through the reg argument
@@ -580,22 +555,13 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BLT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
 		case JIT_BGT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
 		case JIT_BLE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
-		case JIT_BGE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgeu, IS_IMM(op)); break;
-		
+		case JIT_BGE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
+		case JIT_BMS: __branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
+		case JIT_BMC: __branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
+		case JIT_BOADD: __branch_overflow_op(jit, op, JIT_ADD, IS_IMM(op)); break;
+		case JIT_BOSUB: __branch_overflow_op(jit, op, JIT_SUB, IS_IMM(op)); break;
 
 /*
-		case JIT_BLE: __branch_op(jit, op, X86_CC_LE, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_BGT: __branch_op(jit, op, X86_CC_GT, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_BGE: __branch_op(jit, op, X86_CC_GE, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_BEQ: __branch_op(jit, op, X86_CC_EQ, IS_IMM(op), IS_SIGNED(op)); break;
-		case JIT_BNE: __branch_op(jit, op, X86_CC_NE, IS_IMM(op), IS_SIGNED(op)); break;
-
-		case JIT_BMS: __branch_mask_op(jit, op, X86_CC_NZ, IS_IMM(op)); break;
-		case JIT_BMC: __branch_mask_op(jit, op, X86_CC_Z, IS_IMM(op)); break;
-
-		case JIT_BOADD: __branch_overflow_op(jit, op, X86_ADD, IS_IMM(op)); break;
-		case JIT_BOSUB: __branch_overflow_op(jit, op, X86_SUB, IS_IMM(op)); break;
-
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
 				*/
 		case JIT_PATCH: do {
@@ -603,13 +569,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					sparc_patch(jit->buf + pa, jit->ip);
 				} while (0);
 				break;
-		/*
 		case JIT_JMP:
 			op->patch_addr = __PATCH_ADDR(jit);
-			if (op->code & REG) amd64_jump_reg(jit->ip, a1);
-			else amd64_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
+			if (op->code & REG) sparc_jmp(jit->ip, a1, sparc_g0);
+			else sparc_branch(jit->ip, FALSE, sparc_balways, __JIT_GET_ADDR(jit, op->r_arg[0]));
+			sparc_nop(jit->ip);
 			break;
-			*/
 		case JIT_RET:
 			if (!IS_IMM(op) && (a1 != sparc_i0)) sparc_mov_reg_reg(jit->ip, a1, sparc_i0);
 			if (IS_IMM(op)) sparc_set32(jit->ip, a1, sparc_i0);
@@ -673,12 +638,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
 //			__push_callee_saved_regs(jit, op);
 			break;
-/*
 		case JIT_RETVAL: 
-			if (a1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, a1, AMD64_RAX, REG_SIZE);
+			if (a1 != sparc_i0) sparc_mov_reg_reg(jit->ip, a1, sparc_i0); 
 			break;
 
-*/
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 /*
 		case (JIT_LD | IMM | SIGNED): 

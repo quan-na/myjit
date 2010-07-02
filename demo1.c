@@ -27,8 +27,7 @@ int main()
 	// takes the value in R(0), increments it by one, and stores the result into the
 	// register R(1)
 	jit_addi(p, R(1), R(0), 1);
-
-
+	
 	// returns from the function and returns the value in register R(1)
 	jit_retr(p, R(1));
 
