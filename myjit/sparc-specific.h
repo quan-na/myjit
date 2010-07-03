@@ -125,18 +125,18 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
  * if the register is associated with the hardware register
  * it is returned through the reg argument
  */
-/*
+// FIXME: more general, should use information from reg. allocator
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
 	int args = prepare_op->arg[0];
 	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 	if ((!hreg)
-	|| ((hreg->id == AMD64_RDI) && (args > 0))
-	|| ((hreg->id == AMD64_RSI) && (args > 1))
-	|| ((hreg->id == AMD64_RDX) && (args > 2))
-	|| ((hreg->id == AMD64_RCX) && (args > 3))
-	|| ((hreg->id == AMD64_R8) && (args > 4))
-	|| ((hreg->id == AMD64_R9) && (args > 5)))
+	|| ((hreg->id == sparc_o0) && (args > 0))
+	|| ((hreg->id == sparc_o1) && (args > 1))
+	|| ((hreg->id == sparc_o2) && (args > 2))
+	|| ((hreg->id == sparc_o3) && (args > 3))
+	|| ((hreg->id == sparc_o4) && (args > 4))
+	|| ((hreg->id == sparc_o5) && (args > 5)))
 		return 1;
 
 	*reg = hreg->id;
@@ -153,45 +153,58 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 
 	for (i = jit->prepare_args - 1, pos = 0; i >= 0; i--, pos++) {
 		int reg;
+		// FIXME: should take information from allocatot
 		if (pos < 6) {
 			switch (pos) {
-				case 0: reg = AMD64_RDI; break;
-				case 1: reg = AMD64_RSI; break;
-				case 2: reg = AMD64_RDX; break;
-				case 3: reg = AMD64_RCX; break;
-				case 4: reg = AMD64_R8; break;
-				case 5: reg = AMD64_R9; break;
+				case 0: reg = sparc_o0; break;
+				case 1: reg = sparc_o1; break;
+				case 2: reg = sparc_o2; break;
+				case 3: reg = sparc_o3; break;
+				case 4: reg = sparc_o4; break;
+				case 5: reg = sparc_o5; break;
 			}
 
 			if (jit->args[i].isreg) {
+			
 				if (__is_spilled(jit->args[i].value, prepare, &sreg)) {
-					amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit->args[i].value), REG_SIZE);
+					sparc_ld_imm(jit->ip, sparc_fp, - jit->args[i].value * 4, reg);
 				} else {
-					amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
+					sparc_mov_reg_reg(jit->ip, sreg, reg);
 				}
-			} else amd64_mov_reg_imm_size(jit->ip, reg, jit->args[i].value, 8);
+			} else sparc_set32(jit->ip, jit->args[i].value, reg);
 
 		} else {
-			int x = pos - 6;
+			int x = i;
 			if (jit->args[x].isreg) {
 				if (__is_spilled(jit->args[x].value, prepare, &sreg)) {
-					amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(jit->args[x].value));
+					sparc_ld_imm(jit->ip, sparc_sp, 96 + jit->args[i].value * 4, sparc_g1);
+					sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
 				} else {
-					amd64_push_reg(jit->ip, sreg);
+					sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (pos - 6) * 4);
 				}
-
-			} else amd64_push_imm(jit->ip, jit->args[x].value);
+			} else {
+				sparc_set32(jit->ip, jit->args[i].value, sparc_g1);
+				sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
+			}
 		}
 	}
-	// al is used to pass number of floating point arguments 
-	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
 	if (!imm) {
-		amd64_call_reg(jit->ip, op->r_arg[0]);
+		sparc_call(jit->ip, op->r_arg[0], sparc_g0);
 	} else {
 		op->patch_addr = __PATCH_ADDR(jit);
-		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); // 4: magic constant 
-	}
+		if (op->r_arg[0] == (long)JIT_FORWARD) {
+			sparc_call_simple(jit->ip, 0); 
+		} else if (jit_is_label(jit, (void *)op->r_arg[0]))
 
+			sparc_call_simple(jit->ip, ((long)jit->buf - (long)jit->ip) + (long)((jit_label *)(op->r_arg[0]))->pos); 
+		else {
+			sparc_set32(jit->ip, op->r_arg[0], sparc_g1);
+			sparc_call(jit->ip, sparc_g1, sparc_g0);
+		}
+	}
+	sparc_nop(jit->ip);
+
+/*
 	if (jit->prepare_args > 6) {
 		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, (jit->prepare_args - 6) * PTR_SIZE);
 		JIT_FREE(jit->args);
@@ -206,125 +219,9 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
 		if (hreg && jitset_get(op->live_in, reg)) amd64_pop_reg(jit->ip, regs[i]);
 	}
+	*/
 }
-
-static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
-{
-	long dest = op->r_arg[0];
-	long factor1 = op->r_arg[1];
-	long factor2 = op->r_arg[2];
-
-	// optimization for special cases 
-	if ((!high_bytes) && (imm)) {
-		switch (factor2) {
-			case 2: if (factor1 == dest) amd64_shift_reg_imm(jit->ip, X86_SHL, dest, 1);
-				else amd64_lea_memindex(jit->ip, dest, factor1, 0, factor1, 0);
-				return;
-
-			case 3: amd64_lea_memindex(jit->ip, dest, factor1, 0, factor1, 1); return;
-
-			case 4: if (factor1 != dest) amd64_mov_reg_reg(jit->ip, dest, factor1, REG_SIZE);
-				amd64_shift_reg_imm(jit->ip, X86_SHL, dest, 2);
-				return;
-			case 5: amd64_lea_memindex(jit->ip, dest, factor1, 0, factor1, 2);
-				return;
-			case 8: if (factor1 != dest) amd64_mov_reg_reg(jit->ip, dest, factor1, REG_SIZE);
-				amd64_shift_reg_imm(jit->ip, X86_SHL, dest, 3);
-				return;
-			case 9: amd64_lea_memindex(jit->ip, dest, factor1, 0, factor1, 3);
-				return;
-		}
-	}
-
-
-	// generic multiplication 
-
-	if (dest != AMD64_RAX) amd64_push_reg(jit->ip, AMD64_RAX);
-	if (dest != AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
-
-	if (imm) {
-		if (factor1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, AMD64_RAX, factor1, REG_SIZE);
-		amd64_mov_reg_imm(jit->ip, AMD64_RDX, factor2);
-		amd64_mul_reg(jit->ip, AMD64_RDX, sign);
-	} else {
-		if (factor1 == AMD64_RAX) amd64_mul_reg(jit->ip, factor2, sign);
-		else if (factor2 == AMD64_RAX) amd64_mul_reg(jit->ip, factor1, sign);
-		else {
-			amd64_mov_reg_reg(jit->ip, AMD64_RAX, factor1, REG_SIZE);
-			amd64_mul_reg(jit->ip, factor2, sign);
-		}
-	}
-
-	if (!high_bytes) {
-		if (dest != AMD64_RAX) amd64_mov_reg_reg(jit->ip, dest, AMD64_RAX, REG_SIZE);
-	} else {
-		if (dest != AMD64_RDX) amd64_mov_reg_reg(jit->ip, dest, AMD64_RDX, REG_SIZE);
-	}
-
-	if (dest != AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
-	if (dest != AMD64_RAX) amd64_pop_reg(jit->ip, AMD64_RAX);
-}
-static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
-{
-	long dest = op->r_arg[0];
-	long dividend = op->r_arg[1];
-	long divisor = op->r_arg[2];
-
-	if (imm && ((divisor == 2) || (divisor == 4) || (divisor == 8))) {
-		if (dest != dividend) amd64_mov_reg_reg(jit->ip, dest, dividend, REG_SIZE);
-		if (!modulo) {
-			switch (divisor) {
-				case 2: amd64_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 1); break;
-				case 4: amd64_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 2); break;
-				case 8: amd64_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 3); break;
-			}
-		} else {
-			switch (divisor) {
-				case 2: amd64_alu_reg_imm(jit->ip, X86_AND, dest, 0x1); break;
-				case 4: amd64_alu_reg_imm(jit->ip, X86_AND, dest, 0x3); break;
-				case 8: amd64_alu_reg_imm(jit->ip, X86_AND, dest, 0x7); break;
-			}
-		}
-		return;
-	}
-
-	if (dest != AMD64_RAX) amd64_push_reg(jit->ip, AMD64_RAX);
-	if (dest != AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
-
-	if (imm) {
-		if (dividend != AMD64_RAX) amd64_mov_reg_reg(jit->ip, AMD64_RAX, dividend, REG_SIZE);
-		amd64_cdq(jit->ip);
-		if (dest != AMD64_RBX) amd64_push_reg(jit->ip, AMD64_RBX);
-		amd64_mov_reg_imm_size(jit->ip, AMD64_RBX, divisor, 8);
-		amd64_div_reg(jit->ip, AMD64_RBX, sign);
-		if (dest != AMD64_RBX) amd64_pop_reg(jit->ip, AMD64_RBX);
-	} else {
-		if ((divisor == AMD64_RAX) || (divisor == AMD64_RDX)) {
-			amd64_push_reg(jit->ip, divisor);
-		}
-
-		if (dividend != AMD64_RAX) amd64_mov_reg_reg(jit->ip, AMD64_RAX, dividend, REG_SIZE);
-
-		amd64_cdq(jit->ip);
-
-		if ((divisor == AMD64_RAX) || (divisor == AMD64_RDX)) {
-			amd64_div_membase(jit->ip, AMD64_RSP, 0, sign);
-			amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
-		} else {
-			amd64_div_reg(jit->ip, divisor, sign);
-		}
-	}
-
-	if (!modulo) {
-		if (dest != AMD64_RAX) amd64_mov_reg_reg(jit->ip, dest, AMD64_RAX, REG_SIZE);
-	} else {
-		if (dest != AMD64_RDX) amd64_mov_reg_reg(jit->ip, dest, AMD64_RDX, REG_SIZE);
-	}
-
-	if (dest != AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
-	if (dest != AMD64_RAX) amd64_pop_reg(jit->ip, AMD64_RAX);
-}
-
+/*
 
 static inline int __uses_hw_reg(struct jit_op * op, long reg)
 {
@@ -415,10 +312,10 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
 	int dreg = op->r_arg[0];
 
-
 	if (rmap_get(op->regmap, reg_id) == NULL) {
 		// the register is not associated and the value has to be read from the memory
-		sparc_ld_imm(jit->ip, sparc_sp, 96 + reg_id * 4, dreg);
+		//sparc_ld_imm(jit->ip, sparc_sp, 96 + reg_id * 4, dreg);
+		sparc_ld_imm(jit->ip, sparc_fp, -reg_id * 4, dreg);
 		return;
 	}
 
@@ -427,13 +324,7 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 
 void jit_patch_external_calls(struct jit * jit)
 {
-/*
-	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
-			amd64_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
-		}
-	}
-	*/
+// XXX: unused
 }
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
@@ -548,9 +439,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BOADD: __branch_overflow_op(jit, op, JIT_ADD, IS_IMM(op)); break;
 		case JIT_BOSUB: __branch_overflow_op(jit, op, JIT_SUB, IS_IMM(op)); break;
 
-/*
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
-				*/
+
 		case JIT_PATCH: do {
 					long pa = ((struct jit_op *)a1)->patch_addr;
 					sparc_patch(jit->buf + pa, jit->ip);
@@ -593,11 +483,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 	switch (op->code) {
 		case (JIT_MOV | REG): if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1); break;
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
-	/*
 		case JIT_PREPARE: jit->prepare_args = a1; 
 				  jit->argspos = 0;
 				  jit->args = JIT_MALLOC(sizeof(struct arg) * a1);
-				  __push_caller_saved_regs(jit, op);
+				 // FIXME: __push_caller_saved_regs(jit, op);
 				  break;
 
 		case JIT_PUSHARG | REG: jit->args[jit->argspos].isreg = 1;
@@ -608,17 +497,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  	jit->args[jit->argspos++].value = op->arg[0];
 					break;
 
-*/
 		case JIT_PROLOG:
 			*(void **)(a1) = jit->ip;
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
 //			__push_callee_saved_regs(jit, op);
 			break;
-			/*
 		case JIT_RETVAL: 
-			if (a1 != sparc_i0) sparc_mov_reg_reg(jit->ip, a1, sparc_i0); 
+			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
 			break;
-*/
+
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 /*
 		case (JIT_LD | IMM | SIGNED): 
@@ -678,9 +565,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | REG): amd64_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
 */
+/*
 		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
 		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
 		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_sp, 96 + a2 * 4, a1); break;
+		*/
+		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
+		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
+		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_fp, - a2 * 4, a1); break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 		case JIT_DUMPREG: assert(0);

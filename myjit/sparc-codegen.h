@@ -962,10 +962,17 @@ typedef struct {
 	long __p =  (long)(pos); \
 	long __t =  (long)(target); \
 	long __location = (__p - __t) / 4; \
-	/*printf(":XXX:%li:%li:%li\n", __p, __t, __location);*/ \
-	/* branch */ \
-	*(int *)(target) &= ~(0x04ffff); /* 22 bits */\
-	*(int *)(target) |= (0x04fffff & __location); /* 22 bits */\
+	sparc_format2a *__f = (sparc_format2a*)(target);	\
+	if (__f->op == 0) {\
+		/* branch */ \
+		*(int *)(target) &= ~(0x03fffff); /* 22 bits */\
+		*(int *)(target) |= (0x03fffff & __location); /* 22 bits */\
+	} else { \
+		/* call */ \
+		printf("patching\n");\
+		*(int *)(target) &= ~(0x3ffffff); /* 30 bits */\
+		*(int *)(target) |= (0x3ffffff & __location); /* 30 bits */\
+	} \
 } while (0);
 
 #endif /* __SPARC_CODEGEN_H__ */

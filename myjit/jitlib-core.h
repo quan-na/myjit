@@ -120,7 +120,8 @@ struct jit {
 	struct jit_reg_allocator * reg_al;
 	struct jit_op * current_func;
 	jit_label * labels;
-#ifdef JIT_ARCH_AMD64
+	// FIXME: option in cpu-detect.h
+#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	int argspos; // FIXME: better name
 	struct arg {
 		int isreg;
