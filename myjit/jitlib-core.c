@@ -51,7 +51,6 @@ struct jit * jit_init(unsigned int reg_count)
 	if (reg_count % 4) reg_count ++; // stack has to be aligned to 16 bytes
 #endif
 
-
 	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;
 	r->allocai_mem = reg_count * REG_SIZE;

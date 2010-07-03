@@ -371,8 +371,6 @@ void test8()
 	jit_movi(p, R(1), offsetof(struct mystruct, avg));
 	jit_stxr(p, R(0), R(1), R(5), sizeof(int));
 
-	//jit_ldi(p, R(5), &s + offsetof(struct mystruct, avg), sizeof(short));
-
 	jit_ldi(p, R(0), &s + offsetof(struct mystruct, avg), sizeof(int));
 	jit_ldi(p, R(1), &s + offsetof(struct mystruct, sum), sizeof(short));
 

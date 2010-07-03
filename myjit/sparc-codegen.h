@@ -969,7 +969,6 @@ typedef struct {
 		*(int *)(target) |= (0x03fffff & __location); /* 22 bits */\
 	} else { \
 		/* call */ \
-		printf("patching\n");\
 		*(int *)(target) &= ~(0x3ffffff); /* 30 bits */\
 		*(int *)(target) |= (0x3ffffff & __location); /* 30 bits */\
 	} \

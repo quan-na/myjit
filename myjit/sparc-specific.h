@@ -221,72 +221,6 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	}
 	*/
 }
-/*
-
-static inline int __uses_hw_reg(struct jit_op * op, long reg)
-{
-	for (int i = 0; i < 3; i++)
-		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			if (op->r_arg[i] == reg) return 1;
-		}
-	return 0;
-}
-
-
-static inline void __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
-{
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_RBX)) { amd64_push_reg(jit->ip, AMD64_RBX); break; }
-	}
-
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R12)) { amd64_push_reg(jit->ip, AMD64_R12); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R13)) { amd64_push_reg(jit->ip, AMD64_R13); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R14)) { amd64_push_reg(jit->ip, AMD64_R14); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R15)) { amd64_push_reg(jit->ip, AMD64_R15); break; }
-	}
-}
-*/
-static inline void __pop_callee_saved_regs(struct jit * jit)
-{
-/*
-	struct jit_op * op = jit->current_func;
-
-
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R15)) { amd64_pop_reg(jit->ip, AMD64_R15); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R14)) { amd64_pop_reg(jit->ip, AMD64_R14); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R13)) { amd64_pop_reg(jit->ip, AMD64_R13); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_R12)) { amd64_pop_reg(jit->ip, AMD64_R12); break; }
-	}
-	
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, AMD64_RBX)) { amd64_pop_reg(jit->ip, AMD64_RBX); break; }
-	}
-	*/
-}
 
 static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
@@ -324,7 +258,7 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 
 void jit_patch_external_calls(struct jit * jit)
 {
-// XXX: unused
+// unused
 }
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
@@ -455,16 +389,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_RET:
 			if (!IS_IMM(op) && (a1 != sparc_i0)) sparc_mov_reg_reg(jit->ip, a1, sparc_i0);
 			if (IS_IMM(op)) sparc_set32(jit->ip, a1, sparc_i0);
-//			sparc_mov_reg_reg(jit->ip, sparc_g0, sparc_i0);
-//			sparc_set32(jit->ip, 10, sparc_i0);
 			sparc_ret(jit->ip);
 			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
-//			if (!IS_IMM(op) && (a1 != AMD64_RAX)) amd64_mov_reg_reg(jit->ip, AMD64_RAX, a1, 8);
-//			if (IS_IMM(op)) amd64_mov_reg_imm(jit->ip, AMD64_RAX, a1);
-//			__pop_callee_saved_regs(jit);
-//			amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
-//			amd64_pop_reg(jit->ip, AMD64_RBP);
-//			amd64_ret(jit->ip);
 			break;
 		case JIT_GETARG:
 			if (a2 == 0) __get_arg(jit, op, sparc_i0);
@@ -500,71 +426,109 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PROLOG:
 			*(void **)(a1) = jit->ip;
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
-//			__push_callee_saved_regs(jit, op);
 			break;
 		case JIT_RETVAL: 
 			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
 			break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
-/*
+
+		case (JIT_LD | REG | SIGNED): 
+			switch (op->arg_size) {
+				case 1: sparc_ldsb(jit->ip, a2, sparc_g0, a1); break;
+				case 2: sparc_ldsh(jit->ip, a2, sparc_g0, a1); break;
+				case 4: sparc_ld(jit->ip, a2, sparc_g0, a1); break;
+				default: abort();
+			} break;
+
+		case (JIT_LD | REG | UNSIGNED): 
+			switch (op->arg_size) {
+				case 1: sparc_ldub(jit->ip, a2, sparc_g0, a1); break;
+				case 2: sparc_lduh(jit->ip, a2, sparc_g0, a1); break;
+				case 4: sparc_ld(jit->ip, a2, sparc_g0, a1); break;
+				default: abort();
+			} break;
+
 		case (JIT_LD | IMM | SIGNED): 
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
-			else amd64_movsx_reg_mem(jit->ip, a1, a2, op->arg_size);
-			break;
+			switch (op->arg_size) {
+				case 1: sparc_ldsb_imm(jit->ip, sparc_g0, a2, a1); break;
+				case 2: sparc_ldsh_imm(jit->ip, sparc_g0, a2, a1); break;
+				case 4: sparc_ld_imm(jit->ip, sparc_g0, a2, a1); break;
+				default: abort();
+			} break;
 
 		case (JIT_LD | IMM | UNSIGNED): 
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
-			else {
-				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
-				amd64_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
-			}
-			break;
-
-		case (JIT_LD | REG | SIGNED):
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			else amd64_movsx_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			break;
-
-		case (JIT_LD | REG | UNSIGNED):
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			else  {
-				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
-				amd64_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			}
-			break;
+			switch (op->arg_size) {
+				case 1: sparc_ldub_imm(jit->ip, sparc_g0, a2, a1); break;
+				case 2: sparc_lduh_imm(jit->ip, sparc_g0, a2, a1); break;
+				case 4: sparc_ld_imm(jit->ip, sparc_g0, a2, a1); break;
+				default: abort();
+			} break;
 
 		case (JIT_LDX | IMM | SIGNED): 
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			else amd64_movsx_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			break;
+			switch (op->arg_size) {
+				case 1: sparc_ldsb_imm(jit->ip, a2, a3, a1); break;
+				case 2: sparc_ldsh_imm(jit->ip, a2, a3, a1); break;
+				case 4: sparc_ld_imm(jit->ip, a2, a3, a1); break;
+				default: abort();
+			} break;
 
 		case (JIT_LDX | IMM | UNSIGNED): 
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			else {
-				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
-				amd64_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			}
-			break;
+			switch (op->arg_size) {
+				case 1: sparc_ldub_imm(jit->ip, a2, a3, a1); break;
+				case 2: sparc_lduh_imm(jit->ip, a2, a3, a1); break;
+				case 4: sparc_ld_imm(jit->ip, a2, a3, a1); break;
+				default: abort();
+			} break;
 
 		case (JIT_LDX | REG | SIGNED): 
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			else amd64_movsx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			break;
+			switch (op->arg_size) {
+				case 1: sparc_ldsb(jit->ip, a2, a3, a1); break;
+				case 2: sparc_ldsh(jit->ip, a2, a3, a1); break;
+				case 4: sparc_ld(jit->ip, a2, a3, a1); break;
+				default: abort();
+			} break;
 
 		case (JIT_LDX | REG | UNSIGNED): 
-			if (op->arg_size == REG_SIZE) amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			else {
-				amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
-				amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size);
-			}
-			break;
-		case (JIT_ST | IMM): amd64_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
-		case (JIT_ST | REG): amd64_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
-		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
-		case (JIT_STX | REG): amd64_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+			switch (op->arg_size) {
+				case 1: sparc_ldub(jit->ip, a2, a3, a1); break;
+				case 2: sparc_lduh(jit->ip, a2, a3, a1); break;
+				case 4: sparc_ld(jit->ip, a2, a3, a1); break;
+				default: abort();
+			} break;
 
-*/
+		case (JIT_ST | REG):
+			switch (op->arg_size) {
+				case 1: sparc_stb(jit->ip, a2, sparc_g0, a1); break;
+				case 2: sparc_sth(jit->ip, a2, sparc_g0, a1); break;
+				case 4: sparc_st(jit->ip, a2, sparc_g0, a1); break;
+				default: abort();
+			} break;
+		
+		case (JIT_ST | IMM):
+			switch (op->arg_size) {
+				case 1: sparc_stb_imm(jit->ip, sparc_g0, a2, a1); break;
+				case 2: sparc_sth_imm(jit->ip, sparc_g0, a2, a1); break;
+				case 4: sparc_st_imm(jit->ip, sparc_g0, a2, a1); break;
+				default: abort();
+			} break;
+
+
+		case (JIT_STX | REG):
+			switch (op->arg_size) {
+				case 1: sparc_stb(jit->ip, a3, a2, a1); break;
+				case 2: sparc_sth(jit->ip, a3, a2, a1); break;
+				case 4: sparc_st(jit->ip, a3, a2, a1); break;
+				default: abort();
+			} break;
+
+		case (JIT_STX | IMM):
+			switch (op->arg_size) {
+				case 1: sparc_stb_imm(jit->ip, a3, a2, a1); break;
+				case 2: sparc_sth_imm(jit->ip, a3, a2, a1); break;
+				case 4: sparc_st_imm(jit->ip, a3, a2, a1); break;
+				default: abort();
+			} break;
 /*
 		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
 		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
