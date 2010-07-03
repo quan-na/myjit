@@ -91,8 +91,8 @@ void test5()
 	jit_generate_code(p);
 
 	r = f1();
-	if (r == -1) SUCCESS(4);
-	else FAIL(4);
+	if (r == -1) SUCCESS(5);
+	else FAIL(5);
 
 	jit_free(p);
 }

@@ -91,7 +91,7 @@ static inline void __buf_expand(struct jit * jit)
 void jit_generate_code(struct jit * jit)
 {
 	__expand_patches_and_labels(jit);
-#ifdef JIT_ARCH_AMD64
+#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	jit_correct_long_imms(jit);
 #endif
 	jit_flw_analysis(jit);

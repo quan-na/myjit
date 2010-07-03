@@ -274,11 +274,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (IS_IMM(op)) sparc_add_imm(jit->ip, FALSE, a2, a3, a1);
 			else sparc_add(jit->ip, FALSE, a2, a3, a1);
 			break;
-		case JIT_ADDX: 
+		case JIT_ADDC: 
 			if (IS_IMM(op)) sparc_add_imm(jit->ip, sparc_cc, a2, a3, a1);
 			else sparc_add(jit->ip, sparc_cc, a2, a3, a1);
 			break;
-		case JIT_ADDC: 
+		case JIT_ADDX: 
 			if (IS_IMM(op)) sparc_addx_imm(jit->ip, FALSE, a2, a3, a1);
 			else sparc_addx(jit->ip, FALSE, a2, a3, a1);
 			break;
@@ -286,11 +286,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (IS_IMM(op)) sparc_sub_imm(jit->ip, FALSE, a2, a3, a1);
 			else sparc_sub(jit->ip, FALSE, a2, a3, a1);
 			break;
-		case JIT_SUBX: 
+		case JIT_SUBC: 
 			if (IS_IMM(op)) sparc_sub_imm(jit->ip, sparc_cc, a2, a3, a1);
 			else sparc_sub(jit->ip, sparc_cc, a2, a3, a1);
 			break;
-		case JIT_SUBC: 
+		case JIT_SUBX: 
 			if (IS_IMM(op)) sparc_subx_imm(jit->ip, FALSE, a2, a3, a1);
 			else sparc_subx(jit->ip, FALSE, a2, a3, a1);
 			break;
@@ -552,20 +552,26 @@ void jit_dump_registers(struct jit * jit, long * hwregs)
 	fprintf(stderr, "We are very sorry but this function is out of order now.");
 }
 
+// FIXME: should be common for all platforms
 void jit_correct_long_imms(struct jit * jit)
 {
-/*
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		if (!IS_IMM(op)) continue;
+		if (GET_OP(op) == JIT_JMP) continue;
+		if (GET_OP(op) == JIT_CALL) continue;
+		if (GET_OP(op) == JIT_PATCH) continue;
+		if (GET_OP(op) == JIT_MOV) continue;
+		if (GET_OP(op) == JIT_PUSHARG) continue;
 		int imm_arg;
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
 		long value = op->arg[imm_arg];
 		
 		int transform = 0;
-		long high_bits = (value & 0xffffffff80000000) >> 31;
+		//long high_bits = (value & 0xffffffff80000000) >> 31;
+		unsigned long high_bits = (value & 0xfffff000) >> 12;
 		if (IS_SIGNED(op)) {
-			if ((high_bits != 0) && (high_bits != 0x1ffffffff)) transform = 1; 
+			if ((high_bits != 0) && (high_bits != 0xfffff)) transform = 1; 
 		} else {
 			if (high_bits != 0) transform = 1;
 		}
@@ -582,7 +588,6 @@ void jit_correct_long_imms(struct jit * jit)
 			op->arg[imm_arg] = JIT_IMMREG;
 		}
 	}
-	*/
 }
 
 struct jit_reg_allocator * jit_reg_allocator_create()

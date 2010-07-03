@@ -783,7 +783,7 @@ void jit_correct_long_imms(struct jit * jit)
 		long value = op->arg[imm_arg];
 		
 		int transform = 0;
-		long high_bits = (value & 0xffffffff80000000) >> 31;
+		unsigned long high_bits = (value & 0xffffffff80000000) >> 31;
 		if (IS_SIGNED(op)) {
 			if ((high_bits != 0) && (high_bits != 0x1ffffffff)) transform = 1; 
 		} else {

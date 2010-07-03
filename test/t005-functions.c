@@ -325,7 +325,7 @@ void test7()
 struct mystruct {
 	short * items;
 	long count;
-	int sum;
+	short sum;
 	int avg;
 };
 
@@ -339,12 +339,14 @@ void test8()
 	static struct mystruct s = { NULL, 0, 0, 0};
 	s.items = (short []){1, 2, 3, 4, 5};
 	s.count = 5;
+	s.sum = 111;
+	s.avg = 123;
 
 	plfv f1; 
 
 	jit_prolog(p, &f1);
-	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
 
+	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
 
 	jit_movi(p, R(1), &s); // struct
 
@@ -362,7 +364,7 @@ void test8()
 	jit_subi(p, R(0), R(0), 1);
 
 	jit_bgti(p, loop, R(0), 0);
-	jit_sti(p, &s + offsetof(struct mystruct, sum), R(5), sizeof(int));
+	jit_sti(p, &s + offsetof(struct mystruct, sum), R(5), sizeof(short));
 	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
 
 	jit_divr(p, R(5), R(5), R(0));
@@ -381,7 +383,7 @@ void test8()
 
 	jit_call(p, printf);
 
-	jit_reti(p, 0);
+	jit_retr(p, R(1));
 
 	jit_generate_code(p);
 //	jit_print_ops(p); return;
