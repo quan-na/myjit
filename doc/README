@@ -230,7 +230,7 @@ Getting Started
 
 We start with a really simple example---with a function returning its argument incremented by one. The source code of this example can be found in ``demo1.c`` which is part of the MyJIT package.
 
-::
+.. sourcecode:: c
 	
 	#include <stdlib.h>
 	#include <stdio.h>
