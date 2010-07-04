@@ -203,41 +203,6 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		}
 	}
 	sparc_nop(jit->ip);
-
-/*
-	if (jit->prepare_args > 6) {
-		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, (jit->prepare_args - 6) * PTR_SIZE);
-		JIT_FREE(jit->args);
-	}
-	jit->prepare_args = 0;
-
-	// pops caller saved registers 
-	static int regs[] = { AMD64_RCX, AMD64_RDX, AMD64_RSI, AMD64_RDI, AMD64_R8, AMD64_R9, AMD64_R10, AMD64_R11 };
-	for (int i = 7; i >= 0; i--) {
-		int reg;
-		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
-		if (hreg && jitset_get(op->live_in, reg)) amd64_pop_reg(jit->ip, regs[i]);
-	}
-	*/
-}
-
-static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
-{
-/*
-	while (op) {
-		if (GET_OP(op) == JIT_CALL) break;
-		op = op->next;
-	}
-
-	static int regs[] = { AMD64_RCX, AMD64_RDX, AMD64_RSI, AMD64_RDI, AMD64_R8, AMD64_R9, AMD64_R10, AMD64_R11 };
-	for (int i = 0; i < 8; i++) {
-		int reg;
-		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
-		if (hreg && jitset_get(op->live_in, reg)) amd64_push_reg(jit->ip, regs[i]);
-	}
-	*/
 }
 
 void __get_arg(struct jit * jit, jit_op * op, int reg)
@@ -295,8 +260,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else sparc_subx(jit->ip, FALSE, a2, a3, a1);
 			break;
 		case JIT_RSB: 
-			if (IS_IMM(op)) sparc_sub_imm(jit->ip, FALSE, a3, a2, a1);
-			else sparc_sub(jit->ip, FALSE, a3, a2, a1);
+			if (IS_IMM(op)) {
+				sparc_set32(jit->ip, a3, sparc_g1);
+				sparc_sub(jit->ip, FALSE, sparc_g1, a2, a1);
+			} else sparc_sub(jit->ip, FALSE, a3, a2, a1);
 			break;
 
 		case JIT_NEG: if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1);
@@ -346,15 +313,28 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_DIV: 
 			// FIXME: shift right optimizations
+			sparc_sra_imm(jit->ip, a2, 31, sparc_g1);
+			sparc_wry(jit->ip, sparc_g1, sparc_g0);
+			sparc_nop(jit->ip);
+			sparc_nop(jit->ip);
 			if (IS_IMM(op)) sparc_sdiv_imm(jit->ip, FALSE, a2, a3, a1);
 			else sparc_sdiv(jit->ip, FALSE, a2, a3, a1);
 			break;
 
 		case JIT_MOD: 
 			// FIXME: shift right optimizations
-			if (IS_IMM(op)) sparc_sdiv_imm(jit->ip, FALSE, a2, a3, sparc_g0);
-			else sparc_sdiv(jit->ip, FALSE, a2, a3, sparc_g0);
-			sparc_rdy(jit->ip, a1);
+			sparc_sra_imm(jit->ip, a2, 31, sparc_g1);
+			sparc_wry(jit->ip, sparc_g1, sparc_g0);
+			sparc_nop(jit->ip);
+			sparc_nop(jit->ip);
+			if (IS_IMM(op)) {
+				sparc_sdiv_imm(jit->ip, FALSE, a2, a3, sparc_g1);
+				sparc_smul_imm(jit->ip, FALSE, sparc_g1, a3, sparc_g1);
+			} else {
+				sparc_sdiv(jit->ip, FALSE, a2, a3, sparc_g1);
+				sparc_smul(jit->ip, FALSE, sparc_g1, a3, sparc_g1);
+			}
+			sparc_sub(jit->ip, FALSE, a2, sparc_g1, a1);
 			break;
 		case JIT_LT: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
 		case JIT_LE: __cond_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
