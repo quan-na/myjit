@@ -177,7 +177,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 			int x = i;
 			if (jit->args[x].isreg) {
 				if (__is_spilled(jit->args[x].value, prepare, &sreg)) {
-					sparc_ld_imm(jit->ip, sparc_sp, 96 + jit->args[i].value * 4, sparc_g1);
+					sparc_ld_imm(jit->ip, sparc_fp, - jit->args[i].value * 4, sparc_g1);
 					sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
 				} else {
 					sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (pos - 6) * 4);
@@ -412,7 +412,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PREPARE: jit->prepare_args = a1; 
 				  jit->argspos = 0;
 				  jit->args = JIT_MALLOC(sizeof(struct arg) * a1);
-				 // FIXME: __push_caller_saved_regs(jit, op);
 				  break;
 
 		case JIT_PUSHARG | REG: jit->args[jit->argspos].isreg = 1;
