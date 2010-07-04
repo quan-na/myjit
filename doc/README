@@ -2,11 +2,11 @@
 MyJIT
 =====
 
-MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of Schemik (http://schemik.sourceforge.net) and it was considered as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:
+MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of the Schemik (http://schemik.sourceforge.net) programming language and it was considered as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:
 
 + unlimited number of registers
 + thread-safety
-+ support for i386 and AMD64 architectures (support for SPARC processors will be available shortly)
++ support for i386, AMD64, and SPARC processors
 + easy to use and easy to extend design
 + particular backward compatibility with GNU lightning
 + the library allows for debugging (the debugging is broken right now)
@@ -312,7 +312,7 @@ Notes on Development
 
 + MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.
 
-+ Only the i386 and AMD64 platforms are supported right now. (support for SPARC will be available shortly)
++ Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.
 
 + At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to include for floating point arithmetic, however, it is not the priority.
 
