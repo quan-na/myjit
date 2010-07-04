@@ -27,16 +27,21 @@ static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_r
 	al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
 	
 	// reorder registers according to their priority
-	/*
+#ifdef JIT_ARCH_SPARC
 	int i = al->hwreg_pool_pos;
 	while (i > 0) {
-		if (al->hwreg_pool[i - 1] <= al->hwreg_pool[i]) break;
+		if (al->hwreg_pool[i - 1]->priority <= al->hwreg_pool[i]->priority) break;
 		struct __hw_reg * x = al->hwreg_pool[i];
 		al->hwreg_pool[i] = al->hwreg_pool[i - 1];
 		al->hwreg_pool[i - 1] = x;
 		i--;
 	}
+	/*
+	for (int i = 0; i <= al->hwreg_pool_pos; i++)
+		printf("%s:%i\n", al->hwreg_pool[i]->name, al->hwreg_pool[i]->priority);
+	printf("------------------\n");
 	*/
+#endif
 }
 
 static inline struct __hw_reg * jit_reg_pool_get(struct jit_reg_allocator * al)

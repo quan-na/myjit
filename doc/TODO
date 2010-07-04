@@ -27,14 +27,20 @@ ROADMAP
 	* function calls
 	* passing arguments
 	* large immediates
-	+ reg. allocator
+	* reg. allocator
+	+ bogus arithmetics
 
 + SPARC (release 0.3.1)
 	+ optimized mul/hmul
 	+ optimized div/mod
+	+ g0 optimization
 	+ input (i0, ..., i5) registers should be stored into their position in the frame
 	+ call imm, should not use g1 register
+	+ stack frame corruption test
 
++ AMD (release 0.3.1/2?)
+	+ large immediate values issues
+	+ separate test-cases
 
 + generic (release 0.4.x)
 	+ floating point arithmetics

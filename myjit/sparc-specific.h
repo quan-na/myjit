@@ -594,42 +594,38 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 {
 	static int __arg_regs[] = { sparc_i0, sparc_i1, sparc_i2, sparc_i3, sparc_i4, sparc_i5 };
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	//a->hw_reg_cnt = 14;
-	a->hw_reg_cnt = 10;
+	a->hw_reg_cnt = 14;
+#ifdef JIT_REGISTER_TEST
+	a->hw_reg_cnt -= 5;
+#endif 
 	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
 	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
 
-/*
-	a->hw_regs[0] = (struct __hw_reg) { sparc_l0, 0, "l0", 1, 14 };
-	a->hw_regs[1] = (struct __hw_reg) { sparc_l1, 0, "l1", 1, 14 };
-	a->hw_regs[2] = (struct __hw_reg) { sparc_l2, 0, "l2", 1, 14 };
-	a->hw_regs[3] = (struct __hw_reg) { sparc_l3, 0, "l3", 1, 14 };
-	a->hw_regs[4] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 14 };
-	a->hw_regs[5] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 14 };
-	a->hw_regs[6] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 14 };
-	a->hw_regs[7] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 14 };
+	/* only the l0-l7 and i0-i5 registers are used
+	 * all these registers are callee-saved withou special care
+	 * register o0-o5 are used only for argument passing
+	 * all g1-g3 are free for use in the codegenarator
+	 */
+	int i = 0;
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l0, 0, "l0", 1, 14 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l1, 0, "l1", 1, 13 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l2, 0, "l2", 1, 12 };
+#ifndef JIT_REGISTER_TEST
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l3, 0, "l3", 1, 11 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 10 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 9 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 8 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 7 };
+#endif
 
-	a->hw_regs[8] = (struct __hw_reg) { sparc_i0, 0, "i0", 0, 14 };
-	a->hw_regs[9] = (struct __hw_reg) { sparc_i1, 0, "i1", 0, 14 };
-	a->hw_regs[10] = (struct __hw_reg) { sparc_i2, 0, "i2", 0, 14 };
-	a->hw_regs[11] = (struct __hw_reg) { sparc_i3, 0, "i3", 0, 14 };
-	a->hw_regs[12] = (struct __hw_reg) { sparc_i4, 0, "i4", 0, 14 };
-	a->hw_regs[13] = (struct __hw_reg) { sparc_i5, 0, "i5", 0, 14 };
-	*/
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_i0, 0, "i0", 1,  1 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_i1, 0, "i1", 1, 2 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_i2, 0, "i2", 1, 3 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_i3, 0, "i3", 1, 4 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_i4, 0, "i4", 1, 5 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_i5, 0, "i5", 1, 6 };
 
-	a->hw_regs[0] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 14 };
-	a->hw_regs[1] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 14 };
-	a->hw_regs[2] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 14 };
-	a->hw_regs[3] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 14 };
-
-	a->hw_regs[4] = (struct __hw_reg) { sparc_i0, 0, "i0", 0, 14 };
-	a->hw_regs[5] = (struct __hw_reg) { sparc_i1, 0, "i1", 0, 14 };
-	a->hw_regs[6] = (struct __hw_reg) { sparc_i2, 0, "i2", 0, 14 };
-	a->hw_regs[7] = (struct __hw_reg) { sparc_i3, 0, "i3", 0, 14 };
-	a->hw_regs[8] = (struct __hw_reg) { sparc_i4, 0, "i4", 0, 14 };
-	a->hw_regs[9] = (struct __hw_reg) { sparc_i5, 0, "i5", 0, 14 };
-
-	a->hw_regs[10] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 100 };
+	a->hw_regs[i++] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 0 };
 
 	a->fp_reg = sparc_fp;
 	a->ret_reg = sparc_i7;
