@@ -43,17 +43,20 @@ static inline int jit_allocai(struct jit * jit, int size)
 
 static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-
-	if (imm) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
-	else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
+	if (imm) {
+		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
+		else sparc_cmp_imm(jit->ip, op->r_arg[1], sparc_g0);
+	} else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
 	sparc_or_imm(jit->ip, FALSE, sparc_g0, 0, op->r_arg[0]); // clear
 	sparc_movcc_imm(jit->ip, sparc_xcc, cond, 1, op->r_arg[0]);
 }
 
 static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-	if (imm) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
-	else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
+	if (imm) {
+		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
+		else sparc_cmp_imm(jit->ip, op->r_arg[1], sparc_g0);
+	} else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
 	op->patch_addr = __PATCH_ADDR(jit);
 	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
@@ -61,8 +64,10 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, i
 
 static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-	if (imm) sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
-	else sparc_and(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
+	if (imm) {
+		if (op->r_arg[2] != 0) sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
+		else sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], sparc_g0, sparc_g0);
+	} else sparc_and(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
 	op->patch_addr = __PATCH_ADDR(jit);
 	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
@@ -196,6 +201,13 @@ void jit_patch_external_calls(struct jit * jit)
 // unused
 }
 
+#define __alu_op(cc, reg_op, imm_op) \
+	if (IS_IMM(op)) {\
+		if (a3 != 0) imm_op(jit->ip, cc, a2, a3, a1); \
+		else reg_op(jit->ip, cc, a2, sparc_g0, a1); \
+	} else reg_op(jit->ip, cc, a2, a3, a1); \
+	break;
+
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
 
@@ -205,30 +217,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 	int found = 1;
 	switch (GET_OP(op)) {
-		case JIT_ADD: 
-			if (IS_IMM(op)) sparc_add_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_add(jit->ip, FALSE, a2, a3, a1);
-			break;
-		case JIT_ADDC: 
-			if (IS_IMM(op)) sparc_add_imm(jit->ip, sparc_cc, a2, a3, a1);
-			else sparc_add(jit->ip, sparc_cc, a2, a3, a1);
-			break;
-		case JIT_ADDX: 
-			if (IS_IMM(op)) sparc_addx_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_addx(jit->ip, FALSE, a2, a3, a1);
-			break;
-		case JIT_SUB: 
-			if (IS_IMM(op)) sparc_sub_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_sub(jit->ip, FALSE, a2, a3, a1);
-			break;
-		case JIT_SUBC: 
-			if (IS_IMM(op)) sparc_sub_imm(jit->ip, sparc_cc, a2, a3, a1);
-			else sparc_sub(jit->ip, sparc_cc, a2, a3, a1);
-			break;
-		case JIT_SUBX: 
-			if (IS_IMM(op)) sparc_subx_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_subx(jit->ip, FALSE, a2, a3, a1);
-			break;
+		case JIT_ADD: __alu_op(FALSE, sparc_add, sparc_add_imm);
+		case JIT_ADDC: __alu_op(sparc_cc, sparc_add, sparc_add_imm);
+		case JIT_ADDX: __alu_op(FALSE, sparc_addx, sparc_addx_imm);
+		case JIT_SUB: __alu_op(FALSE, sparc_sub, sparc_sub_imm);
+		case JIT_SUBC: __alu_op(sparc_cc, sparc_sub, sparc_sub_imm);
+		case JIT_SUBX: __alu_op(FALSE, sparc_subx, sparc_subx_imm);
 		case JIT_RSB: 
 			if (IS_IMM(op)) {
 				sparc_set32(jit->ip, a3, sparc_g1);
@@ -243,22 +237,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_NOT: if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1);
 			      sparc_not(jit->ip, a1); 
 			      break;
-		case JIT_OR: 
-			if (IS_IMM(op)) sparc_or_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_or(jit->ip, FALSE, a2, a3, a1);
-			break;
-		case JIT_XOR:
-			if (IS_IMM(op)) sparc_xor_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_xor(jit->ip, FALSE, a2, a3, a1);
-			break;
-		case JIT_AND: 
-			if (IS_IMM(op)) sparc_and_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_and(jit->ip, FALSE, a2, a3, a1);
-			break;
-		case JIT_LSH:
-			if (IS_IMM(op)) sparc_sll_imm(jit->ip, a2, a3, a1);
-			else sparc_sll(jit->ip, a2, a3, a1);
-			break;
+		case JIT_OR:  __alu_op(FALSE, sparc_or, sparc_or_imm);
+		case JIT_AND: __alu_op(FALSE, sparc_and, sparc_and_imm);
+		case JIT_XOR: __alu_op(FALSE, sparc_xor, sparc_xor_imm);
+		case JIT_LSH: __alu_op(FALSE, sparc_sll, sparc_sll_imm);
 		case JIT_RSH:
 			if (IS_SIGNED(op)) {
 				if (IS_IMM(op)) sparc_sra_imm(jit->ip, a2, a3, a1);
