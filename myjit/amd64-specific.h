@@ -132,26 +132,29 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 		int destreg = op->r_arg[0];
 		int valreg = op->r_arg[1];
 		int shiftreg = op->r_arg[2];
-		int ecx_pathology = 0;
+		int ecx_pathology = 0; // shifting content in the ECX register
+
+		int rcx_in_use = jit_reg_in_use(op, AMD64_RCX);
+		int rdx_in_use = jit_reg_in_use(op, AMD64_RDX);
 
 		if (destreg == AMD64_RCX) {
 			ecx_pathology = 1;
-			amd64_push_reg(jit->ip, AMD64_RDI); /* TODO: test if the EDI is in use, or not */
+			if (rdx_in_use) amd64_push_reg(jit->ip, AMD64_RDX); 
 			destreg = AMD64_RDI;
 		}
 
 		if (shiftreg != AMD64_RCX) {
-			amd64_push_reg(jit->ip, AMD64_RCX); /* TODO: test if the ECX register is in use, or not */
+			if (rcx_in_use) amd64_push_reg(jit->ip, AMD64_RCX); 
 			amd64_mov_reg_reg(jit->ip, AMD64_RCX, shiftreg, REG_SIZE);
 		}
 		if (destreg != valreg) amd64_mov_reg_reg(jit->ip, destreg, valreg, REG_SIZE); 
 		amd64_shift_reg(jit->ip, shift_op, destreg);
 		if (ecx_pathology) {
-			amd64_mov_reg_reg(jit->ip, AMD64_RCX, AMD64_RDI, REG_SIZE);
-			if (shiftreg != AMD64_RCX) amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
-			amd64_pop_reg(jit->ip, AMD64_RDI);
+			amd64_mov_reg_reg(jit->ip, AMD64_RCX, AMD64_RDX, REG_SIZE);
+			if ((shiftreg != AMD64_RCX) && rcx_in_use) amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
+			if (rdx_in_use) amd64_pop_reg(jit->ip, AMD64_RDX);
 		} else {
-			if (shiftreg != AMD64_RCX) amd64_pop_reg(jit->ip, AMD64_RCX);
+			if ((shiftreg != AMD64_RCX) && rcx_in_use) amd64_pop_reg(jit->ip, AMD64_RCX);
 		}
 	}
 }
@@ -317,9 +320,11 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 
 
 	/* generic multiplication */
+	int rax_in_use = jit_reg_in_use(op, AMD64_RAX);
+	int rdx_in_use = jit_reg_in_use(op, AMD64_RDX);
 
-	if (dest != AMD64_RAX) amd64_push_reg(jit->ip, AMD64_RAX);
-	if (dest != AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
+	if ((dest != AMD64_RAX) && rax_in_use) amd64_push_reg(jit->ip, AMD64_RAX);
+	if ((dest != AMD64_RDX) && rdx_in_use) amd64_push_reg(jit->ip, AMD64_RDX);
 
 	if (imm) {
 		if (factor1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, AMD64_RAX, factor1, REG_SIZE);
@@ -340,8 +345,8 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 		if (dest != AMD64_RDX) amd64_mov_reg_reg(jit->ip, dest, AMD64_RDX, REG_SIZE);
 	}
 
-	if (dest != AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
-	if (dest != AMD64_RAX) amd64_pop_reg(jit->ip, AMD64_RAX);
+	if ((dest != AMD64_RDX) && rdx_in_use) amd64_pop_reg(jit->ip, AMD64_RDX);
+	if ((dest != AMD64_RAX) && rax_in_use) amd64_pop_reg(jit->ip, AMD64_RAX);
 }
 static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
@@ -367,8 +372,11 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		return;
 	}
 
-	if (dest != AMD64_RAX) amd64_push_reg(jit->ip, AMD64_RAX);
-	if (dest != AMD64_RDX) amd64_push_reg(jit->ip, AMD64_RDX);
+	int rax_in_use = jit_reg_in_use(op, AMD64_RAX);
+	int rdx_in_use = jit_reg_in_use(op, AMD64_RDX);
+
+	if ((dest != AMD64_RAX) && rax_in_use) amd64_push_reg(jit->ip, AMD64_RAX);
+	if ((dest != AMD64_RDX) && rdx_in_use) amd64_push_reg(jit->ip, AMD64_RDX);
 
 	if (imm) {
 		if (dividend != AMD64_RAX) amd64_mov_reg_reg(jit->ip, AMD64_RAX, dividend, REG_SIZE);
@@ -400,8 +408,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		if (dest != AMD64_RDX) amd64_mov_reg_reg(jit->ip, dest, AMD64_RDX, REG_SIZE);
 	}
 
-	if (dest != AMD64_RDX) amd64_pop_reg(jit->ip, AMD64_RDX);
-	if (dest != AMD64_RAX) amd64_pop_reg(jit->ip, AMD64_RAX);
+	if ((dest != AMD64_RDX) && rdx_in_use) amd64_pop_reg(jit->ip, AMD64_RDX);
+	if ((dest != AMD64_RAX) && rax_in_use) amd64_pop_reg(jit->ip, AMD64_RAX);
 }
 
 

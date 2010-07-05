@@ -131,7 +131,7 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 		int destreg = op->r_arg[0];
 		int valreg = op->r_arg[1];
 		int shiftreg = op->r_arg[2];
-		int ecx_pathology = 0; // shifting contents in the ECX register
+		int ecx_pathology = 0; // shifting content in the ECX register
 
 		int ecx_in_use = jit_reg_in_use(op, X86_ECX);
 		int edx_in_use = jit_reg_in_use(op, X86_EDX);

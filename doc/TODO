@@ -32,7 +32,7 @@ ROADMAP
 
 + release 0.3.2
 	* (i386) optimized MUL/DIV
-	+ (AMD64) optimized MUL/DIV
+	* (AMD64) optimized MUL/DIV
 	+ (AMD64) large immediate values issues
 	+ (SPARC) optimized mul/hmul
 	+ (SPARC) optimized div/mod
