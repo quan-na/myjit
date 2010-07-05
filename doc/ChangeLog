@@ -1,6 +1,10 @@
+Version 0.3.1.0
+===============
++ support for SPARC
+
 Version 0.3.0.0
 ===============
-+ support for unlimited number of registers
++ support for an unlimited number of registers
 + automatic buffer size adjustment, i.e., it is not necessary set the size of
 the output buffer in advance
 + particular parts of x86 and AMD64 code has been merged

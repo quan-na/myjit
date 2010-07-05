@@ -140,26 +140,29 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 		int destreg = op->r_arg[0];
 		int valreg = op->r_arg[1];
 		int shiftreg = op->r_arg[2];
-		int ecx_pathology = 0;
+		int ecx_pathology = 0; // shifting contents in the ECX register
+
+		int ecx_in_use = rmap_is_associated(op->regmap, X86_ECX, NULL) != NULL;
+		int edx_in_use = rmap_is_associated(op->regmap, X86_EDX, NULL) != NULL;
 
 		if (destreg == X86_ECX) {
 			ecx_pathology = 1;
-			x86_push_reg(jit->ip, X86_EDI); /* TODO: test if the EDI is in use, or not */
-			destreg = X86_EDI;
+			if (edx_in_use) x86_push_reg(jit->ip, X86_EDX);
+			destreg = X86_EDX;
 		}
 
 		if (shiftreg != X86_ECX) {
-			x86_push_reg(jit->ip, X86_ECX); /* TODO: test if the ECX register is in use, or not */
+			if (ecx_in_use) x86_push_reg(jit->ip, X86_ECX); 
 			x86_mov_reg_reg(jit->ip, X86_ECX, shiftreg, REG_SIZE);
 		}
 		if (destreg != valreg) x86_mov_reg_reg(jit->ip, destreg, valreg, REG_SIZE); 
 		x86_shift_reg(jit->ip, shift_op, destreg);
 		if (ecx_pathology) {
-			x86_mov_reg_reg(jit->ip, X86_ECX, X86_EDI, REG_SIZE);
-			if (shiftreg != X86_ECX) x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
-			x86_pop_reg(jit->ip, X86_EDI);
+			x86_mov_reg_reg(jit->ip, X86_ECX, X86_EDX, REG_SIZE);
+			if ((shiftreg != X86_ECX) && ecx_in_use) x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
+			if (edx_in_use) x86_pop_reg(jit->ip, X86_EDX);
 		} else {
-			if (shiftreg != X86_ECX) x86_pop_reg(jit->ip, X86_ECX);
+			if ((shiftreg != X86_ECX) && ecx_in_use) x86_pop_reg(jit->ip, X86_ECX);
 		}
 	}
 }
@@ -266,11 +269,13 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 		}
 	}
 
+	int eax_in_use = rmap_is_associated(op->regmap, X86_EAX, NULL) != NULL;
+	int edx_in_use = rmap_is_associated(op->regmap, X86_EDX, NULL) != NULL;
 
 	/* generic multiplication */
 
-	if (dest != X86_EAX) x86_push_reg(jit->ip, X86_EAX);
-	if (dest != X86_EDX) x86_push_reg(jit->ip, X86_EDX);
+	if ((dest != X86_EAX) && eax_in_use) x86_push_reg(jit->ip, X86_EAX);
+	if ((dest != X86_EDX) && edx_in_use) x86_push_reg(jit->ip, X86_EDX);
 
 	if (imm) {
 		if (factor1 != X86_EAX) x86_mov_reg_reg(jit->ip, X86_EAX, factor1, REG_SIZE);
@@ -291,8 +296,8 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 		if (dest != X86_EDX) x86_mov_reg_reg(jit->ip, dest, X86_EDX, REG_SIZE);
 	}
 
-	if (dest != X86_EDX) x86_pop_reg(jit->ip, X86_EDX);
-	if (dest != X86_EAX) x86_pop_reg(jit->ip, X86_EAX);
+	if ((dest != X86_EDX) && edx_in_use) x86_pop_reg(jit->ip, X86_EDX);
+	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
@@ -318,8 +323,11 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		return;
 	}
 
-	if (dest != X86_EAX) x86_push_reg(jit->ip, X86_EAX);
-	if (dest != X86_EDX) x86_push_reg(jit->ip, X86_EDX);
+	int eax_in_use = rmap_is_associated(op->regmap, X86_EAX, NULL) != NULL;
+	int edx_in_use = rmap_is_associated(op->regmap, X86_EDX, NULL) != NULL;
+
+	if ((dest != X86_EAX) && eax_in_use) x86_push_reg(jit->ip, X86_EAX);
+	if ((dest != X86_EDX) && edx_in_use) x86_push_reg(jit->ip, X86_EDX);
 
 	if (imm) {
 		if (dividend != X86_EAX) x86_mov_reg_reg(jit->ip, X86_EAX, dividend, REG_SIZE);
@@ -351,8 +359,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		if (dest != X86_EDX) x86_mov_reg_reg(jit->ip, dest, X86_EDX, REG_SIZE);
 	}
 
-	if (dest != X86_EDX) x86_pop_reg(jit->ip, X86_EDX);
-	if (dest != X86_EAX) x86_pop_reg(jit->ip, X86_EAX);
+	if ((dest != X86_EDX) && edx_in_use) x86_pop_reg(jit->ip, X86_EDX);
+	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 
 

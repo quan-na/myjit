@@ -17,7 +17,7 @@ ROADMAP
 	* support for unlimited registers
 	* documentation update 
 
-+ SPARC (release 0.3.0)
++ SPARC (release 0.3.1)
 	* detection
 	* conditions
 	* arithmetics
@@ -30,19 +30,21 @@ ROADMAP
 	* reg. allocator
 	+ bogus arithmetics
 
-+ SPARC (release 0.3.1)
-	+ optimized mul/hmul
-	+ optimized div/mod
-	+ g0 optimization
-	+ input (i0, ..., i5) registers should be stored into their position in the frame
-	+ call imm, should not use g1 register
-	+ stack frame corruption test
++ release 0.3.2
+	* (i386) optimized MUL/DIV
+	+ (AMD64) optimized MUL/DIV
+	+ (AMD64) large immediate values issues
+	+ (SPARC) optimized mul/hmul
+	+ (SPARC) optimized div/mod
+	+ (SPARC) g0 optimization
+	+ (SPARC) call imm, should not use g1 register
+	+ (SPARC) stack frame corruption test
 
-+ AMD (release 0.3.1/2?)
-	+ large immediate values issues
-	+ separate test-cases
++ release 0.3.x
+	+ input (i0, ..., i5) registers should be stored into their positions in the frame
 
 + generic (release 0.4.x)
+	+ separate test-cases
 	+ floating point arithmetics
 
 + generic (release 0.5.x+)
