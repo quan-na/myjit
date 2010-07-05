@@ -41,36 +41,6 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit->allocai_mem);
 }
 
-static inline jit_label * jit_get_label(struct jit * jit)
-{
-	jit_label * r = JIT_MALLOC(sizeof(jit_label));
-	jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
-	r->next = jit->labels;
-	jit->labels = r;
-	return r;
-}
-
-/*
-static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] == op->r_arg[1]) amd64_alu_reg_imm(jit->ip, X86_ADD, op->r_arg[0], -op->r_arg[2]);
-		else amd64_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
-		amd64_neg_reg(jit->ip, op->r_arg[0]);
-		return;
-	}
-
-	if (op->r_arg[0] == op->r_arg[1]) { // O1 = O3 - O1
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-		amd64_neg_reg(jit->ip, op->r_arg[0]);
-	} else if (op->r_arg[0] == op->r_arg[2]) { // O1 = O1 - O2
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-	} else {
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[2], REG_SIZE);
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-	}
-}
-*/
 static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
 

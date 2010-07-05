@@ -45,15 +45,6 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit->allocai_mem);
 }
 
-static inline jit_label * jit_get_label(struct jit * jit)
-{
-	jit_label * r = JIT_MALLOC(sizeof(jit_label));
-	jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
-	r->next = jit->labels;
-	jit->labels = r;
-	return r;
-}
-
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
 {
 	if (imm) {

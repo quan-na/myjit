@@ -152,6 +152,7 @@ struct jit_reg_allocator * jit_reg_allocator_create();
 void jit_reg_allocator_free(struct jit_reg_allocator * a);
 void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
+int jit_reg_in_use(jit_op * op, int reg);
 
 #define JIT_CODESTART	(0x00 << 3)
 #define JIT_UREG	(0x01 << 3)
@@ -444,6 +445,15 @@ static inline jit_op * jit_op_last(jit_op * op)
 {
 	while (op->next != NULL) op = op->next;
 	return op;
+}
+
+static inline jit_label * jit_get_label(struct jit * jit)
+{
+	jit_label * r = JIT_MALLOC(sizeof(jit_label));
+	jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
+	r->next = jit->labels;
+	jit->labels = r;
+	return r;
 }
 
 static inline int jit_is_label(struct jit * jit, void * ptr)

@@ -44,15 +44,6 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit->allocai_mem);
 }
 
-static inline jit_label * jit_get_label(struct jit * jit)
-{
-	jit_label * r = JIT_MALLOC(sizeof(jit_label));
-	jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
-	r->next = jit->labels;
-	jit->labels = r;
-	return r;
-}
-
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 {
 	if (imm) {
@@ -142,8 +133,8 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 		int shiftreg = op->r_arg[2];
 		int ecx_pathology = 0; // shifting contents in the ECX register
 
-		int ecx_in_use = rmap_is_associated(op->regmap, X86_ECX, NULL) != NULL;
-		int edx_in_use = rmap_is_associated(op->regmap, X86_EDX, NULL) != NULL;
+		int ecx_in_use = jit_reg_in_use(op, X86_ECX);
+		int edx_in_use = jit_reg_in_use(op, X86_EDX);
 
 		if (destreg == X86_ECX) {
 			ecx_pathology = 1;
@@ -269,8 +260,8 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 		}
 	}
 
-	int eax_in_use = rmap_is_associated(op->regmap, X86_EAX, NULL) != NULL;
-	int edx_in_use = rmap_is_associated(op->regmap, X86_EDX, NULL) != NULL;
+	int eax_in_use = jit_reg_in_use(op, X86_EAX);
+	int edx_in_use = jit_reg_in_use(op, X86_EDX);
 
 	/* generic multiplication */
 
@@ -323,8 +314,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		return;
 	}
 
-	int eax_in_use = rmap_is_associated(op->regmap, X86_EAX, NULL) != NULL;
-	int edx_in_use = rmap_is_associated(op->regmap, X86_EDX, NULL) != NULL;
+	int eax_in_use = jit_reg_in_use(op, X86_EAX);
+	int edx_in_use = jit_reg_in_use(op, X86_EDX);
 
 	if ((dest != X86_EAX) && eax_in_use) x86_push_reg(jit->ip, X86_EAX);
 	if ((dest != X86_EDX) && edx_in_use) x86_push_reg(jit->ip, X86_EDX);

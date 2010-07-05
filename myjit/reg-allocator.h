@@ -314,6 +314,14 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a)
 	JIT_FREE(a);
 }
 
+/**
+ * @return true if the given hw. register (e.g., X86_EAX) is in use
+ */
+int jit_reg_in_use(jit_op * op, int reg)
+{
+	return rmap_is_associated(op->regmap, reg, NULL) != NULL;
+}
+
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg)
 {
 	for (int i = 0; i < al->hw_reg_cnt; i++)
