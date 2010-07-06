@@ -336,20 +336,38 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_DIV: 
-			// FIXME: shift right optimizations
+			if (IS_IMM(op)) {
+				switch (a3) {
+					case 2: sparc_sra_imm(jit->ip, a2, 1, a1); goto op_complete;
+					case 4: sparc_sra_imm(jit->ip, a2, 2, a1); goto op_complete;
+					case 8: sparc_sra_imm(jit->ip, a2, 3, a1); goto op_complete;
+					case 16: sparc_sra_imm(jit->ip, a2, 4, a1); goto op_complete;
+					case 32: sparc_sra_imm(jit->ip, a2, 5, a1); goto op_complete;
+				}
+			} 
 			sparc_sra_imm(jit->ip, a2, 31, sparc_g1);
 			sparc_wry(jit->ip, sparc_g1, sparc_g0);
 			sparc_nop(jit->ip);
 			sparc_nop(jit->ip);
 			sparc_nop(jit->ip);
+
 			if (IS_IMM(op)) sparc_sdiv_imm(jit->ip, FALSE, a2, a3, a1);
 			else sparc_sdiv(jit->ip, FALSE, a2, a3, a1);
 			break;
 
 		case JIT_MOD: 
-			// FIXME: shift right optimizations
+			if (IS_IMM(op)) {
+				switch (a3) {
+					case 2: sparc_and_imm(jit->ip, FALSE, a2, 0x01, a1); goto op_complete;
+					case 4: sparc_and_imm(jit->ip, FALSE, a2, 0x03, a1); goto op_complete;
+					case 8: sparc_and_imm(jit->ip, FALSE, a2, 0x07, a1); goto op_complete;
+					case 16: sparc_and_imm(jit->ip, FALSE, a2, 0x0f, a1); goto op_complete;
+					case 32: sparc_and_imm(jit->ip, FALSE, a2, 0x1f, a1); goto op_complete;
+				}
+			}
 			sparc_sra_imm(jit->ip, a2, 31, sparc_g1);
 			sparc_wry(jit->ip, sparc_g1, sparc_g0);
+			sparc_nop(jit->ip);
 			sparc_nop(jit->ip);
 			sparc_nop(jit->ip);
 			if (IS_IMM(op)) {
@@ -409,6 +427,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		default: found = 0;
 	}
 
+op_complete:
 	if (found) return;
 
 	switch (op->code) {
