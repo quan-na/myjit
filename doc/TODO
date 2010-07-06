@@ -28,7 +28,7 @@ ROADMAP
 	* passing arguments
 	* large immediates
 	* reg. allocator
-	+ bogus arithmetics
+	* bogus arithmetics
 
 + release 0.3.2
 	* (i386) optimized MUL/DIV
@@ -37,8 +37,8 @@ ROADMAP
 	* (SPARC) optimized MUL
 	* (SPARC) optimized div/mod
 	* (SPARC) call imm, should not use g1 register
+	* (SPARC) stack frame corruption test
 	+ (AMD64) large immediate values issues
-	+ (SPARC) stack frame corruption test
 
 + release 0.3.x
 	+ input (i0, ..., i5) registers should be stored into their positions in the frame

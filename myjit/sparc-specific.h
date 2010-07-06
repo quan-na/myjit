@@ -38,7 +38,7 @@ static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
 	jit->allocai_mem += real_size;	
-	return -(jit->allocai_mem);
+	return (jit->allocai_mem);
 }
 
 static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
@@ -555,11 +555,6 @@ op_complete:
 				case 4: sparc_st_imm(jit->ip, a3, a2, a1); break;
 				default: abort();
 			} break;
-/*
-		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
-		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_sp, 96 + a1 * 4); break;
-		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_sp, 96 + a2 * 4, a1); break;
-		*/
 		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
 		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
 		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_fp, - a2 * 4, a1); break;
