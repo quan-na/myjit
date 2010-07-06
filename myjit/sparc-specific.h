@@ -173,8 +173,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 
 			sparc_call_simple(jit->ip, ((long)jit->buf - (long)jit->ip) + (long)((jit_label *)(op->r_arg[0]))->pos); 
 		else {
-			sparc_set32(jit->ip, op->r_arg[0], sparc_g1);
-			sparc_call(jit->ip, sparc_g1, sparc_g0);
+			sparc_call_simple(jit->ip, (long)op->r_arg[0] - (long)jit->ip);
 		}
 	}
 	sparc_nop(jit->ip);
@@ -198,7 +197,11 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 
 void jit_patch_external_calls(struct jit * jit)
 {
-// unused
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
+			sparc_patch(jit->buf + (long)op->patch_addr, (long)op->r_arg[0]);
+		}
+	}
 }
 
 /**

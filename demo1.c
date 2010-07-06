@@ -30,7 +30,6 @@ int main()
 	jit_label * loop = jit_get_label(p);
 	jit_addi(p, R(1), R(0), 1);
 
-	jit_modi(p, R(1), R(1), 4);
 	jit_subi(p, R(2), R(2), 1);
 	jit_bgti(p, loop, R(2), 0);
 

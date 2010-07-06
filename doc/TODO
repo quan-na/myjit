@@ -35,9 +35,9 @@ ROADMAP
 	* (AMD64) optimized MUL/DIV
 	* (SPARC) g0 optimization
 	* (SPARC) optimized MUL
+	* (SPARC) optimized div/mod
+	* (SPARC) call imm, should not use g1 register
 	+ (AMD64) large immediate values issues
-	+ (SPARC) optimized div/mod
-	+ (SPARC) call imm, should not use g1 register
 	+ (SPARC) stack frame corruption test
 
 + release 0.3.x

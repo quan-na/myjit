@@ -959,9 +959,9 @@ typedef struct {
 #endif
 
 #define sparc_patch(target, pos) do { \
-	long __p =  (long)(pos); \
-	long __t =  (long)(target); \
-	long __location = (__p - __t) / 4; \
+	long __p =  ((long)(pos)) >> 2; \
+	long __t =  ((long)(target)) >> 2; \
+	long __location = (__p - __t); \
 	sparc_format2a *__f = (sparc_format2a*)(target);	\
 	if (__f->op == 0) {\
 		/* branch */ \
@@ -969,8 +969,8 @@ typedef struct {
 		*(int *)(target) |= (0x03fffff & __location); /* 22 bits */\
 	} else { \
 		/* call */ \
-		*(int *)(target) &= ~(0x3ffffff); /* 30 bits */\
-		*(int *)(target) |= (0x3ffffff & __location); /* 30 bits */\
+		*(int *)(target) &= ~(0x3fffffff); /* 30 bits */\
+		*(int *)(target) |= (0x3fffffff & __location); /* 30 bits */\
 	} \
 } while (0);
 
