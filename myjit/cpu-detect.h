@@ -50,6 +50,9 @@
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
 
+// maximum size of value (in bits) that can be used as an immediate value without the ``sign bit''
+// (i386 does not need to transform large immediates values)
+#define JIT_IMM_BITS	(-1)
 #endif
 
 /*
@@ -62,6 +65,10 @@
 
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
+
+// maximum size of value (in bits) that can be used as an immediate value without the ``sign bit''
+// (i386 does not need to transform large immediates values)
+#define JIT_IMM_BITS	(31)
 #endif
 
 /*
@@ -75,6 +82,9 @@
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
 
+// maximum size of value (in bits) that can be used as an immediate value without the ``sign bit''
+// (i386 does not need to transform large immediates values)
+#define JIT_IMM_BITS	(12)
 #endif
 
 
@@ -104,4 +114,3 @@
 #define INT_SIZE (sizeof(int))
 #define PTR_SIZE (sizeof(void *))
 #define REG_SIZE (sizeof(void *))
-

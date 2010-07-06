@@ -565,50 +565,11 @@ op_complete:
 	}
 }
 
-
 /* platform specific */
 void jit_dump_registers(struct jit * jit, long * hwregs)
 {
 	// FIXME: missing
 	fprintf(stderr, "We are very sorry but this function is out of order now.");
-}
-
-// FIXME: should be common for all platforms
-void jit_correct_long_imms(struct jit * jit)
-{
-	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if (!IS_IMM(op)) continue;
-		if (GET_OP(op) == JIT_JMP) continue;
-		if (GET_OP(op) == JIT_CALL) continue;
-		if (GET_OP(op) == JIT_PATCH) continue;
-		if (GET_OP(op) == JIT_MOV) continue;
-		if (GET_OP(op) == JIT_PUSHARG) continue;
-		int imm_arg;
-		for (int i = 1; i < 4; i++)
-			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
-		long value = op->arg[imm_arg];
-		
-		int transform = 0;
-		//long high_bits = (value & 0xffffffff80000000) >> 31;
-		unsigned long high_bits = (value & 0xfffff000) >> 12;
-		if (IS_SIGNED(op)) {
-			if ((high_bits != 0) && (high_bits != 0xfffff)) transform = 1; 
-		} else {
-			if (high_bits != 0) transform = 1;
-		}
-
-		if (transform) {
-			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), JIT_IMMREG, value, 0, REG_SIZE);
-			jit_op_prepend(op, newop);
-
-			op->code &= ~(0x3);
-			op->code |= REG;
-
-			op->spec &= ~(0x3 << (2 * imm_arg));
-			op->spec |=  (REG << (2 * imm_arg));
-			op->arg[imm_arg] = JIT_IMMREG;
-		}
-	}
 }
 
 struct jit_reg_allocator * jit_reg_allocator_create()

@@ -1,3 +1,13 @@
+Version 0.3.2.0
+===============
++ AMD64, i386: MUL, DIV, MOD, LSH, and RSH use push & pop only if necessary
++ SPARC: optimized MUL, DIV, and MOD for some immediate values
++ SPARC: call operation does not use the temporary register, i.e., it's 10%
+faster
++ SPARC: fixed stack corruption and the appropriate test case is included
++ changing of large immediate values into a MOV and register-based operations
+became part of the jitlib-core
+
 Version 0.3.1.0
 ===============
 + support for SPARC

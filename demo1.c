@@ -26,12 +26,7 @@ int main()
 
 	// takes the value in R(0), increments it by one, and stores the result into the
 	// register R(1)
-	jit_movi(p, R(2), 20000000);
-	jit_label * loop = jit_get_label(p);
 	jit_addi(p, R(1), R(0), 1);
-
-	jit_subi(p, R(2), R(2), 1);
-	jit_bgti(p, loop, R(2), 0);
 
 	// returns from the function and returns the value in register R(1)
 	jit_retr(p, R(1));

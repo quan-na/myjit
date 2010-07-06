@@ -63,6 +63,53 @@ struct jit * jit_init(unsigned int reg_count)
 	return r;
 }
 
+/**
+ * returns 1 if the immediate value have to be transformed into register
+ */
+static inline int jit_imm_overflow(struct jit * jit, int signed_op, long value)
+{
+	unsigned long mask = ((1UL << JIT_IMM_BITS) - 1);
+	unsigned long high_bits = value & mask;
+
+	if (signed_op) {
+		if ((high_bits != 0) && (high_bits != mask)) return 1;
+	} else {
+		if (high_bits != 0) return 1;
+	}
+	return 0;
+}
+
+/**
+ * converts long immediates to MOV operation
+ */
+static inline void jit_correct_long_imms(struct jit * jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (!IS_IMM(op)) continue;
+		if (GET_OP(op) == JIT_JMP) continue;
+		if (GET_OP(op) == JIT_CALL) continue;
+		if (GET_OP(op) == JIT_PATCH) continue;
+		if (GET_OP(op) == JIT_MOV) continue;
+		if (GET_OP(op) == JIT_PUSHARG) continue;
+		int imm_arg;
+		for (int i = 1; i < 4; i++)
+			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
+		long value = op->arg[imm_arg];
+
+		if (jit_imm_overflow(jit, IS_SIGNED(op), value)) {
+			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), JIT_IMMREG, value, 0, REG_SIZE);
+			jit_op_prepend(op, newop);
+
+			op->code &= ~(0x3);
+			op->code |= REG;
+
+			op->spec &= ~(0x3 << (2 * imm_arg));
+			op->spec |=  (REG << (2 * imm_arg));
+			op->arg[imm_arg] = JIT_IMMREG;
+		}
+	}
+}
+
 static inline void __expand_patches_and_labels(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
@@ -91,7 +138,7 @@ static inline void __buf_expand(struct jit * jit)
 void jit_generate_code(struct jit * jit)
 {
 	__expand_patches_and_labels(jit);
-#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
+#if JIT_IMM_BITS > 0
 	jit_correct_long_imms(jit);
 #endif
 	jit_flw_analysis(jit);
@@ -158,4 +205,3 @@ void jit_free(struct jit * jit)
 	JIT_FREE(jit->buf);
 	JIT_FREE(jit);
 }
-
