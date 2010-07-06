@@ -45,7 +45,7 @@ static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int
 {
 	if (imm) {
 		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
-		else sparc_cmp_imm(jit->ip, op->r_arg[1], sparc_g0);
+		else sparc_cmp(jit->ip, op->r_arg[1], sparc_g0);
 	} else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
 	sparc_or_imm(jit->ip, FALSE, sparc_g0, 0, op->r_arg[0]); // clear
 	sparc_movcc_imm(jit->ip, sparc_xcc, cond, 1, op->r_arg[0]);
@@ -55,7 +55,7 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, i
 {
 	if (imm) {
 		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
-		else sparc_cmp_imm(jit->ip, op->r_arg[1], sparc_g0);
+		else sparc_cmp(jit->ip, op->r_arg[1], sparc_g0);
 	} else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
 	op->patch_addr = __PATCH_ADDR(jit);
 	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
@@ -66,7 +66,7 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int co
 {
 	if (imm) {
 		if (op->r_arg[2] != 0) sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
-		else sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], sparc_g0, sparc_g0);
+		else sparc_and(jit->ip, sparc_cc, op->r_arg[1], sparc_g0, sparc_g0);
 	} else sparc_and(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
 	op->patch_addr = __PATCH_ADDR(jit);
 	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
@@ -201,6 +201,80 @@ void jit_patch_external_calls(struct jit * jit)
 // unused
 }
 
+/**
+ * computes number of 1's in the given binary number
+ * this was taken from the Hacker's Delight book by Henry S. Warren
+ */
+static inline int _bit_pop(unsigned int x) {
+	x = (x & 0x55555555) + ((x >> 1) & 0x55555555);
+	x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+	x = (x & 0x0F0F0F0F) + ((x >> 4) & 0x0F0F0F0F);
+	x = (x & 0x00FF00FF) + ((x >> 8) & 0x00FF00FF);
+	x = (x & 0x0000FFFF) + ((x >>16) & 0x0000FFFF);
+	return x;
+}
+
+/**
+ * Generates multiplication using only the shift left and add operations
+ */
+void __gener_mult(struct jit * jit, long a1, long a2, long a3)
+{
+	int bits = _bit_pop(a3);
+	unsigned long ar = (unsigned long)a3;
+	int in_tmp = 0; // 1 if there's something the temporary registers g1, g2
+	for (int i = 0; i < 32; i++) {
+		if (ar & 0x1) {
+			bits--;
+			if (bits == 0) {
+				// last and the only one bit to multiply with
+				if (!in_tmp) sparc_sll_imm(jit->ip, a2, i, a1);
+				else {
+					sparc_sll_imm(jit->ip, a2, i, sparc_g2);
+					sparc_add(jit->ip, FALSE, sparc_g1, sparc_g2, a1);
+				}
+			} else  {
+				if (!in_tmp) {
+					sparc_sll_imm(jit->ip, a2, i, sparc_g1);
+					in_tmp = 1;
+				} else {
+					sparc_sll_imm(jit->ip, a2, i, sparc_g2);
+					sparc_add(jit->ip, FALSE, sparc_g1, sparc_g2, sparc_g1);
+				}
+			}
+		}
+		ar >>= 1;
+		if (bits == 0) break;
+	}
+}
+
+
+void __mul(struct jit * jit, jit_op * op)
+{
+	long a1 = op->r_arg[0];
+	long a2 = op->r_arg[1];
+	long a3 = op->r_arg[2];
+	if (IS_IMM(op)) {
+		if (a3 == 0) {
+			sparc_mov_reg_reg(jit->ip, sparc_g0, a1);
+			return;
+		}
+		if (a3 == 1) {
+			if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1);
+			return;
+		}
+		if ((a3 > 0) && (_bit_pop(a3) <= 5)) {
+			__gener_mult(jit, a1, a2, a3);
+			return;
+		}
+		if ((a3 < 0) && (_bit_pop(-a3) <= 5)) {
+			__gener_mult(jit, a1, a2, -a3);
+			sparc_neg(jit->ip, a1);
+			return;
+		}
+		sparc_smul_imm(jit->ip, FALSE, a2, a3, a1);
+	} else sparc_smul(jit->ip, FALSE, a2, a3, a1);
+}
+
 #define __alu_op(cc, reg_op, imm_op) \
 	if (IS_IMM(op)) {\
 		if (a3 != 0) imm_op(jit->ip, cc, a2, a3, a1); \
@@ -210,7 +284,6 @@ void jit_patch_external_calls(struct jit * jit)
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
-
 	long a1 = op->r_arg[0];
 	long a2 = op->r_arg[1];
 	long a3 = op->r_arg[2];
@@ -240,7 +313,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_OR:  __alu_op(FALSE, sparc_or, sparc_or_imm);
 		case JIT_AND: __alu_op(FALSE, sparc_and, sparc_and_imm);
 		case JIT_XOR: __alu_op(FALSE, sparc_xor, sparc_xor_imm);
-		case JIT_LSH: __alu_op(FALSE, sparc_sll, sparc_sll_imm);
+		case JIT_LSH: if (IS_IMM(op)) sparc_sll_imm(jit->ip, a2, a3, a1);
+			else sparc_sll(jit->ip, a2, a3, a1);
+			break;
 		case JIT_RSH:
 			if (IS_SIGNED(op)) {
 				if (IS_IMM(op)) sparc_sra_imm(jit->ip, a2, a3, a1);
@@ -251,15 +326,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			}
 			break;
 
-		case JIT_MUL: 
-			// FIXME: shift left optimizations
-			if (IS_IMM(op)) sparc_smul_imm(jit->ip, FALSE, a2, a3, a1);
-			else sparc_smul(jit->ip, FALSE, a2, a3, a1);
-			break;
+		case JIT_MUL:  __mul(jit, op); break;
 
 		case JIT_HMUL: 
 			if (IS_IMM(op)) sparc_smul_imm(jit->ip, FALSE, a2, a3, sparc_g0);
 			else sparc_smul(jit->ip, FALSE, a2, a3, sparc_g0);
+			sparc_nop(jit->ip);
 			sparc_rdy(jit->ip, a1);
 			break;
 
@@ -267,6 +339,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			// FIXME: shift right optimizations
 			sparc_sra_imm(jit->ip, a2, 31, sparc_g1);
 			sparc_wry(jit->ip, sparc_g1, sparc_g0);
+			sparc_nop(jit->ip);
 			sparc_nop(jit->ip);
 			sparc_nop(jit->ip);
 			if (IS_IMM(op)) sparc_sdiv_imm(jit->ip, FALSE, a2, a3, a1);
