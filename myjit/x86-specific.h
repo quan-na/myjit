@@ -24,7 +24,7 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(r) ((- r * REG_SIZE) - REG_SIZE)
+#define __GET_REG_POS(r) ((- r * REG_SIZE))
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 void jit_dump_registers(struct jit * jit, long * hwregs);

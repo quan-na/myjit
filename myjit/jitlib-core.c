@@ -63,6 +63,7 @@ struct jit * jit_init(unsigned int reg_count)
 	return r;
 }
 
+#if JIT_IMM_BITS > 0
 /**
  * returns 1 if the immediate value have to be transformed into register
  */
@@ -109,6 +110,7 @@ static inline void jit_correct_long_imms(struct jit * jit)
 		}
 	}
 }
+#endif
 
 static inline void __expand_patches_and_labels(struct jit * jit)
 {
