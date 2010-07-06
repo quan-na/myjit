@@ -4,6 +4,8 @@
 #define JIT_REGISTER_TEST
 #include "../myjit/jitlib.h"
 
+#define BLOCK_SIZE	(16)
+
 typedef long (* plfv)();
 
 int foobar(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, int a10)
@@ -18,21 +20,21 @@ int main()
 	struct jit * p = jit_init(4);
 	//static char * msg = "1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n10:\t%i\n";
 	static char * msg = "1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n";
-	static char * msg2 = "%i\n";
+	static char * msg2 = "%u\n";
 
 	plfv foo;
 
 	jit_prolog(p, &foo);
-	int i = jit_allocai(p, 16);
+	int i = jit_allocai(p, BLOCK_SIZE);
 
-	// loads into the allocated memory multiples of 5
+	// loads into the allocated memory multiples of 3
 	jit_movi(p, R(0), 0);	// index
 	jit_addi(p, R(1), JIT_FP, i); // pointer to the allocated memory
 	jit_label * lab = jit_get_label(p);
-	jit_muli(p, R(2), R(0), 5);
+	jit_muli(p, R(2), R(0), 3);
 	jit_stxr(p, R(1), R(0), R(2), 1);
 	jit_addi(p, R(0), R(0), 1);
-	jit_blti(p, lab, R(0), 16);
+	jit_blti(p, lab, R(0), BLOCK_SIZE);
 
 	// does something with registers
 	jit_movi(p, R(0), -1);
@@ -73,7 +75,7 @@ int main()
 	jit_call(p, printf);
 
 	jit_addi(p, R(0), R(0), 1);
-	jit_blti(p, lab2, R(0), 16);
+	jit_blti(p, lab2, R(0), BLOCK_SIZE);
 	
 	jit_retr(p, R(0));
 

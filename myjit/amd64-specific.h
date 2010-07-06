@@ -25,7 +25,7 @@
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(r) ((- (r) * REG_SIZE) - REG_SIZE)
+#define __GET_REG_POS(r) ((- (r) * REG_SIZE))
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
 void jit_dump_registers(struct jit * jit, long * hwregs);
@@ -262,7 +262,11 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 					amd64_push_reg(jit->ip, sreg);
 				}
 
-			} else amd64_push_imm(jit->ip, jit->args[x].value);
+			} else {
+				//amd64_push_imm(jit->ip, jit->args[x].value);
+				amd64_mov_reg_reg(jit->ip, AMD64_RAX, jit->args[x].value, REG_SIZE);
+				amd64_push_reg(jit->ip, AMD64_RAX);
+			}
 		}
 	}
 	/* al is used to pass number of floating point arguments */
@@ -770,37 +774,6 @@ void jit_dump_registers(struct jit * jit, long * hwregs)
 {
 	// FIXME: missing
 	fprintf(stderr, "We are very sorry but this function is out of order now.");
-}
-
-void jit_correct_long_imms(struct jit * jit)
-{
-	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if (!IS_IMM(op)) continue;
-		int imm_arg;
-		for (int i = 1; i < 4; i++)
-			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
-		long value = op->arg[imm_arg];
-		
-		int transform = 0;
-		unsigned long high_bits = (value & 0xffffffff80000000) >> 31;
-		if (IS_SIGNED(op)) {
-			if ((high_bits != 0) && (high_bits != 0x1ffffffff)) transform = 1; 
-		} else {
-			if (high_bits != 0) transform = 1;
-		}
-
-		if (transform) {
-			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), JIT_IMMREG, value, 0, REG_SIZE);
-			jit_op_prepend(op, newop);
-
-			op->code &= ~(0x3);
-			op->code |= REG;
-
-			op->spec &= ~(0x3 << (2 * imm_arg));
-			op->spec |=  (REG << (2 * imm_arg));
-			op->arg[imm_arg] = JIT_IMMREG;
-		}
-	}
 }
 
 struct jit_reg_allocator * jit_reg_allocator_create()

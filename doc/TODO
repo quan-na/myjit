@@ -38,7 +38,7 @@ ROADMAP
 	* (SPARC) optimized div/mod
 	* (SPARC) call imm, should not use g1 register
 	* (SPARC) stack frame corruption test
-	+ (AMD64) large immediate values issues
+	* (AMD64) large immediate values issues
 
 + release 0.3.x
 	+ input (i0, ..., i5) registers should be stored into their positions in the frame

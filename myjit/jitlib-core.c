@@ -68,7 +68,7 @@ struct jit * jit_init(unsigned int reg_count)
  */
 static inline int jit_imm_overflow(struct jit * jit, int signed_op, long value)
 {
-	unsigned long mask = ((1UL << JIT_IMM_BITS) - 1);
+	unsigned long mask = ~((1UL << JIT_IMM_BITS) - 1);
 	unsigned long high_bits = value & mask;
 
 	if (signed_op) {
