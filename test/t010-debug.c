@@ -30,7 +30,7 @@ int main()
 
 	jit_generate_code(p);
 	jit_print_ops(p);
-	//jit_dump(p);
+	jit_dump(p);
 
 	printf("Check #3: 6! = %li\n", factorial(6));
 

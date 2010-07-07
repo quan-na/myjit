@@ -522,9 +522,10 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 void jit_patch_external_calls(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
+		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0])))
 			amd64_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
-		}
+		if (GET_OP(op) == JIT_MSG)
+			amd64_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
 	}
 }
 
@@ -625,6 +626,24 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				}
 			}
 			break;
+		case JIT_MSG: do {
+				      struct jit_reg_allocator * al = jit->reg_al;
+				      for (int i = 0; i < al->hw_reg_cnt; i++)
+				      if (!al->hw_regs[i].callee_saved)
+					      amd64_push_reg(jit->ip, al->hw_regs[i].id);
+
+			      	      if (!IS_IMM(op)) amd64_mov_reg_reg_size(jit->ip, AMD64_RSI, a2, 8);
+				      amd64_mov_reg_imm_size(jit->ip, AMD64_RDI, a1, 8);
+				      amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
+				      op->patch_addr = __PATCH_ADDR(jit);
+				      amd64_call_imm(jit->ip, -1);
+
+				      for (int i = al->hw_reg_cnt - 1; i >= 0; i--)
+				      if (!al->hw_regs[i].callee_saved)
+					      amd64_pop_reg(jit->ip, al->hw_regs[i].id);
+			      } while (0);
+			      break;
+
 			
 
 		default: found = 0;
@@ -730,34 +749,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(a1), a2, REG_SIZE);  break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
-		case JIT_DUMPREG: 
-				    // creates an array of values
-				    amd64_push_reg(jit->ip, AMD64_RBP);
-				    amd64_push_reg(jit->ip, AMD64_RDI);
-				    amd64_push_reg(jit->ip, AMD64_RSI);
-				    amd64_push_reg(jit->ip, AMD64_RDX);
-				    amd64_push_reg(jit->ip, AMD64_RCX);
-				    amd64_push_reg(jit->ip, AMD64_RBX);
-				    amd64_push_reg(jit->ip, AMD64_RAX);
-	
-				    // push the 2nd argument
-				    amd64_push_reg(jit->ip, AMD64_RSP);
 
-				    // push the 1st argument	
-				    amd64_mov_reg_imm(jit->ip, AMD64_RAX, jit);
-				    amd64_push_reg(jit->ip, AMD64_RAX);
-
-				    amd64_call_code(jit->ip, (long)jit_dump_registers);
-				    amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, sizeof(long) * 2);
-
-				    amd64_push_reg(jit->ip, AMD64_RAX);
-				    amd64_push_reg(jit->ip, AMD64_RBX);
-				    amd64_push_reg(jit->ip, AMD64_RCX);
-				    amd64_push_reg(jit->ip, AMD64_RDX);
-				    amd64_push_reg(jit->ip, AMD64_RSI);
-				    amd64_push_reg(jit->ip, AMD64_RDI);
-				    amd64_push_reg(jit->ip, AMD64_RBP);
-				    break;
 		// platform specific opcodes; used by the optimizer
 		case (JIT_X86_STI | IMM): amd64_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
 		case (JIT_X86_STI | REG): amd64_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
@@ -766,14 +758,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		default: printf("amd64: unknown operation (opcode: 0x%x)\n", GET_OP(op));
 	}
-}
-
-
-/* platform specific */
-void jit_dump_registers(struct jit * jit, long * hwregs)
-{
-	// FIXME: missing
-	fprintf(stderr, "We are very sorry but this function is out of order now.");
 }
 
 struct jit_reg_allocator * jit_reg_allocator_create()
@@ -789,7 +773,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->hw_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0, 11 };
 	a->hw_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0, 10 };
 	a->hw_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0, 12 };
-	a->hw_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 13,  };
+	a->hw_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 0, 13  };
 	a->hw_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 9 };
 	a->hw_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 8 };
 	a->hw_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 6 };

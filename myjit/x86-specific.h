@@ -423,9 +423,8 @@ void jit_patch_external_calls(struct jit * jit)
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0])))
 			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
-		if (GET_OP(op) == JIT_MSG) {
+		if (GET_OP(op) == JIT_MSG)
 			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
-		}
 	}
 }
 
