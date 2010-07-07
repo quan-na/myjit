@@ -137,7 +137,6 @@ void jit_free(struct jit * jit);
 
 void jit_dump(struct jit * jit);
 void jit_print_ops(struct jit * jit);
-void __print_op(struct jit * jit, struct jit_op * op);
 void jit_get_reg_name(char * r, int reg, jit_op * op);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);

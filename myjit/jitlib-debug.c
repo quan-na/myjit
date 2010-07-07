@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "llrb.c"
+
+#define OUTPUT_BUF_SIZE		(8192)
+
 void jit_dump(struct jit * jit)
 {
 	FILE * f = stderr;
@@ -66,7 +70,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_STX:	return "stx";
 
 		case JIT_JMP:		return "jmp";
-		case JIT_PATCH:		return "patch";
+		case JIT_PATCH:		return ".patch";
 		case JIT_PREPARE:	return "prepare";
 		case JIT_PUSHARG:	return "pusharg";
 		case JIT_CALL:		return "call";
@@ -113,30 +117,20 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_BOADD:	return "boadd";
 		case JIT_BOSUB:	return "bosub";
 
-		case JIT_UREG:	return ".ureg";
-		case JIT_LREG:	return ".lreg";
+		case JIT_UREG:		return ".ureg";
+		case JIT_LREG:		return ".lreg";
 		case JIT_CODESTART:	return ".code";
-		default: return NULL;
+		case JIT_LABEL:		return ".label";
+		case JIT_SYNCREG:	return ".syncreg";
+		default: return "(unknown)";
 	}
 }
 
-/*
- * FIXME: duplicita s struct __hw_reg
- */
-
-struct __hw_reg_xxx {
-	int id;
-	unsigned long used;
-	char * name;
-	struct __virtual_reg * virt_reg;
-};
 void jit_get_reg_name(char * r, int reg, jit_op * op)
 {
-	if (reg == JIT_FP) strcpy(r, "FP");
-	else if (reg == JIT_RETREG) strcpy(r, "RETREG");
-	else if (!op->regmap) sprintf(r, "R%i", reg - 2);
-	else sprintf(r, "FIXME");
-	//else sprintf(r, "R%i/%s", reg - 2, ((struct __hw_reg_xxx *)op->regmap[reg])->name);
+	if (reg == JIT_FP) strcpy(r, "fp");
+	else if (reg == JIT_RETREG) strcpy(r, "retreg");
+	else sprintf(r, "r%i", reg - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT);
 }
 
 //static inline int jitset_get(jitset * s, unsigned int bit);
@@ -145,26 +139,131 @@ static inline void print_reg_liveness(struct jitset * s)
 	if (!s) return;
 	for (int i = 0; i < s->size; i++)
 		printf("%i", (jitset_get(s, i) > 0));
-		*/
 	printf("FIXME: broken\n");
+		*/
 }
 
-static inline void print_arg(struct jit_op * op, int arg)
+static inline int __is_cflow(jit_op * op)
+{
+	if (((GET_OP(op) == JIT_CALL) || (GET_OP(op) == JIT_JMP)) && (IS_IMM(op))) return 1;
+	if ((GET_OP(op) == JIT_BLT) || (GET_OP(op) == JIT_BLE) || (GET_OP(op) == JIT_BGT)
+	|| (GET_OP(op) == JIT_BGE) || (GET_OP(op) == JIT_BEQ) ||  (GET_OP(op) == JIT_BNE)) return 1;
+ 
+	return 0;
+}
+
+static inline int __is_label_op(jit_op * op)
+{
+	return (op != NULL) && ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH));
+}
+
+static void __assign_labels(rb_node * n, int * id)
+{
+	if (n == NULL) return;
+	__assign_labels(n->left, id);
+	n->value = (void *)*id;
+	*id += 1;
+	__assign_labels(n->right, id);
+}
+
+static rb_node * prepare_labels(struct jit * jit)
+{
+	int x = 1;
+	rb_node * n = NULL;
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		jit_op * xop = op;
+		if (__is_label_op(op)) {
+			for (; xop != NULL; xop = xop->next) {
+				if (!__is_label_op(xop)) break;
+			}
+			n = rb_insert(n, (int)xop, (void *)0, NULL);
+		}
+	}
+	__assign_labels(n, &x);
+	return n;
+}
+
+static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
+{
+	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
+		if (GET_OP(xop) != JIT_PATCH) continue;
+
+		// label found
+		if (xop->arg[0] == op) {
+			// looks for an operation associated with the label
+			jit_op * yop = xop;
+			for (; yop != NULL; yop = yop->next)
+				if (!__is_label_op(yop)) break;
+			rb_node * n = rb_search(labels, (int)yop);
+			if (n) return (int)n->value;
+			else return -1;
+		}
+	}
+	return -1;
+}
+
+static int __find_label(struct jit * jit, rb_node * labels, jit_op * op)
+{
+	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
+		if (GET_OP(xop) != JIT_LABEL) continue;
+
+		// label found
+		if (xop->arg[0] == op->arg[0]) {
+			// looks for an operation associated with the label
+			jit_op * yop = xop;
+			for (; yop != NULL; yop = yop->next)
+				if (!__is_label_op(yop)) break;
+			rb_node * n = rb_search(labels, (int)yop);
+			if (n) return (int)n->value;
+			else return -1;
+		}
+	}
+	return -1;
+}
+
+static inline void print_addr(char * buf, struct jit * jit, rb_node * labels, jit_op * op)
+{
+	char xbuf[256];
+	long arg = op->arg[0];
+	if ((void *)arg == NULL) {
+		sprintf(xbuf, "L%i", __find_patch(jit, labels, op));
+		strcat(buf, xbuf);
+		return;
+	}
+	if (jit_is_label(jit, (void *)op->arg[0])) {
+		sprintf(xbuf, "L%i", __find_label(jit, labels, op));
+		strcat(buf, xbuf);
+		return;
+	}
+
+	sprintf(xbuf, "<addr: %lx>", op->arg[0]);
+	strcat(buf, xbuf);
+}
+
+static inline void print_arg(char * buf, struct jit_op * op, int arg)
 {
 	long a;
-	char rname[20];
+	char value[256];
 	a = op->arg[arg - 1];
-	if (ARG_TYPE(op, arg) == IMM) printf("0x%lx", a);
-	if ((ARG_TYPE(op, arg) == REG) || (ARG_TYPE(op, arg) == TREG)) {
-		jit_get_reg_name(rname, a, op);
-		printf("%s", rname);
-	}
+	if (ARG_TYPE(op, arg) == IMM) sprintf(value, "0x%lx", a);
+	if ((ARG_TYPE(op, arg) == REG) || (ARG_TYPE(op, arg) == TREG)) jit_get_reg_name(value, a, op);
+	strcat(buf, value);
 }
 
-void __print_op(struct jit * jit, struct jit_op * op)
+void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 {
-	printf("%s", jit_get_op_name(op));
+	rb_node * lab = rb_search(labels, (int)op);
+	if (lab) printf("L%i:\n", (int)lab->value);
 
+	char linebuf[OUTPUT_BUF_SIZE];
+	linebuf[0] = '\0';
+
+	char * op_name = jit_get_op_name(op);
+	if (op_name[0] != '.')  strcat(linebuf, "\t");
+	else return;
+	strcat(linebuf, op_name);
+
+	/*
 	if (op->code == JIT_LREG) {
 		char rname[20];
 		jit_get_reg_name(rname, op->arg[1], op);
@@ -177,19 +276,25 @@ void __print_op(struct jit * jit, struct jit_op * op)
 		printf(" %s, %s\n", rname, jit_reg_allocator_get_hwreg_name(jit->reg_al, op->arg[1]));
 		return;
 	}
+*/
+	if (GET_OP_SUFFIX(op) & IMM) strcat(linebuf, "i");
+	if (GET_OP_SUFFIX(op) & REG) strcat(linebuf, "r");
+	if (GET_OP_SUFFIX(op) & UNSIGNED) strcat(linebuf, " uns.");
 
-	if (GET_OP_SUFFIX(op) & IMM) printf("i");
-	if (GET_OP_SUFFIX(op) & REG) printf("r");
-	if (GET_OP_SUFFIX(op) & UNSIGNED) printf("_u");
+	while (strlen(linebuf) < 12) strcat(linebuf, " ");
 
-	if (op->arg_size == 1) printf(" byte");
-	if (op->arg_size == 2) printf(" word");
-	if (op->arg_size == 4) printf(" dword");
-	if (op->arg_size == 8) printf(" qword");
+	if (op->arg_size == 1) strcat(linebuf, " (byte)");
+	if (op->arg_size == 2) strcat(linebuf, " (word)");
+	if (op->arg_size == 4) strcat(linebuf, " (dword)");
+	if (op->arg_size == 8) strcat(linebuf, " (qword)");
 
-	if (ARG_TYPE(op, 1) != NO) printf(" "), print_arg(op, 1);
-	if (ARG_TYPE(op, 2) != NO) printf(", "), print_arg(op, 2);
-	if (ARG_TYPE(op, 3) != NO) printf(", "), print_arg(op, 3);
+	if (ARG_TYPE(op, 1) != NO) {
+		strcat(linebuf, " ");
+		if (__is_cflow(op)) print_addr(linebuf, jit, labels, op); 
+		else print_arg(linebuf, op, 1);
+	} if (ARG_TYPE(op, 2) != NO) strcat(linebuf, ", "), print_arg(linebuf, op, 2);
+	if (ARG_TYPE(op, 3) != NO) strcat(linebuf, ", "), print_arg(linebuf, op, 3);
+	printf("%s", linebuf);
 
 	printf("\t");
 	printf("\t");
@@ -202,6 +307,8 @@ void __print_op(struct jit * jit, struct jit_op * op)
 
 void jit_print_ops(struct jit * jit)
 {
-	for (jit_op * op = jit->ops; op != NULL; op = op->next)
-		__print_op(jit, op);
+	rb_node * labels = prepare_labels(jit);
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
+		__print_op(jit, op, labels);
+	rb_free(labels);
 }
