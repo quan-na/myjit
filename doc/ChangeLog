@@ -8,6 +8,7 @@ faster
 + changing of large immediate values into a MOV and register-based operations
 became part of the jitlib-core
 + fixed jit_print_ops()
++ new operation MSG
 
 Version 0.3.1.0
 ===============

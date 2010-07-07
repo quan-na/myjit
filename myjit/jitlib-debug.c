@@ -158,7 +158,7 @@ static inline int __is_label_op(jit_op * op)
 	return (op != NULL) && ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH));
 }
 
-static void __assign_labels(rb_node * n, int * id)
+static void __assign_labels(rb_node * n, long * id)
 {
 	if (n == NULL) return;
 	__assign_labels(n->left, id);
@@ -169,7 +169,7 @@ static void __assign_labels(rb_node * n, int * id)
 
 static rb_node * prepare_labels(struct jit * jit)
 {
-	int x = 1;
+	long x = 1;
 	rb_node * n = NULL;
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		jit_op * xop = op;
@@ -177,7 +177,7 @@ static rb_node * prepare_labels(struct jit * jit)
 			for (; xop != NULL; xop = xop->next) {
 				if (!__is_label_op(xop)) break;
 			}
-			n = rb_insert(n, (int)xop, (void *)0, NULL);
+			n = rb_insert(n, (long)xop, (void *)0, NULL);
 		}
 	}
 	__assign_labels(n, &x);
@@ -195,8 +195,8 @@ static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
 				if (!__is_label_op(yop)) break;
-			rb_node * n = rb_search(labels, (int)yop);
-			if (n) return (int)n->value;
+			rb_node * n = rb_search(labels, (long)yop);
+			if (n) return (long)n->value;
 			else return -1;
 		}
 	}
@@ -214,8 +214,8 @@ static int __find_label(struct jit * jit, rb_node * labels, jit_op * op)
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
 				if (!__is_label_op(yop)) break;
-			rb_node * n = rb_search(labels, (int)yop);
-			if (n) return (int)n->value;
+			rb_node * n = rb_search(labels, (long)yop);
+			if (n) return (long)n->value;
 			else return -1;
 		}
 	}
@@ -275,8 +275,8 @@ static inline void print_str(char * buf, char * str)
 
 void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 {
-	rb_node * lab = rb_search(labels, (int)op);
-	if (lab) printf("L%i:\n", (int)lab->value);
+	rb_node * lab = rb_search(labels, (long)op);
+	if (lab) printf("L%i:\n", (long)lab->value);
 
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
