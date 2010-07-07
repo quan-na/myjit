@@ -214,7 +214,7 @@ int jit_reg_in_use(jit_op * op, int reg);
 #define JIT_BOADD	(0x58 << 3)	
 #define JIT_BOSUB	(0x59 << 3)	
 
-#define JIT_DUMPREG	(0x60 << 3)
+#define JIT_MSG		(0x60 << 3)
 #define JIT_NOP		(0xff << 3)
 
 
@@ -389,8 +389,8 @@ int jit_reg_in_use(jit_op * op, int reg);
 #define jit_stxr(jit, a, b, c, d) jit_add_op(jit, JIT_STX | REG, SPEC(REG, REG, REG), a, b, c, d) 
 #define jit_stxi(jit, a, b, c, d) jit_add_op(jit, JIT_STX | IMM, SPEC(IMM, REG, REG), (long)a, b, c, d) 
 
-#define jit_dumpreg(jit) jit_add_op(jit, JIT_DUMPREG, SPEC(NO, NO, NO), 0, 0, 0, 0)
-
+#define jit_msgi(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
+#define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (long)a, b, 0, 0)
 
 static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {

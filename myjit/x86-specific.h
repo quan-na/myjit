@@ -421,8 +421,10 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 void jit_patch_external_calls(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
+		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0])))
 			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
+		if (GET_OP(op) == JIT_MSG) {
+			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
 		}
 	}
 }
@@ -516,6 +518,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, op->arg_size); 
 			break;
 			
+		case JIT_MSG: x86_pushad(jit->ip);
+			      if (!IS_IMM(op)) x86_push_reg(jit->ip, a2);
+			      x86_push_imm(jit->ip, a1);
+			      op->patch_addr = __PATCH_ADDR(jit); 
+			      x86_call_imm(jit->ip, printf);
+			      if (IS_IMM(op)) x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
+			      else x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
+			      x86_popad(jit->ip);
+			      break; 
 
 		default: found = 0;
 	}
@@ -602,34 +613,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_SYNCREG): x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);  break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
-		case JIT_DUMPREG: 
-				    // creates an array of values
-				    x86_push_reg(jit->ip, X86_EBP);
-				    x86_push_reg(jit->ip, X86_EDI);
-				    x86_push_reg(jit->ip, X86_ESI);
-				    x86_push_reg(jit->ip, X86_EDX);
-				    x86_push_reg(jit->ip, X86_ECX);
-				    x86_push_reg(jit->ip, X86_EBX);
-				    x86_push_reg(jit->ip, X86_EAX);
-	
-				    // push the 2nd argument
-				    x86_push_reg(jit->ip, X86_ESP);
 
-				    // push the 1st argument	
-				    x86_mov_reg_imm(jit->ip, X86_EAX, jit);
-				    x86_push_reg(jit->ip, X86_EAX);
-
-				    x86_call_code(jit->ip, (long)jit_dump_registers);
-				    x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, sizeof(long) * 2);
-
-				    x86_push_reg(jit->ip, X86_EAX);
-				    x86_push_reg(jit->ip, X86_EBX);
-				    x86_push_reg(jit->ip, X86_ECX);
-				    x86_push_reg(jit->ip, X86_EDX);
-				    x86_push_reg(jit->ip, X86_ESI);
-				    x86_push_reg(jit->ip, X86_EDI);
-				    x86_push_reg(jit->ip, X86_EBP);
-				    break;
 		// platform specific opcodes; used byt optimizer
 		case (JIT_X86_STI | IMM): x86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
 		case (JIT_X86_STI | REG): x86_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
@@ -638,33 +622,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		default: printf("x86: unknown operation (opcode: %i)\n", GET_OP(op));
 	}
-}
-
-
-/* platform specific */
-void jit_dump_registers(struct jit * jit, long * hwregs)
-{
-	// FIXME: asi je to rozbite
-	/*
-	for (int i = 0; i < jit->reg_count; i++) {
-		char * sysname = "";
-		long reg_value;
-		if (i == 0) fprintf(stderr, "FP:\t0x%lx (ebp)\n", hwregs[6]);
-		if (i == 1) fprintf(stderr, "RETREG:\t0x%lx\n", hwregs[0]);
-		if (jit->reg_al->virt_reg[i].hw_reg) {
-			switch (jit->reg_al->virt_reg[i].hw_reg->id) {
-				case X86_EAX: reg_value = hwregs[0], sysname = "(eax)"; break;
-				case X86_EBX: reg_value = hwregs[1], sysname = "(ebx)"; break;
-				case X86_ECX: reg_value = hwregs[2], sysname = "(ecx)"; break;
-				case X86_EDX: reg_value = hwregs[3], sysname = "(edx)"; break;
-				case X86_ESI: reg_value = hwregs[4], sysname = "(esi)"; break;
-				case X86_EDI: reg_value = hwregs[5], sysname = "(edi)"; break;
-				default: reg_value = jit->regs[i];
-			}
-		} else reg_value = jit->regs[i];
-		if (i > 2) fprintf(stderr, "%i:\t0x%lx %s\n", i - 2, reg_value, sysname);
-	}
-	*/
 }
 
 /* register allocator initilization */

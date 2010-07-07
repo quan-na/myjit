@@ -122,6 +122,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_CODESTART:	return ".code";
 		case JIT_LABEL:		return ".label";
 		case JIT_SYNCREG:	return ".syncreg";
+		case JIT_MSG	:	return "msg";
 		default: return "(unknown)";
 	}
 }
@@ -189,7 +190,7 @@ static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
 		if (GET_OP(xop) != JIT_PATCH) continue;
 
 		// label found
-		if (xop->arg[0] == op) {
+		if (xop->arg[0] == (long)op) {
 			// looks for an operation associated with the label
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
@@ -250,6 +251,28 @@ static inline void print_arg(char * buf, struct jit_op * op, int arg)
 	strcat(buf, value);
 }
 
+static inline void print_str(char * buf, char * str)
+{
+	strcat(buf, " \"");
+	for (int i = 0; i < strlen(str); i++) {
+		if (str[i] >= 32) {
+			int s = strlen(buf);
+			buf[s++] = str[i];
+			buf[s] = '\0';
+		} else  {
+			char xbuf[16];
+			switch (str[i]) {
+				case 9: strcpy(xbuf, "\r"); break;
+				case 10: strcpy(xbuf, "\\n"); break;
+				case 13: strcpy(xbuf, "\\r"); break;
+				default: sprintf(xbuf, "\\x%02x", str[i]);
+			}
+			strcat(buf, xbuf);
+		}
+	}
+	strcat(buf, "\"");
+}
+
 void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 {
 	rb_node * lab = rb_search(labels, (int)op);
@@ -288,13 +311,22 @@ void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 	if (op->arg_size == 4) strcat(linebuf, " (dword)");
 	if (op->arg_size == 8) strcat(linebuf, " (qword)");
 
+	if (GET_OP(op) == JIT_MSG) {
+		print_str(linebuf, (char *)op->arg[0]);
+		if (!IS_IMM(op)) strcat(linebuf, ", "), print_arg(linebuf, op, 2);
+		goto print;
+	}
+
 	if (ARG_TYPE(op, 1) != NO) {
 		strcat(linebuf, " ");
 		if (__is_cflow(op)) print_addr(linebuf, jit, labels, op); 
 		else print_arg(linebuf, op, 1);
 	} if (ARG_TYPE(op, 2) != NO) strcat(linebuf, ", "), print_arg(linebuf, op, 2);
 	if (ARG_TYPE(op, 3) != NO) strcat(linebuf, ", "), print_arg(linebuf, op, 3);
+	
+print:
 	printf("%s", linebuf);
+
 
 	printf("\t");
 	printf("\t");
