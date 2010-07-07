@@ -128,7 +128,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 
 	for (i = jit->prepare_args - 1, pos = 0; i >= 0; i--, pos++) {
 		int reg;
-		// FIXME: should take information from allocatot
+		// FIXME: should take information from the allocator
 		if (pos < 6) {
 			switch (pos) {
 				case 0: reg = sparc_o0; break;
@@ -198,9 +198,10 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 void jit_patch_external_calls(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0]))) {
+		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0])))
 			sparc_patch(jit->buf + (long)op->patch_addr, (long)op->r_arg[0]);
-		}
+		if (GET_OP(op) == JIT_MSG)
+			sparc_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
 	}
 }
 
@@ -427,6 +428,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (a2 == 5) __get_arg(jit, op, sparc_i5);
 			if (a2 > 5) sparc_ld_imm(jit->ip, sparc_fp, 92 + (a2 - 6) * 4, a1);
 			break;
+		case JIT_MSG:
+			sparc_set(jit->ip, a1, sparc_o0);
+			if (!IS_IMM(op)) sparc_mov_reg_reg(jit->ip, a2, sparc_o1);
+			op->patch_addr = __PATCH_ADDR(jit);
+			sparc_call_simple(jit->ip, printf);
+			sparc_nop(jit->ip);
+			break;
+
 		default: found = 0;
 	}
 
@@ -560,16 +569,8 @@ op_complete:
 		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_fp, - a2 * 4, a1); break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
-		case JIT_DUMPREG: assert(0);
 		default: printf("sparc: unknown operation (opcode: 0x%x)\n", GET_OP(op));
 	}
-}
-
-/* platform specific */
-void jit_dump_registers(struct jit * jit, long * hwregs)
-{
-	// FIXME: missing
-	fprintf(stderr, "We are very sorry but this function is out of order now.");
 }
 
 struct jit_reg_allocator * jit_reg_allocator_create()

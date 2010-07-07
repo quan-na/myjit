@@ -92,6 +92,7 @@ static inline void jit_correct_long_imms(struct jit * jit)
 		if (GET_OP(op) == JIT_PATCH) continue;
 		if (GET_OP(op) == JIT_MOV) continue;
 		if (GET_OP(op) == JIT_PUSHARG) continue;
+		if (GET_OP(op) == JIT_MSG) continue;
 		int imm_arg;
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
