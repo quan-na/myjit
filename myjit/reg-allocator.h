@@ -200,11 +200,11 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	for (i = 0; i < 3; i++) {
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			if (op->arg[i] == JIT_RETREG) {
+			if (op->arg[i] == R_OUT) {
 				op->r_arg[i] = al->ret_reg;
 				continue;
 			}
-			if (op->arg[i] == JIT_FP) {
+			if (op->arg[i] == R_FP) {
 				op->r_arg[i] = al->fp_reg;
 				continue;
 			}

@@ -129,8 +129,8 @@ char * jit_get_op_name(struct jit_op * op)
 
 void jit_get_reg_name(char * r, int reg, jit_op * op)
 {
-	if (reg == JIT_FP) strcpy(r, "fp");
-	else if (reg == JIT_RETREG) strcpy(r, "retreg");
+	if (reg == R_FP) strcpy(r, "fp");
+	else if (reg == R_OUT) strcpy(r, "out");
 	else sprintf(r, "r%i", reg - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT);
 }
 

@@ -26,10 +26,15 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+/* these three macros are obsolete and will be removed */
 #define JIT_FP		(0)
 #define JIT_RETREG	(1)
+#define JIT_IMMREG	(2) 
 
-#define JIT_IMMREG	(2) /* used by amd64 and && sparc*/
+#define R_FP	(0)
+#define R_OUT	(1)
+#define R_IMM	(2) /* used by amd64 and && sparc*/
+
 
 #define JIT_FORWARD	(NULL)
 

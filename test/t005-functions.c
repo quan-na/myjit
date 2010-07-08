@@ -280,9 +280,9 @@ void test7()
 	jit_prolog(p, &f1);
 	int arr = jit_allocai(p, ARR_SIZE  * REG_SIZE); // allocates an array
 	jit_movi(p, R(0), 1);				// sets up the first element
-	jit_stxi(p, arr, JIT_FP, R(0), REG_SIZE);	
+	jit_stxi(p, arr, R_FP, R(0), REG_SIZE);	
 
-	jit_addi(p, R(0), JIT_FP, arr);			// pointer to the array
+	jit_addi(p, R(0), R_FP, arr);			// pointer to the array
 	jit_addi(p, R(1), R(0), REG_SIZE);		// position in the array (2nd element)
 	jit_movi(p, R(2), ARR_SIZE - 1);		// counter
 

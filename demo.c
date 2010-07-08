@@ -28,8 +28,8 @@ int main()
 	int hoo = jit_allocai(p, 8);
 
 	jit_movi(p, R(0), 12345);
-	jit_stxi(p, hoo, JIT_FP, R(0), REG_SIZE);
-	jit_stxi(p, hoo + 4, JIT_FP, R(0), REG_SIZE);
+	jit_stxi(p, hoo, R_FP, R(0), REG_SIZE);
+	jit_stxi(p, hoo + 4, R_FP, R(0), REG_SIZE);
 
 	jit_movi(p, R(0), 0);
 	jit_movi(p, R(1), 1);

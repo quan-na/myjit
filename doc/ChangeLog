@@ -9,6 +9,10 @@ faster
 became part of the jitlib-core
 + fixed jit_print_ops()
 + new operation MSG
++ jit_print_ops() and jit_dump have renamed to jit_dump_ops() and
+jit_dump_code()
++ registers JIT_FP and JIT_RETREG have new aliases R_FP and R_OUT,
+respectively
 
 Version 0.3.1.0
 ===============

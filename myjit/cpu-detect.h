@@ -45,7 +45,7 @@
 #ifdef JIT_ARCH_I386
 
 // number of register aliases
-#define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
+#define JIT_ALIAS_CNT           (2)     /* R_OUT + R_FP */
 
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
@@ -61,7 +61,7 @@
 #ifdef JIT_ARCH_AMD64
 
 // number of register aliases
-#define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
+#define JIT_ALIAS_CNT           (2)     /* R_OUT + R_FP */
 
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
@@ -77,7 +77,7 @@
 #ifdef JIT_ARCH_SPARC
 
 // number of register aliases
-#define JIT_ALIAS_CNT           (2)     /* JIT_RETREG + JIT_FP */
+#define JIT_ALIAS_CNT           (2)     /* R_OUT + R_FP */
 
 // number of special purpose registers
 #define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */

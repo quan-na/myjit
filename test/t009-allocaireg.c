@@ -29,7 +29,7 @@ int main()
 
 	// loads into the allocated memory multiples of 3
 	jit_movi(p, R(0), 0);	// index
-	jit_addi(p, R(1), JIT_FP, i); // pointer to the allocated memory
+	jit_addi(p, R(1), R_FP, i); // pointer to the allocated memory
 	jit_label * lab = jit_get_label(p);
 	jit_muli(p, R(2), R(0), 3);
 	jit_stxr(p, R(1), R(0), R(2), 1);
@@ -64,7 +64,7 @@ int main()
 
 	// print outs allocated memory
 	jit_movi(p, R(0), 0);	// index
-	jit_addi(p, R(1), JIT_FP, i); // pointer to the allocated memory
+	jit_addi(p, R(1), R_FP, i); // pointer to the allocated memory
 	jit_label * lab2 = jit_get_label(p);
 
 	jit_ldxr(p, R(2), R(1), R(0), 1);
