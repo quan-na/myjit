@@ -7,10 +7,10 @@ MyJIT is a library that allows to generate machine code at run-time and afterwar
 + unlimited number of registers
 + thread-safety
 + support for i386, AMD64, and SPARC processors
++ convenient debugging
 + easy to use and easy to extend design
 + particular backward compatibility with GNU lightning
-+ the library allows for debugging (the debugging is broken right now)
-+ MyJIT allows for future optimizations
++ allows for future optimizations
 + the library is fully embeddable 
 
 Getting MyJIT
@@ -224,7 +224,6 @@ Branch operations represents conditional jumps and all have three operands. The 
 	bosubi (u)     O2 -= O3, goto O1 on overflow
 	
 
-
 Getting Started
 ---------------
 
@@ -298,6 +297,47 @@ The first command compiles the example, the second one compiles the functions us
 It should be emphasized that the MyJIT conforms to the C99 standard and all MyJIT files should be compiled according to this standard.
 
 We also recommend to check the ``demo2.c`` and ``demo3.c`` examples, which are also included in the MyJIT package.
+
+Debugging
+---------
+
+MyJIT contains several tools simplifying application development. The first one, is the ``msg`` operation which prints out a given message or a value of the given register. The ``msg`` operation takes one or two arguments. The first one is always an immediate value which is a string to display. The second one operand is optional and it must be a register. In this case the first string serves as format string for ``printf`` and the value of the register is printed out using this format string. The example of the ``msg`` operation usage:
+
+.. sourcecode:: c
+
+	jit_msg(jit, "Simple message\n");
+	jit_msg(jit, "Reg 1: %l\n", R(1));
+
+The MyJIT library also provides two functions ``jit_dump_ops`` and ``jit_dump_code`` which allows to print out the code. The first one print outs the high level code and the second one prints out the final machine code. Both functions takes two arguments---the reference to the compiler and the verbosity level. However, the second argument is not used and its value should be always zero.
+
+Examples of the outputs for the above mentioned source code.
+
+::
+
+	prolog      0xbfd34a64
+        getarg      (dword) r0, 0x0
+        addi        r1, r0, 0x1
+        retr        r1
+
+::
+
+	00000000 <main>:
+	   0:   55                      push   ebp
+	   1:   8b ec                   mov    ebp,esp
+	   3:   83 ec 34                sub    esp,0x34
+	   6:   56                      push   esi
+	   7:   57                      push   edi
+	   8:   8b 7d 08                mov    edi,DWORD PTR [ebp+0x8]
+	   b:   8d 77 01                lea    esi,[edi+0x1]
+	   e:   8b c6                   mov    eax,esi
+	  10:   5f                      pop    edi
+	  11:   5e                      pop    esi
+	  12:   8b e5                   mov    esp,ebp
+	  14:   5d                      pop    ebp
+	  15:   c3                      ret
+
+*NOTICE!* Do not use the debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the ``printf`` function explicitly. The ``jit_dump_code`` is using ``gcc`` and ``objdump`` to disassemble the code, therefore, these two programs are have to be present in the system.
+
 
 License
 -------
