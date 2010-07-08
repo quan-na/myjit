@@ -276,7 +276,7 @@ We start with a really simple example---with a function returning its argument i
 	
 		// if you are interested, you can dump the machine code
 		// this functionality is provided through the `gcc' and `objdump'
-		// jit_dump(p);
+		// jit_dump_code(p, 0);
 	
 		// cleanup
 		jit_free(p);

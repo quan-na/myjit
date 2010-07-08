@@ -36,7 +36,7 @@ int main()
 
 	// if you are interested, you can dump the machine code
 	// this functionality is provided through the `gcc' and `objdump'
-	jit_dump(p);
+	jit_dump_code(p, 0);
 
 	// check
 	printf("Check #1: %li\n", foo(1));

@@ -26,7 +26,7 @@
 
 #define OUTPUT_BUF_SIZE		(8192)
 
-void jit_dump(struct jit * jit)
+void jit_dump_code(struct jit * jit, int verbosity)
 {
 	FILE * f = stderr;
 
@@ -337,7 +337,7 @@ print:
 	printf("\n");
 }
 
-void jit_print_ops(struct jit * jit)
+void jit_dump_ops(struct jit * jit, int verbosity)
 {
 	rb_node * labels = prepare_labels(jit);
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)

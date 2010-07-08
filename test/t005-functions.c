@@ -28,7 +28,7 @@ void test1()
 	jit_retr(p, R(0));
 	jit_generate_code(p);
 
-//	jit_dump(p);
+//	jit_dump_code(p, 0);
 
 	r = f1(20, 20, -10);
 	printf("DD:%i\n", r);
@@ -151,8 +151,8 @@ void test4()
 
 	jit_generate_code(p);
 
-//	jit_print_ops(p); return;
-//	jit_dump(p); return;
+//	jit_dump_ops(p, 0); return;
+//	jit_dump_code(p, 0); return;
 
 	r = f1(30);
 	printf("::%i\n", r);
@@ -214,8 +214,8 @@ void test5()
 	jit_retr(p, R(4));
 	jit_generate_code(p);
 
-//	jit_print_ops(p); return;
-//	jit_dump(p); return;
+//	jit_dump_ops(p, 0); return;
+//	jit_dump_code(p, 0); return;
 	r = f1("1f", 16);
 	printf("::%i\n", r);
 	if (r == 31) SUCCESS(51);
@@ -259,8 +259,8 @@ void test6()
 
 	jit_retr(p, R(2));
 	jit_generate_code(p);
-//	jit_print_ops(p); return;
-//	jit_dump(p); return;
+//	jit_dump_ops(p, 0); return;
+//	jit_dump_code(p, 0); return;
 	r = f1();
 //	printf("::%i\n", r);
 
@@ -314,8 +314,8 @@ void test7()
 
 	jit_reti(p, 0);
 	jit_generate_code(p);
-//	jit_print_ops(p); return;
-//	jit_dump(p); return;
+//	jit_dump_ops(p, 0); return;
+//	jit_dump_code(p, 0); return;
 	r = f1();
 //	printf("::%i\n", r);
 	
@@ -386,8 +386,8 @@ void test8()
 	jit_retr(p, R(1));
 
 	jit_generate_code(p);
-//	jit_print_ops(p); return;
-//	jit_dump(p); return;
+//	jit_dump_ops(p, 0); return;
+//	jit_dump_code(p, 0); return;
 	r = f1();
 
 	jit_free(p);

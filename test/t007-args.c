@@ -63,7 +63,7 @@ int main()
 
 	jit_generate_code(p);
 
-	jit_dump(p);
+	jit_dump_code(p, 0);
 
 	// check
 	printf("Check #1: %li\n", foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));

@@ -29,8 +29,8 @@ int main()
 	jit_retr(p, R(1));
 
 	jit_generate_code(p);
-	jit_print_ops(p);
-	jit_dump(p);
+	jit_dump_ops(p, 0);
+	jit_dump_code(p, 0);
 
 	printf("Check #3: 6! = %li\n", factorial(6));
 

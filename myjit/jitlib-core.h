@@ -28,7 +28,8 @@
 
 #define JIT_FP		(0)
 #define JIT_RETREG	(1)
-#define JIT_IMMREG	(2) /* used by amd64 */
+
+#define JIT_IMMREG	(2) /* used by amd64 and && sparc*/
 
 #define JIT_FORWARD	(NULL)
 
@@ -135,8 +136,9 @@ struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char 
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);
 
-void jit_dump(struct jit * jit);
-void jit_print_ops(struct jit * jit);
+void jit_dump_code(struct jit * jit, int verbosity);
+void jit_dump_ops(struct jit * jit, int verbosity);
+
 void jit_get_reg_name(char * r, int reg, jit_op * op);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);

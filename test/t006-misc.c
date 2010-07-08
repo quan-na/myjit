@@ -69,7 +69,7 @@ void test2(long cond, long value1, long value2)
 
 	jit_retr(p, R(2));
 	jit_generate_code(p);
-//	jit_dump(p);
+//	jit_dump_code(p, 0);
 
 	r = f1(10);
 	printf(":::%i\n", r);

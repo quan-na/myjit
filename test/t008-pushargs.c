@@ -50,9 +50,9 @@ int main()
 	jit_retr(p, R(0));
 
 	jit_generate_code(p);
-//	jit_print_ops(p);
+//	jit_dump_ops(p, 0);
 
-	jit_dump(p);
+	jit_dump_code(p, 0);
 
 	// check
 	printf("Check #1: %li\n", foo());
