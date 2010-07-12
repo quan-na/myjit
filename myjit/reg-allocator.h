@@ -22,6 +22,9 @@
  * Register allocator -- auxiliary functions
  */
 
+/**
+ * Creates an empty register pool
+ */
 struct jit_regpool * jit_regpool_init(int size)
 {
 	struct jit_regpool * r = JIT_MALLOC(sizeof(struct jit_regpool));
@@ -58,35 +61,36 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 #endif
 }
 
-// FIXME:
 static inline struct __hw_reg * jit_regpool_get(struct jit_regpool * rp)
 {
 	if (rp->pos < 0) return NULL;
 	else return rp->pool[rp->pos--];
 }
 
-/* FIXME: merge initializators */
-static inline void jit_reg_pool_initialize(struct jit_reg_allocator * al, struct jit_regpool * rp)
+/**
+ * Loads all registers which are not used to pass arguments into the registers
+ */
+static inline void jit_regpool_prepare(struct jit_regpool * rp, struct __hw_reg * regs, int regcnt, int * arg_registers, int arg_registers_cnt)
 {
 	rp->pos = -1;
-	for (int i = 0; i < al->hw_reg_cnt; i++) {
-		struct __hw_reg * hreg = &(al->hw_regs[i]);
+	for (int i = 0; i < regcnt; i++) {
+		struct __hw_reg * hreg = &(regs[i]);
 
 		int is_argument = 0;
-		for (int j = 0; j < al->arg_registers_cnt; j++) {
-			if (hreg->id == al->arg_registers[j]) {
+		for (int j = 0; j < arg_registers_cnt; j++) {
+			if (hreg->id == arg_registers[j]) {
 				is_argument = 1;
 				break;
 			}
 		}
-		if (!is_argument) jit_regpool_put(al->gp_regpool, hreg);
+		if (!is_argument) jit_regpool_put(rp, hreg);
 	}
 }
 
 static inline struct __hw_reg * __get_reg(struct jit_reg_allocator * al, int reg_id)
 {
-	for (int i = 0; i < al->hw_reg_cnt; i++)
-		if (al->hw_regs[i].id == reg_id) return &(al->hw_regs[i]);
+	for (int i = 0; i < al->gp_reg_cnt; i++)
+		if (al->gp_regs[i].id == reg_id) return &(al->gp_regs[i]);
 	return NULL;
 }
 
@@ -140,14 +144,14 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
-	// PROLOG needs special care
+	// PROLOG needs some special care
 	if (GET_OP(op) == JIT_PROLOG) {
 		
 		op->regmap = rmap_init();
-		jit_reg_pool_initialize(al, al->gp_regpool);
+		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, al->gp_arg_reg_cnt);
 
-		for (int i = 0; i < al->arg_registers_cnt; i++)
-			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->arg_registers[i]));
+		for (int i = 0; i < al->gp_arg_reg_cnt; i++)
+			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->gp_arg_regs[i]));
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
@@ -179,9 +183,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		// unloads registers which are used to pass the arguments
 		int reg;
 		int args = op->arg[0];
-		if (args > al->arg_registers_cnt) args = al->arg_registers_cnt;
+		if (args > al->gp_arg_reg_cnt) args = al->gp_arg_reg_cnt;
 		for (int q = 0; q < args; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->arg_registers[q], &reg);
+			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], &reg);
 			if (hreg) {
 				unload_reg(op, hreg, reg);
 				jit_regpool_put(al->gp_regpool, hreg);
@@ -192,7 +196,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	// if the calling convention is using registers to pass the arguments,
 	// PUSHARG have to take care of register allocation by itself
-	if ((al->arg_registers_cnt > 0) && (GET_OP(op) == JIT_PUSHARG)) {
+	if ((al->gp_arg_reg_cnt > 0) && (GET_OP(op) == JIT_PUSHARG)) {
 		return;
 	}
 
@@ -327,8 +331,8 @@ void jit_assign_regs(struct jit * jit)
 void jit_reg_allocator_free(struct jit_reg_allocator * a)
 {
 	jit_regpool_free(a->gp_regpool);
-	//jit_regpool_free(a->fp_regpool);
-	JIT_FREE(a->hw_regs);
+	jit_regpool_free(a->fp_regpool);
+	JIT_FREE(a->gp_regs);
 	JIT_FREE(a);
 }
 
@@ -343,8 +347,8 @@ int jit_reg_in_use(jit_op * op, int reg)
 // FIXME: obsolete???
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg)
 {
-	for (int i = 0; i < al->hw_reg_cnt; i++)
-		if (al->hw_regs[i].id == reg) return al->hw_regs[i].name;
+	for (int i = 0; i < al->gp_reg_cnt; i++)
+		if (al->gp_regs[i].id == reg) return al->gp_regs[i].name;
 	return NULL;
 }
 

@@ -58,6 +58,7 @@ struct __hw_reg {
 	unsigned long used;
 	char * name;
 	char callee_saved;
+	char fp;
 	short priority;
 };
 
@@ -68,15 +69,19 @@ struct jit_regpool
 };
 
 struct jit_reg_allocator {
-	int hw_reg_cnt;
+	int gp_reg_cnt;				// number of general purpose registers
+	int fp_reg_cnt;				// number of floating-point registers
 	int fp_reg; 				// frame pointer; register used to access the local variables
 	int ret_reg; 				// register used to return value
-	int arg_registers_cnt;			// number of registers used to pass arguments
+	int gp_arg_reg_cnt;			// number of GP registers used to pass arguments
+	int fp_arg_reg_cnt;			// number of FP registers used to pass arguments
 
-	struct __hw_reg * hw_regs;		// array of available hardware registers
+	struct __hw_reg * gp_regs;		// array of available GP registers
+	struct __hw_reg * fp_regs;		// array of available floating-point registers
 	struct jit_regpool * gp_regpool;	// pool of available general purpose registers
-	struct jit_regpool * fp_regpool;	// pool of available general purpose registers
-	int * arg_registers;			// array of registers used to pass arguments (in the given order) 
+	struct jit_regpool * fp_regpool;	// pool of available floating-point registers
+	int * gp_arg_regs;			// array of GP registers used to pass arguments (in the given order) 
+	int * fp_arg_regs;			// array of FP registers used to pass arguments (in the given order) 
 };
 
 typedef struct rmap_t {

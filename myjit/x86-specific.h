@@ -627,33 +627,30 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 struct jit_reg_allocator * jit_reg_allocator_create()
 {
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->hw_reg_cnt = 6;
-	a->gp_regpool = jit_regpool_init(a->hw_reg_cnt);
-	//a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
-	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
+	a->gp_reg_cnt = 6;
+	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
+	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->gp_reg_cnt + 1));
 
-	a->hw_regs[0] = (struct __hw_reg) { X86_EAX, 0, "eax", 0, 5 };
-	a->hw_regs[1] = (struct __hw_reg) { X86_EBX, 0, "ebx", 1, 0 };
-	a->hw_regs[2] = (struct __hw_reg) { X86_ECX, 0, "ecx", 0, 3 };
-	a->hw_regs[3] = (struct __hw_reg) { X86_EDX, 0, "edx", 0, 4 };
-	a->hw_regs[4] = (struct __hw_reg) { X86_ESI, 0, "esi", 1, 1 };
-	a->hw_regs[5] = (struct __hw_reg) { X86_EDI, 0, "edi", 1, 2 };
-	a->hw_regs[6] = (struct __hw_reg) { X86_EBP, 0, "ebp", 0, 100 };
+	a->gp_regs[0] = (struct __hw_reg) { X86_EAX, 0, "eax", 0, 0, 5 };
+	a->gp_regs[1] = (struct __hw_reg) { X86_EBX, 0, "ebx", 1, 0, 0 };
+	a->gp_regs[2] = (struct __hw_reg) { X86_ECX, 0, "ecx", 0, 0, 3 };
+	a->gp_regs[3] = (struct __hw_reg) { X86_EDX, 0, "edx", 0, 0, 4 };
+	a->gp_regs[4] = (struct __hw_reg) { X86_ESI, 0, "esi", 1, 0, 1 };
+	a->gp_regs[5] = (struct __hw_reg) { X86_EDI, 0, "edi", 1, 0, 2 };
+	a->gp_regs[6] = (struct __hw_reg) { X86_EBP, 0, "ebp", 0, 0, 100 };
+	a->gp_arg_reg_cnt = 0;
 
 	a->fp_reg = X86_EBP;
 	a->ret_reg = X86_EAX;
 
-	/*
-	a->fp_hw_reg_cnt = 3;
-	a->fp_hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->fp_hw_reg_cnt);
-	a->fp_hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_hw_reg_cnt);
+	a->fp_reg_cnt = 3;
+	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
+	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
 
-	// FIXME: more registers
-	a->fp_hw_regs[0] = (struct __hw_reg) { X86_XMM0, 0, "xmm0", 0, 5 };
-	a->fp_hw_regs[1] = (struct __hw_reg) { X86_XMM1, 0, "xmm1", 0, 0 };
-	a->fp_hw_regs[2] = (struct __hw_reg) { X86_XMM2, 0, "xmm2", 0, 3 };
-	*/
+	a->fp_regs[0] = (struct __hw_reg) { X86_XMM0, 0, "xmm0", 0, 1, 1 };
+	a->fp_regs[1] = (struct __hw_reg) { X86_XMM1, 0, "xmm1", 0, 1, 2 };
+	a->fp_regs[2] = (struct __hw_reg) { X86_XMM2, 0, "xmm2", 0, 1, 3 };
 
-	a->arg_registers_cnt = 0;
+	a->fp_arg_reg_cnt = 0;
 	return a;
 }
