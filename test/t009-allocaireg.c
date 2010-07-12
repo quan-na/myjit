@@ -17,7 +17,7 @@ int foobar(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a
 }
 int main()
 {
-	struct jit * p = jit_init(4);
+	struct jit * p = jit_init(16, 0);
 	//static char * msg = "1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n10:\t%i\n";
 	static char * msg = "1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n";
 	static char * msg2 = "%u\n";

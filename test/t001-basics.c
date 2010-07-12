@@ -5,7 +5,7 @@
 void test1()
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_reti(p, 123);
@@ -21,7 +21,7 @@ void test1()
 void test2()
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
@@ -40,7 +40,7 @@ void test2()
 void test3()
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
@@ -60,7 +60,7 @@ void test3()
 void test4()
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
@@ -80,7 +80,7 @@ void test4()
 void test5()
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), -100);

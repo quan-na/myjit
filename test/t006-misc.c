@@ -13,7 +13,7 @@ typedef long (*plfpcus)(char *, unsigned short);
 void test1(long cond, long value1, long value2)
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfl f1;
 	jit_prolog(p, &f1);
 	int a1 = jit_arg(p);
@@ -47,7 +47,7 @@ void test1(long cond, long value1, long value2)
 void test2(long cond, long value1, long value2)
 {
 	long r;
-	struct jit * p = jit_init(16);
+	struct jit * p = jit_init(16, 0);
 	plfl f1;
 	jit_prolog(p, &f1);
 	int a1 = jit_arg(p);

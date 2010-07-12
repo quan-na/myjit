@@ -97,7 +97,7 @@
 #define JIT_FIRST_REG   (JIT_ALIAS_CNT)
 
 #define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
-#endif
+#define FR(x)    (-(x))
 
 #ifndef JIT_MALLOC
 #define JIT_MALLOC(x)	(malloc(x))
@@ -114,3 +114,5 @@
 #define INT_SIZE (sizeof(int))
 #define PTR_SIZE (sizeof(void *))
 #define REG_SIZE (sizeof(void *))
+
+#endif

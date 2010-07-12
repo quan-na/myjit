@@ -22,18 +22,32 @@
  * Register allocator -- auxiliary functions
  */
 
-static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_reg * hreg)
+struct jit_regpool * jit_regpool_init(int size)
 {
-	al->hwreg_pool[++al->hwreg_pool_pos] = hreg;
+	struct jit_regpool * r = JIT_MALLOC(sizeof(struct jit_regpool));
+	r->pool = JIT_MALLOC(sizeof(struct __hw_reg *) * size);
+	r->pos = 0;
+	return r;
+}
+
+void jit_regpool_free(struct jit_regpool * p)
+{
+	JIT_FREE(p->pool);
+	JIT_FREE(p);
+}
+
+static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hreg)
+{
+	rp->pool[++rp->pos] = hreg;
 	
 	// reorder registers according to their priority
 #ifdef JIT_ARCH_SPARC
-	int i = al->hwreg_pool_pos;
+	int i = rp->pos;
 	while (i > 0) {
-		if (al->hwreg_pool[i - 1]->priority <= al->hwreg_pool[i]->priority) break;
-		struct __hw_reg * x = al->hwreg_pool[i];
-		al->hwreg_pool[i] = al->hwreg_pool[i - 1];
-		al->hwreg_pool[i - 1] = x;
+		if (rp->pool[i - 1]->priority <= rp->pool[i]->priority) break;
+		struct __hw_reg * x = rp->pool[i];
+		rp->pool[i] = rp->pool[i - 1];
+		rp->pool[i - 1] = x;
 		i--;
 	}
 	/*
@@ -44,15 +58,17 @@ static inline void jit_reg_pool_put(struct jit_reg_allocator * al, struct __hw_r
 #endif
 }
 
-static inline struct __hw_reg * jit_reg_pool_get(struct jit_reg_allocator * al)
+// FIXME:
+static inline struct __hw_reg * jit_regpool_get(struct jit_regpool * rp)
 {
-	if (al->hwreg_pool_pos < 0) return NULL;
-	else return al->hwreg_pool[al->hwreg_pool_pos--];
+	if (rp->pos < 0) return NULL;
+	else return rp->pool[rp->pos--];
 }
 
-static inline void jit_reg_pool_initialize(struct jit_reg_allocator * al)
+/* FIXME: merge initializators */
+static inline void jit_reg_pool_initialize(struct jit_reg_allocator * al, struct jit_regpool * rp)
 {
-	al->hwreg_pool_pos = -1;
+	rp->pos = -1;
 	for (int i = 0; i < al->hw_reg_cnt; i++) {
 		struct __hw_reg * hreg = &(al->hw_regs[i]);
 
@@ -63,7 +79,7 @@ static inline void jit_reg_pool_initialize(struct jit_reg_allocator * al)
 				break;
 			}
 		}
-		if (!is_argument) jit_reg_pool_put(al, hreg);
+		if (!is_argument) jit_regpool_put(al->gp_regpool, hreg);
 	}
 }
 
@@ -102,14 +118,14 @@ static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
 	return hreg;
 }
 
-static inline struct __hw_reg * get_free_callee_save_reg(struct jit_reg_allocator * al)
+static inline struct __hw_reg * get_free_callee_save_reg(struct jit_regpool * rp)
 {
 	struct __hw_reg * result = NULL;
-	for (int i = 0; i <= al->hwreg_pool_pos; i++) {
-		if (al->hwreg_pool[i]->callee_saved) {
-			result = al->hwreg_pool[i];
-			if (i < al->hwreg_pool_pos) al->hwreg_pool[i] = al->hwreg_pool[al->hwreg_pool_pos];
-			al->hwreg_pool_pos--;
+	for (int i = 0; i <= rp->pos; i++) {
+		if (rp->pool[i]->callee_saved) {
+			result = rp->pool[i];
+			if (i < rp->pos) rp->pool[i] = rp->pool[rp->pos];
+			rp->pos--;
 			break;
 		}
 	}
@@ -128,7 +144,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if (GET_OP(op) == JIT_PROLOG) {
 		
 		op->regmap = rmap_init();
-		jit_reg_pool_initialize(al);
+		jit_reg_pool_initialize(al, al->gp_regpool);
 
 		for (int i = 0; i < al->arg_registers_cnt; i++)
 			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->arg_registers[i]));
@@ -142,7 +158,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		if (hreg) {
 			// checks whether there is a free callee-saved register
 			// that can be used to store the eax register
-			struct __hw_reg * freereg = get_free_callee_save_reg(al);
+			struct __hw_reg * freereg = get_free_callee_save_reg(al->gp_regpool);
 			if (freereg) {
 				// should have its own name
 				jit_op * o = __new_op(JIT_MOV | REG, SPEC(REG, REG, NO), r, r, 0, 0);
@@ -168,7 +184,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->arg_registers[q], &reg);
 			if (hreg) {
 				unload_reg(op, hreg, reg);
-				jit_reg_pool_put(al, hreg);
+				jit_regpool_put(al->gp_regpool, hreg);
 				rmap_unassoc(op->regmap, reg);
 			}
 		}
@@ -183,7 +199,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if (GET_OP(op) == JIT_CALL) {
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
 		if (hreg) {
-			jit_reg_pool_put(al, hreg);
+			jit_regpool_put(al->gp_regpool, hreg);
 			rmap_unassoc(op->regmap, r);
 		}
 	}
@@ -212,7 +228,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
 			if (reg) op->r_arg[i] = reg->id;
 			else {
-				reg = jit_reg_pool_get(al);
+				reg = jit_regpool_get(al->gp_regpool);
 				if (reg == NULL) reg = make_free_reg(jit, op);
 
 				rmap_assoc(op->regmap, op->arg[i], reg);
@@ -257,6 +273,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
 	if (!rmap_equal(cur_regmap, tgt_regmap)) {
+		// FIXME: floating points
 		switch (GET_OP(op)) {
 			case JIT_BEQ: op->code = JIT_BNE | (op->code & 0x7); break;
 			case JIT_BGT: op->code = JIT_BLE | (op->code & 0x7); break;
@@ -309,7 +326,8 @@ void jit_assign_regs(struct jit * jit)
 
 void jit_reg_allocator_free(struct jit_reg_allocator * a)
 {
-	JIT_FREE(a->hwreg_pool);
+	jit_regpool_free(a->gp_regpool);
+	//jit_regpool_free(a->fp_regpool);
 	JIT_FREE(a->hw_regs);
 	JIT_FREE(a);
 }
@@ -322,6 +340,7 @@ int jit_reg_in_use(jit_op * op, int reg)
 	return rmap_is_associated(op->regmap, reg, NULL) != NULL;
 }
 
+// FIXME: obsolete???
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg)
 {
 	for (int i = 0; i < al->hw_reg_cnt; i++)

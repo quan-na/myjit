@@ -1,53 +1,48 @@
 ROADMAP
 =======
 
-+ ADM64 (release 0.2.5)
-	* support for all GP registers 
-	* getarg should support virtual registers
-	* amd64-specific: callee & caller-saved registers
-	* load/store operations
-	* support for large immediate values
-	* pusharg support for amd64 calling convention 
++ release 0.4.0
+	+ new putarg operation
+	+ (generic) support for floating point arithmetics
+	+ register allocator support for FP registers
+	+ i386 (SSE2)
+		+ arithmetics
+		+ conversions
+		+ load/store
+		+ argument reading
+		+ argument passing
+		+ branches
+		+ conditionals
+	+ AMD64 (SSE2)
+		+ arithmetics
+		+ conversions
+		+ load/store
+		+ argument reading
+		+ argument passing
+		+ branches
+		+ conditionals
+	+ SPARC
+		+ arithmetics
+		+ conversions
+		+ load/store
+		+ argument reading
+		+ argument passing
+		+ branches
+		+ conditionals
 
-+ generic (release 0.3.0)
-	* main buffer issue 
-	* finish->call
-	* amd64 glib dependency
-	* x86/amd64 code merge
-	* support for unlimited registers
-	* documentation update 
-
-+ SPARC (release 0.3.1)
-	* detection
-	* conditions
-	* arithmetics
-	* branches
-	* reading arguments
-	* jumps
-	* function calls
-	* passing arguments
-	* large immediates
-	* reg. allocator
-	* bogus arithmetics
-
-+ release 0.3.2
-	* (i386) optimized MUL/DIV
-	* (AMD64) optimized MUL/DIV
-	* (SPARC) g0 optimization
-	* (SPARC) optimized MUL
-	* (SPARC) optimized div/mod
-	* (SPARC) call imm, should not use g1 register
-	* (SPARC) stack frame corruption test
-	* (AMD64) large immediate values issues
-
-+ release 0.3.x
-	+ input (i0, ..., i5) registers should be stored into their positions in the frame
-
-+ generic (release 0.4.x)
-	+ separate test-cases
-	+ floating point arithmetics
++ release 0.4.1
+	+ i386 (emulated)
+		+ arithmetics
+		+ conversions
+		+ load/store
+		+ argument reading
+		+ argument passing
+		+ branches
+		+ conditionals
 
 + generic (release 0.5.x+)
+	+ integrated disassambler
+	+ separate test-cases
+	+ input (i0, ..., i5) registers should be stored into their positions in the frame
 	+ optimizations
 	+ linear-scan reg. allocator
-	+ debugging

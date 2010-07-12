@@ -27,14 +27,10 @@
 #include <unistd.h>
 
 /* these three macros are obsolete and will be removed */
-#define JIT_FP		(0)
-#define JIT_RETREG	(1)
-#define JIT_IMMREG	(2) 
 
 #define R_FP	(0)
 #define R_OUT	(1)
-#define R_IMM	(2) /* used by amd64 and && sparc*/
-
+#define R_IMM	(2) /* used by amd64 and sparc*/
 
 #define JIT_FORWARD	(NULL)
 
@@ -42,8 +38,6 @@
 #define GET_OP_SUFFIX(op) (op->code & 0x0007)
 #define IS_IMM(op) (op->code & IMM)
 #define IS_SIGNED(op) (!(op->code & UNSIGNED))
-
-#define JIT_FORCE_REG(r) (r | 1 << 31)
 
 
 #define NO  0x00
@@ -67,15 +61,22 @@ struct __hw_reg {
 	short priority;
 };
 
+struct jit_regpool
+{
+	int pos;
+	struct __hw_reg ** pool;	
+};
+
 struct jit_reg_allocator {
 	int hw_reg_cnt;
-	int hwreg_pool_pos;
-	int fp_reg; 			// register used to access local variables
-	int ret_reg; 			// register used to return value
-	struct __hw_reg * hw_regs;	// array of available hardware registers
-	struct __hw_reg ** hwreg_pool;	// pool of available registers
-	int arg_registers_cnt;		// number of registers used to pass arguments
-	int * arg_registers;		// array of registers used to pass arguments (in the given order) 
+	int fp_reg; 				// frame pointer; register used to access the local variables
+	int ret_reg; 				// register used to return value
+	int arg_registers_cnt;			// number of registers used to pass arguments
+
+	struct __hw_reg * hw_regs;		// array of available hardware registers
+	struct jit_regpool * gp_regpool;	// pool of available general purpose registers
+	struct jit_regpool * fp_regpool;	// pool of available general purpose registers
+	int * arg_registers;			// array of registers used to pass arguments (in the given order) 
 };
 
 typedef struct rmap_t {
@@ -88,6 +89,8 @@ typedef struct jit_op {
 	unsigned char spec;
 	unsigned char arg_size; /* used by ld, st */
 	unsigned char assigned;
+	unsigned char fp;	/* FP if it's and floating-point operation */	
+	double flt_imm;
 	long arg[3];
 	long r_arg[3];
 	long patch_addr;
@@ -119,6 +122,7 @@ struct jit {
 
 	int argpos;
 	int reg_count;
+	int fp_reg_count;
 	unsigned int prepare_args;
 	struct jit_op * ops;
 	struct jit_op * last_op;
@@ -136,7 +140,7 @@ struct jit {
 #endif
 };
 
-struct jit * jit_init(unsigned int reg_count);
+struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count);
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size);
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);
@@ -155,12 +159,12 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a);
 void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg);
+struct jit_regpool * jit_regpool_init(int size);
+void jit_regpool_free(struct jit_regpool * p);
 
 #define JIT_CODESTART	(0x00 << 3)
 #define JIT_UREG	(0x01 << 3)
 #define JIT_LREG	(0x02 << 3)
-//#define JIT_PROTECT	(0x03 << 3)
-//#define JIT_UNPROTECT	(0x04 << 3)
 
 #define JIT_MOV 	(0x05 << 3)
 #define JIT_LD		(0x06 << 3)
@@ -171,8 +175,6 @@ int jit_reg_in_use(jit_op * op, int reg);
 #define JIT_JMP 	(0x10 << 3)
 #define JIT_PATCH 	(0x11 << 3)
 #define JIT_PREPARE 	(0x12 << 3)
-//#define JIT_PREPARE_EXT	(0x13 << 3)
-//#define JIT_FINISH 	(0x14 << 3)
 #define JIT_PUSHARG 	(0x15 << 3)
 #define JIT_CALL 	(0x16 << 3)
 #define JIT_RET		(0x17 << 3)
@@ -223,6 +225,45 @@ int jit_reg_in_use(jit_op * op, int reg);
 
 #define JIT_MSG		(0x60 << 3)
 #define JIT_NOP		(0xff << 3)
+
+#define JIT_FMOV	(0x70 << 3)
+#define JIT_FADD	(0x71 << 3)
+#define JIT_FSUB	(0x72 << 3)
+#define JIT_FRSB 	(0x73 << 3)
+#define JIT_FMUL	(0x74 << 3)
+#define JIT_FDIV	(0x75 << 3)
+#define JIT_FNEG	(0x76 << 3)
+#define JIT_FRETVAL	(0x77 << 3)
+#define JIT_FPUSHARG	(0x78 << 3)
+
+#define JIT_FEXT	(0x79 << 3)
+#define JIT_FROUND	(0x7a << 3)
+#define JIT_FTRUNC	(0x7b << 3)
+#define JIT_FFLOOR	(0x7c << 3)
+#define JIT_FCEIL	(0x7d << 3)
+
+#define JIT_FLT 	(0x80 << 3)
+#define JIT_FLE		(0x81 << 3)
+#define JIT_FGT		(0x82 << 3)
+#define JIT_FGE		(0x83 << 3)
+#define JIT_FEQ		(0x84 << 3)
+#define JIT_FNE		(0x85 << 3)
+
+#define JIT_FBLT 	(0x86 << 3)
+#define JIT_FBLE	(0x87 << 3)
+#define JIT_FBGT	(0x88 << 3)
+#define JIT_FBGE	(0x89 << 3)
+#define JIT_FBEQ	(0x8a << 3)
+#define JIT_FBNE	(0x8b << 3)
+
+#define JIT_FLD		(0x90 << 3)
+#define JIT_FLDX	(0x91 << 3)
+#define JIT_FST		(0x92 << 3)
+#define JIT_FSTX	(0x93 << 3)
+
+#define JIT_FMSG	(0x94 << 3)
+#define JIT_FRET	(0x95 << 3)
+#define JIT_FGETARG	(0x96 << 3)
 
 
 #define jit_movr(jit, a, b) jit_add_op(jit, JIT_MOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0)
@@ -399,11 +440,18 @@ int jit_reg_in_use(jit_op * op, int reg);
 #define jit_msgi(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (long)a, b, 0, 0)
 
+/* FPU */
+
+#define jit_fmovr(jit, a, b) jit_add_fop(jit, JIT_FMOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_fmovi(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, b, sizeof(double))
+#define jit_fmovi_f(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, (double)b, sizeof(float))
+
 static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
 	struct jit_op * r = JIT_MALLOC(sizeof(struct jit_op));
 	r->code = code;
 	r->spec = spec;
+	r->fp = 0;
 
 	r->arg[0] = arg1;
 	r->arg[1] = arg2;

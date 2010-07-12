@@ -42,13 +42,23 @@ struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char 
 	return r;
 }
 
-struct jit * jit_init(unsigned int reg_count)
+struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, double flt_imm, unsigned char arg_size)
+{
+	struct jit_op * r = jit_add_op(jit, code, spec, arg1, arg2, arg3, arg_size);
+	r->fp = 1;
+	r->flt_imm = flt_imm;
+
+	return r;
+}
+
+struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count)
 {
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
 	reg_count += JIT_ALIAS_CNT; 	// lower registers remain reserved for R_FP, R_OUT, etc.
 	reg_count += JIT_SPP_REGS_CNT;  // these registers are used to store e.g. passed arguments
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (reg_count % 4) reg_count ++; // stack has to be aligned to 16 bytes
+	if (fp_reg_count % 1) fp_reg_count ++;
 #endif
 
 	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
@@ -57,6 +67,7 @@ struct jit * jit_init(unsigned int reg_count)
 	r->labels = NULL;
 
 	r->reg_count = reg_count;
+	r->fp_reg_count = fp_reg_count;
 	r->reg_al = jit_reg_allocator_create();
 	r->argpos = 0;
 
