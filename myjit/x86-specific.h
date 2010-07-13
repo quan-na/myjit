@@ -418,6 +418,52 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	}
 }
 
+static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
+{
+	if (op->r_arg[0] == op->r_arg[1]) {
+		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
+	} else if (op->r_arg[0] == op->r_arg[2]) {
+		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[1]);
+	} else {
+		x86_movsd_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1]); 
+		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
+	}
+}
+
+
+static inline void __sse_change_sign(struct jit * jit, long reg)
+{
+	// gets 16-bytes aligned value
+	static unsigned char bufx[32];
+	unsigned char * buf = bufx + 1;
+	while ((long)buf % 16) buf++;
+	unsigned long long * bit_mask = (unsigned long long *)buf;
+
+	// inverts 64th (sing) bit
+	*bit_mask = (unsigned long long)1 << 63;
+	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, bit_mask);
+}
+
+static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
+{
+	static unsigned long long bit_mask = (unsigned long long)1 << 63;
+	if (a1 == a2) {
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+	} else if (a1 == a3) {
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
+		__sse_change_sign(jit, a1);
+	} else {
+		x86_movsd_reg_reg(jit->ip, a1, a2); 
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+	}
+}
+
+static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
+{
+	if (a1 != a2) x86_movsd_reg_reg(jit->ip, a1, a2); 
+	__sse_change_sign(jit, a1);
+}
+
 void jit_patch_external_calls(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
@@ -612,6 +658,26 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_SYNCREG): x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);  break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
+
+		// Floating-point operations;
+		case (JIT_FMOV | REG): x86_movsd_reg_reg(jit->ip, a1, a2); break;
+		case (JIT_FMOV | IMM): x86_movsd_reg_mem(jit->ip, a1, &op->flt_imm); break;
+		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
+		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
+		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
+		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
+//		case (JIT_FDIV | REG): __sse_alu_op(jit, op, X86_SSE_DIV); break;
+		case (JIT_FNEG | REG): __sse_neg_op(jit, a1, a2); break;
+		case (JIT_FRET | REG): x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);      // creates extra space on the stack
+				       x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, 0); // pushes the value on the top of the stack
+				       x86_fld_membase(jit->ip, X86_ESP, 0, 1);            // transfers the value from the stack to the ST(0)
+
+				       // common epilogue
+				       x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
+				       x86_pop_reg(jit->ip, X86_EBP);
+				       x86_ret(jit->ip);
+				       break;
+
 
 		// platform specific opcodes; used byt optimizer
 		case (JIT_X86_STI | IMM): x86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;

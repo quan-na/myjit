@@ -38,6 +38,8 @@
 #define GET_OP_SUFFIX(op) (op->code & 0x0007)
 #define IS_IMM(op) (op->code & IMM)
 #define IS_SIGNED(op) (!(op->code & UNSIGNED))
+#define IS_GP_REG(r) ((r) >= 0)
+#define IS_FP_REG(r) ((r) < 0)
 
 
 #define NO  0x00
@@ -448,8 +450,23 @@ void jit_regpool_free(struct jit_regpool * p);
 /* FPU */
 
 #define jit_fmovr(jit, a, b) jit_add_fop(jit, JIT_FMOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_fmovi(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, b, sizeof(double))
-#define jit_fmovi_f(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, (double)b, sizeof(float))
+#define jit_fmovi(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, b, 0)
+
+#define jit_faddr(jit, a, b, c) jit_add_fop(jit, JIT_FADD | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
+#define jit_faddi(jit, a, b, c) jit_add_fop(jit, JIT_FADD | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
+#define jit_fsubr(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
+#define jit_fsubi(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
+#define jit_frsbr(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
+#define jit_frsbi(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
+#define jit_fmulr(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
+#define jit_fmuli(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
+#define jit_fdivr(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
+#define jit_fdivi(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
+
+#define jit_fnegr(jit, a, b) jit_add_fop(jit, JIT_FNEG | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+
+#define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
+#define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)
 
 static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {

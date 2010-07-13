@@ -68,7 +68,7 @@ static inline struct __hw_reg * jit_regpool_get(struct jit_regpool * rp)
 }
 
 /**
- * Loads all registers which are not used to pass arguments into the registers
+ * Loads all registers which are not used to pass the arguments into the registers
  */
 static inline void jit_regpool_prepare(struct jit_regpool * rp, struct __hw_reg * regs, int regcnt, int * arg_registers, int arg_registers_cnt)
 {
@@ -112,10 +112,10 @@ static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg
 	jit_op_prepend(op, o);
 }
 
-static inline struct __hw_reg * make_free_reg(struct jit * jit, jit_op * op)
+static inline struct __hw_reg * make_free_reg(jit_op * op, int fp)
 {
 	int spill_candidate;
-	struct __hw_reg * hreg = rmap_spill_candidate(op, &spill_candidate);
+	struct __hw_reg * hreg = rmap_spill_candidate(op, fp, &spill_candidate);
 	unload_reg(op, hreg, spill_candidate);
 	rmap_unassoc(op->regmap, spill_candidate);
 	hreg->used = 0;
@@ -149,6 +149,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		
 		op->regmap = rmap_init();
 		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, al->gp_arg_reg_cnt);
+		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, al->fp_arg_reg_cnt);
 
 		for (int i = 0; i < al->gp_arg_reg_cnt; i++)
 			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->gp_arg_regs[i]));
@@ -158,6 +159,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if (GET_OP(op) == JIT_PREPARE) {
+		// FIXME: FP reg support
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
 		if (hreg) {
 			// checks whether there is a free callee-saved register
@@ -181,6 +183,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		}
 
 		// unloads registers which are used to pass the arguments
+		// FIXME: FP reg support
 		int reg;
 		int args = op->arg[0];
 		if (args > al->gp_arg_reg_cnt) args = al->gp_arg_reg_cnt;
@@ -196,10 +199,12 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	// if the calling convention is using registers to pass the arguments,
 	// PUSHARG have to take care of register allocation by itself
+	// FIXME: FP reg support
 	if ((al->gp_arg_reg_cnt > 0) && (GET_OP(op) == JIT_PUSHARG)) {
 		return;
 	}
 
+	// FIXME: FP reg support
 	if (GET_OP(op) == JIT_CALL) {
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
 		if (hreg) {
@@ -232,8 +237,14 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
 			if (reg) op->r_arg[i] = reg->id;
 			else {
-				reg = jit_regpool_get(al->gp_regpool);
-				if (reg == NULL) reg = make_free_reg(jit, op);
+				if (IS_GP_REG(op->arg[i])) {
+					reg = jit_regpool_get(al->gp_regpool);
+					if (reg == NULL) reg = make_free_reg(op, 0);
+				} else {
+					printf("using FP reg.\n");
+					reg = jit_regpool_get(al->fp_regpool);
+					if (reg == NULL) reg = make_free_reg(op, 1);
+				}
 
 				rmap_assoc(op->regmap, op->arg[i], reg);
 

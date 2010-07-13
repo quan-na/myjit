@@ -128,7 +128,8 @@ static void __clone_wo_regs(struct jit_reg_allocator * al, rmap_t * target, rb_n
 	if (!hreg) assert(0);
 	if (!(jitset_get(op->live_in, i) || jitset_get(op->live_out, i))) {
 		//rmap_unassoc(target, i);
-		jit_regpool_put(al->gp_regpool, hreg);
+		if (!hreg->fp) jit_regpool_put(al->gp_regpool, hreg);
+		else jit_regpool_put(al->fp_regpool, hreg);
 	} else {
 		rmap_assoc(target, i, hreg);
 	}
@@ -146,25 +147,27 @@ static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t *
 	return op->regmap;
 }
 
-static void __spill_candidate(rb_node * n, int * age, struct __hw_reg ** cand_hreg, int * candidate)
+static void __spill_candidate(rb_node * n, int fp, int * age, struct __hw_reg ** cand_hreg, int * candidate)
 {
 	if (n == NULL) return;
 
 	struct __hw_reg * hreg = (struct __hw_reg *) n->value; 
-	if ((int)hreg->used > *age) {
-		*candidate = n->key;
-		*age = hreg->used;
-		*cand_hreg = hreg;
+	if (hreg->fp == fp) {
+		if ((int)hreg->used > *age) {
+			*candidate = n->key;
+			*age = hreg->used;
+			*cand_hreg = hreg;
+		}
 	}
-	__spill_candidate(n->left, age, cand_hreg, candidate);
-	__spill_candidate(n->right, age, cand_hreg, candidate);
+	__spill_candidate(n->left, fp, age, cand_hreg, candidate);
+	__spill_candidate(n->right, fp, age, cand_hreg, candidate);
 }
 
-static inline struct __hw_reg * rmap_spill_candidate(jit_op * op, int * candidate)
+static inline struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candidate)
 {
 	int age = -1;
 	struct __hw_reg * res;
-	__spill_candidate(op->regmap->map, &age, &res, candidate);
+	__spill_candidate(op->regmap->map, fp, &age, &res, candidate);
 	return res;
 }
 
