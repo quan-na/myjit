@@ -446,7 +446,6 @@ static inline void __sse_change_sign(struct jit * jit, long reg)
 
 static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
 {
-	static unsigned long long bit_mask = (unsigned long long)1 << 63;
 	if (a1 == a2) {
 		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
 	} else if (a1 == a3) {
@@ -455,6 +454,27 @@ static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
 	} else {
 		x86_movsd_reg_reg(jit->ip, a1, a2); 
 		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+	}
+}
+
+static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
+{
+	static unsigned long long bit_mask = (unsigned long long)1 << 63;
+	if (a1 == a2) {
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
+	} else if (a1 == a3) {
+		// creates a copy of the a2 into high bits of a2
+		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+
+		// divides a2 by a3 and moves to the results
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a2, a3);
+		x86_movsd_reg_reg(jit->ip, a1, a2); 
+
+		// returns the the value of a2
+		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+	} else {
+		x86_movsd_reg_reg(jit->ip, a1, a2); 
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
 	}
 }
 
@@ -666,7 +686,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
 		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
 		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
-//		case (JIT_FDIV | REG): __sse_alu_op(jit, op, X86_SSE_DIV); break;
+		case (JIT_FDIV | REG): __sse_div_op(jit, a1, a2, a3); break;
 		case (JIT_FNEG | REG): __sse_neg_op(jit, a1, a2); break;
 		case (JIT_FRET | REG): x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);      // creates extra space on the stack
 				       x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, 0); // pushes the value on the top of the stack
