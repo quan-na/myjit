@@ -17,8 +17,9 @@ int main()
 //	jit_getarg(p, R(0), ar1, sizeof(long));
 
 	jit_fmovi(p, FPR(0), 5.0);
-	jit_fmovi(p, FPR(1), 2.1);
-	jit_fdivr(p, FPR(1), FPR(0), FPR(1));
+	jit_fmovi(p, FPR(1), 5.0);
+//	jit_fdivr(p, FPR(1), FPR(0), FPR(1));
+	jit_fbger(p, JIT_FORWARD, FPR(0), FPR(1));
 
 	jit_fretr(p, FPR(0));
 

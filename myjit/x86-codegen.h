@@ -1756,6 +1756,8 @@ typedef enum {
 	X86_SSE_MOVSLDUP = 0x12,
 	X86_SSE_MOVDDUP = 0x12,
 	X86_SSE_SHUF = 0xC6,
+
+	X86_SSE_COMI = 0x2F,
 	
 	X86_SSE_PAND = 0xDB,
 	X86_SSE_POR = 0xEB,
@@ -1873,6 +1875,17 @@ typedef enum {
 	X86_SSE_PEXTRD = 0x16,/*sse41*/
 } X86_SSE_Opcode;
 
+typedef enum {
+	X86_SSE_CMP_EQ = 0,
+	X86_SSE_CMP_LT = 1,
+	X86_SSE_CMP_LE = 2,
+	X86_SSE_CMP_UNORD = 3, 
+	X86_SSE_CMP_NEQ = 4, 
+	X86_SSE_CMP_NLT = 5, 
+	X86_SSE_CMP_NLE = 6, 
+	X86_SSE_CMP_ORD = 7 
+} X86_SSE_CmpCode;
+
 
 /* minimal SSE* support */
 #define x86_movsd_reg_membase(inst,dreg,basereg,disp)	\
@@ -1961,6 +1974,12 @@ typedef enum {
 #define x86_sse_alu_pd_reg_reg_imm(inst,opc,dreg,reg,imm)	\
 	do {	\
 		x86_sse_alu_pd_reg_reg ((inst), (opc), (dreg), (reg)); \
+		*(inst)++ = (unsigned char)(imm);	\
+	} while (0)
+
+#define x86_sse_alu_sd_reg_reg_imm(inst,opc,dreg,reg,imm)	\
+	do {	\
+		x86_sse_alu_sd_reg_reg ((inst), (opc), (dreg), (reg)); \
 		*(inst)++ = (unsigned char)(imm);	\
 	} while (0)
 

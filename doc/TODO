@@ -6,13 +6,12 @@ ROADMAP
 	+ register allocator support for FP registers
 	+ conversion of immediates values
 	+ i386 (SSE2)
-		+ arithmetics
+		* arithmetics
+		* branches
 		+ conversions
 		+ load/store
 		+ argument reading
 		+ argument passing
-		+ branches
-		+ conditionals
 	+ AMD64 (SSE2)
 		+ arithmetics
 		+ conversions
@@ -20,7 +19,6 @@ ROADMAP
 		+ argument reading
 		+ argument passing
 		+ branches
-		+ conditionals
 	+ SPARC
 		+ arithmetics
 		+ conversions
@@ -28,7 +26,6 @@ ROADMAP
 		+ argument reading
 		+ argument passing
 		+ branches
-		+ conditionals
 
 + release 0.4.1
 	+ i386 (emulated)
