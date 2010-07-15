@@ -430,7 +430,7 @@ static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 	}
 }
 
-static inline void __sse_change_sign(struct jit * jit, long reg)
+static inline unsigned char * __sse_get_sign_mask()
 {
 	// gets 16-bytes aligned value
 	static unsigned char bufx[32];
@@ -440,7 +440,11 @@ static inline void __sse_change_sign(struct jit * jit, long reg)
 
 	// inverts 64th (sing) bit
 	*bit_mask = (unsigned long long)1 << 63;
-	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, bit_mask);
+}
+
+static inline void __sse_change_sign(struct jit * jit, long reg)
+{
+	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, __sse_get_sign_mask());
 }
 
 static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
@@ -458,7 +462,7 @@ static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
 
 static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
 {
-	static unsigned long long bit_mask = (unsigned long long)1 << 63;
+//	static unsigned long long bit_mask = (unsigned long long)1 << 63;
 	if (a1 == a2) {
 		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
 	} else if (a1 == a3) {
@@ -481,6 +485,63 @@ static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
 {
 	if (a1 != a2) x86_movsd_reg_reg(jit->ip, a1, a2); 
 	__sse_change_sign(jit, a1);
+}
+
+static inline void __sse_round(struct jit * jit, long a1, long a2)
+{
+	static const double x0 = 0.0;
+	static const double x05 = 0.5;
+
+	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+
+	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
+	
+	unsigned char * branch1 = jit->ip;
+	x86_branch_disp(jit->ip, X86_CC_LT, 0, 0);
+
+	x86_sse_alu_sd_reg_mem(jit->ip, X86_SSE_ADD, a2, &x05);
+
+	unsigned char * branch2 = jit->ip;
+	x86_jump_disp(jit->ip, 0);
+
+	x86_patch(branch1, jit->ip);
+
+	x86_sse_alu_sd_reg_mem(jit->ip, X86_SSE_SUB, a2, &x05);
+	x86_patch(branch2, jit->ip);
+
+	x86_cvttsd2si(jit->ip, a1, a2);
+
+	// returns values back
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+}
+
+static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
+{
+	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
+
+	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+	// TODO: test if the register is in use or not
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 0);
+
+	// truncates the value in a2 and stores it into the a1 and tmp_reg
+	x86_cvttsd2si(jit->ip, a1, a2);
+	x86_cvtsi2sd(jit->ip, tmp_reg, a1);
+
+	if (floor) {
+		// if a2 < tmp_reg, it substracts 1 (using the carry flag)
+		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, X86_XMM7);
+		x86_alu_reg_imm(jit->ip, X86_SBB, a1, 0);
+	} else { // ceil
+		// if tmp_reg < a2, it adds 1 (using the carry flag)
+		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, X86_XMM7, a2);
+		x86_alu_reg_imm(jit->ip, X86_ADC, a1, 0);
+	}
+
+	// returns values back
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
 }
 
 static inline void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
@@ -700,6 +761,13 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FBLE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
 		case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
 		case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
+
+		case (JIT_FEXT | REG): x86_cvtsi2sd(jit->ip, a1, a2); break;
+		case (JIT_FTRUNC | REG): x86_cvttsd2si(jit->ip, a1, a2); break;
+		case (JIT_FCEIL | REG): __sse_floor(jit, a1, a2, 0); break;
+		case (JIT_FFLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
+		case (JIT_FROUND | REG): __sse_round(jit, a1, a2); break;
+
 		case (JIT_FRET | REG): x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);      // creates extra space on the stack
 				       x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, 0); // pushes the value on the top of the stack
 				       x86_fld_membase(jit->ip, X86_ESP, 0, 1);            // transfers the value from the stack to the ST(0)

@@ -1922,6 +1922,14 @@ typedef enum {
 		x86_reg_emit ((inst), (dreg), (reg));	\
 	} while (0)
 
+#define x86_cvtsi2sd(inst,dreg,reg)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf2;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x2a;	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
+	} while (0)
+
 #define x86_sse_alu_reg_reg(inst,opc,dreg,reg)	\
 	do {	\
 		*(inst)++ = (unsigned char)0x0F;	\
@@ -2013,6 +2021,15 @@ typedef enum {
 		*(inst)++ = (unsigned char)0xF2;        \
 		x86_sse_alu_membase_reg ((inst), (opc), (basereg), (disp), (reg));	\
 	} while (0)
+
+#define x86_sse_alu_sd_reg_mem(inst,opc,dreg,mem)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xF2;	\
+		*(inst)++ = (unsigned char)0x0F;        \
+		*(inst)++ = (unsigned char)(opc);       \
+		x86_mem_emit ((inst), (dreg), (mem));	\
+	} while (0)
+
 
 
 #define x86_sse_alu_ss_reg_reg(inst,opc,dreg,reg)       \
@@ -2225,7 +2242,10 @@ typedef enum {
 		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));	\
 	} while (0)
 
-
+#define x86_cmc(inst)       \
+	do {    \
+		*(inst)++ = (unsigned char)0xf5; \
+	} while (0)
 
 #endif // X86_H
 
