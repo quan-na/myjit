@@ -35,16 +35,16 @@ int main()
 	jit_movi(p, R(10), msg);
 
 	jit_prepare(p, 10);
-	jit_pushargr(p, R(9));
-	jit_pushargr(p, R(8));
-	jit_pushargr(p, R(7));
-	jit_pushargr(p, R(6));
-	jit_pushargr(p, R(5));
-	jit_pushargr(p, R(4));
-	jit_pushargr(p, R(3));
-	jit_pushargr(p, R(2));
-	jit_pushargr(p, R(1));
-	jit_pushargr(p, R(0));
+	jit_putargr(p, R(0));
+	jit_putargr(p, R(1));
+	jit_putargr(p, R(2));
+	jit_putargr(p, R(3));
+	jit_putargr(p, R(4));
+	jit_putargr(p, R(5));
+	jit_putargr(p, R(6));
+	jit_putargr(p, R(7));
+	jit_putargr(p, R(8));
+	jit_putargr(p, R(9));
 	jit_call(p, foobar);
 
 	jit_retr(p, R(0));

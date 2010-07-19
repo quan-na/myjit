@@ -50,16 +50,16 @@ int main()
 	jit_movi(p, R(10), msg);
 
 	jit_prepare(p, 10);
-	jit_pushargr(p, R(9));
-	jit_pushargr(p, R(8));
-	jit_pushargr(p, R(7));
-	jit_pushargr(p, R(6));
-	jit_pushargr(p, R(5));
-	jit_pushargr(p, R(4));
-	jit_pushargr(p, R(3));
-	jit_pushargr(p, R(2));
-	jit_pushargr(p, R(1));
-	jit_pushargr(p, R(0));
+	jit_putargr(p, R(0));
+	jit_putargr(p, R(1));
+	jit_putargr(p, R(2));
+	jit_putargr(p, R(3));
+	jit_putargr(p, R(4));
+	jit_putargr(p, R(5));
+	jit_putargr(p, R(6));
+	jit_putargr(p, R(7));
+	jit_putargr(p, R(8));
+	jit_putargr(p, R(9));
 	jit_call(p, foobar);
 
 	// print outs allocated memory
@@ -70,8 +70,8 @@ int main()
 	jit_ldxr(p, R(2), R(1), R(0), 1);
 	
 	jit_prepare(p, 2);
-	jit_pushargr(p, R(2));
-	jit_pushargi(p, msg2);
+	jit_putargi(p, msg2);
+	jit_putargr(p, R(2));
 	jit_call(p, printf);
 
 	jit_addi(p, R(0), R(0), 1);

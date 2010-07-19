@@ -197,12 +197,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		}
 	}
 
-	// if the calling convention is using registers to pass the arguments,
-	// PUSHARG have to take care of register allocation by itself
+	// PUTARG have to take care of the register allocation by itself
 	// FIXME: FP reg support
-	if ((al->gp_arg_reg_cnt > 0) && (GET_OP(op) == JIT_PUSHARG)) {
-		return;
-	}
+	if ((al->gp_arg_reg_cnt >= 0) && (GET_OP(op) == JIT_PUTARG)) return;
 
 	// FIXME: FP reg support
 	if (GET_OP(op) == JIT_CALL) {

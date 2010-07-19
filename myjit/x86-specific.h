@@ -206,20 +206,48 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	x86_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
+/* determines whether the argument value was spilled out or not,
+ * if the register is associated with the hardware register
+ * it is returned through the reg argument
+ */
+static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
+{
+	struct __hw_reg * hreg = rmap_get(jit->prepared_args->op->regmap, arg_id);
+	if (hreg) {
+		*reg = hreg->id;
+		return 0;
+	} else return 1;
+}
+
+static inline void __configure_args(struct jit * jit)
+{
+	for (int i = jit->prepared_args->ready - 1; i >= 0; i--) {
+		struct jit_arg * args = jit->prepared_args->args;
+		if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
+		else {
+			int sreg;
+			if (__is_spilled(jit, args[i].value.generic, &sreg))
+				x86_push_membase(jit->ip, X86_EBP,  __GET_REG_POS(args[i].value.generic));
+			else x86_push_reg(jit->ip, sreg);
+		}
+	}
+}
 
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
+	__configure_args(jit);
+
 	if (!imm) {
 		x86_call_reg(jit->ip, op->r_arg[0]);
 	} else {
 		op->patch_addr = __PATCH_ADDR(jit); 
-		//x86_call_code(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]));
 		x86_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
 	}
 	
-	if (jit->prepare_args) 
-		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepare_args * PTR_SIZE);
-	jit->prepare_args = 0;
+	if (jit->prepared_args) 
+		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args->stack_size);
+	JIT_FREE(jit->prepared_args->args);
+	JIT_FREE(jit->prepared_args);
 
 	/* pops caller saved registers */
 	static int regs[] = { X86_ECX, X86_EDX };
@@ -440,6 +468,7 @@ static inline unsigned char * __sse_get_sign_mask()
 
 	// inverts 64th (sing) bit
 	*bit_mask = (unsigned long long)1 << 63;
+	return buf;
 }
 
 static inline void __sse_change_sign(struct jit * jit, long reg)
@@ -635,6 +664,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			//else x86_jump_code(jit->ip, __JIT_GET_ADDR(jit, a1));
 			else x86_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
+
 		case JIT_RET:
 			if (!IS_IMM(op) && (a1 != X86_EAX)) x86_mov_reg_reg(jit->ip, X86_EAX, a1, 4);
 			if (IS_IMM(op)) x86_mov_reg_imm(jit->ip, X86_EAX, a1);
@@ -643,6 +673,16 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			x86_pop_reg(jit->ip, X86_EBP);
 			x86_ret(jit->ip);
 			break;
+
+		case JIT_PUTARG: do {
+					 int pos = jit->prepared_args->ready;
+					 jit->prepared_args->args[pos].isreg = !IS_IMM(op);
+					 jit->prepared_args->args[pos].isfp = 0;
+					 jit->prepared_args->args[pos].value.generic = op->arg[0];
+					 jit->prepared_args->ready++;
+					 jit->prepared_args->stack_size += REG_SIZE;
+				 } while (0);
+				 break;
 
 		case JIT_GETARG:
 			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, REG_SIZE); 
@@ -673,13 +713,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else x86_mov_reg_imm(jit->ip, a1, a2); 
 			break;
 
-		case JIT_PREPARE: jit->prepare_args = a1; 
+		case JIT_PREPARE: __prepare_call(jit, op, a1); 
 				  __push_caller_saved_regs(jit, op);
 				  break;
 
-		case JIT_PUSHARG | REG: x86_push_reg(jit->ip, a1); break;
-		case JIT_PUSHARG | IMM: x86_push_imm(jit->ip, a1); break;
-
+				  /*
+		case JIT_PUTARG | REG: x86_push_reg(jit->ip, a1); break;
+		case JIT_PUTARG | IMM: x86_push_imm(jit->ip, a1); break;
+*/
 		case JIT_PROLOG:
 			//*(void **)(a1) = jit->ip;
 			//op->patch_addr = jit->ip - (long)jit->buf;

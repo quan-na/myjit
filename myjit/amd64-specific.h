@@ -204,7 +204,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	amd64_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
-/* determines whether the argument value was spilled or not,
+/* determines whether the argument value was spilled out or not,
  * if the register is associated with the hardware register
  * it is returned through the reg argument
  */

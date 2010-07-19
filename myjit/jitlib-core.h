@@ -115,8 +115,21 @@ typedef struct jit_label {
 	struct jit_label * next;
 } jit_label;
 
+typedef struct jit_prepared_args {
+	int count;	// number of arguments to prepare
+	int ready;	// number of arguments that have been prapared
+	int stack_size; // size of stack occupied by passed arguments
+	jit_op * op;	// corresponding ``PREPARE'' operation
+	struct jit_arg {// array of arguments
+		union {
+			long generic;
+			double fp;
+		} value;
+		char isreg;
+		char isfp;
+	} * args;
+} jit_prepared_args;
 
-struct jit_reg_allocator;
 struct jit {
 	// FIXME: comments
 
@@ -130,14 +143,16 @@ struct jit {
 	int argpos;
 	int reg_count;
 	int fp_reg_count;
-	unsigned int prepare_args;
 	struct jit_op * ops;
 	struct jit_op * last_op;
 	long allocai_mem;
 	struct jit_reg_allocator * reg_al;
 	struct jit_op * current_func;
 	jit_label * labels;
+	jit_prepared_args * prepared_args;
+/*
 	// FIXME: option in cpu-detect.h
+//	unsigned int prepare_args;
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	int argspos; // FIXME: better name
 	struct arg {
@@ -145,6 +160,7 @@ struct jit {
 		long value;
 	} * args;
 #endif
+*/
 };
 
 struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count);
@@ -182,7 +198,7 @@ void jit_regpool_free(struct jit_regpool * p);
 #define JIT_JMP 	(0x10 << 3)
 #define JIT_PATCH 	(0x11 << 3)
 #define JIT_PREPARE 	(0x12 << 3)
-#define JIT_PUSHARG 	(0x15 << 3)
+#define JIT_PUTARG 	(0x15 << 3)
 #define JIT_CALL 	(0x16 << 3)
 #define JIT_RET		(0x17 << 3)
 #define JIT_PROLOG	(0x18 << 3)
@@ -241,7 +257,7 @@ void jit_regpool_free(struct jit_regpool * p);
 #define JIT_FDIV	(0x75 << 3)
 #define JIT_FNEG	(0x76 << 3)
 #define JIT_FRETVAL	(0x77 << 3)
-#define JIT_FPUSHARG	(0x78 << 3)
+#define JIT_FPUTARG	(0x78 << 3)
 
 #define JIT_FEXT	(0x79 << 3)
 #define JIT_FROUND	(0x7a << 3)
@@ -285,8 +301,8 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_patch(jit, a) jit_add_op(jit, JIT_PATCH | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 
 #define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
-#define jit_pushargr(jit, a) jit_add_op(jit, JIT_PUSHARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_pushargi(jit, a) jit_add_op(jit, JIT_PUSHARG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
+#define jit_putargr(jit, a) jit_add_op(jit, JIT_PUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
+#define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 
@@ -561,5 +577,15 @@ static inline int jit_is_label(struct jit * jit, void * ptr)
 		if (lab == ptr) return 1;
 		lab = lab->next;
 	}
+}
+
+static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
+{
+	jit->prepared_args = JIT_MALLOC(sizeof(jit_prepared_args));
+	jit->prepared_args->args = JIT_MALLOC(sizeof(struct jit_arg) * count);
+	jit->prepared_args->count = count;
+	jit->prepared_args->ready = 0;
+	jit->prepared_args->stack_size = 0;
+	jit->prepared_args->op = op;
 }
 #endif

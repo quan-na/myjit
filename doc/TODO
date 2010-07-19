@@ -2,13 +2,14 @@ ROADMAP
 =======
 
 + release 0.4.0
+	+ new putarg operation
 	+ (generic) support for floating point arithmetics
 	+ register allocator support for FP registers
 	+ conversion of immediates values
 	+ i386 (SSE2)
 		* arithmetics
 		* branches
-		+ conversions
+		* conversions
 		+ load/store
 		+ argument reading
 		+ argument passing
@@ -38,7 +39,6 @@ ROADMAP
 		+ conditionals
 
 + generic (release 0.5.x+)
-	+ new putarg operation
 	+ integrated disassambler
 	+ separate test-cases
 	+ input (i0, ..., i5) registers should be stored into their positions in the frame
