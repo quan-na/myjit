@@ -366,7 +366,7 @@ typedef union {
 			case 2: *(inst)++ = (unsigned char)0xbf; break; \
 			default: assert (0);    \
 		}       \
-		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));      \
+		x86_memindex_emit ((inst), (reg)&0x7, (basereg)&0x7, (disp), (indexreg)&0x7, (shift));      \
 	} while (0)
 
 

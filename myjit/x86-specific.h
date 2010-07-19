@@ -248,6 +248,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args->stack_size);
 	JIT_FREE(jit->prepared_args->args);
 	JIT_FREE(jit->prepared_args);
+	jit->prepared_args = NULL;
 
 	/* pops caller saved registers */
 	static int regs[] = { X86_ECX, X86_EDX };
@@ -680,7 +681,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					 jit->prepared_args->args[pos].isfp = 0;
 					 jit->prepared_args->args[pos].value.generic = op->arg[0];
 					 jit->prepared_args->ready++;
-					 jit->prepared_args->stack_size += REG_SIZE;
+					 if (jit->prepared_args > 6)
+						 jit->prepared_args->stack_size += REG_SIZE;
 				 } while (0);
 				 break;
 

@@ -225,68 +225,68 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 	return 0;
 }
 
+static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
+{
+	int sreg;
+	long value = arg->value.generic;
+	if (arg->isreg) {
+		if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
+			amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(value), REG_SIZE);
+		} else {
+			amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
+		}
+	} else amd64_mov_reg_imm_size(jit->ip, reg, value, 8);
+
+}
+static inline void __configure_args(struct jit * jit)
+{
+	int i, pos, reg, sreg, x;
+	struct jit_arg * args = jit->prepared_args->args;
+	int argcnt = jit->prepared_args->count;
+
+	if (argcnt > 0) __set_arg(jit, &(args[0]), AMD64_RDI);
+	if (argcnt > 1) __set_arg(jit, &(args[1]), AMD64_RSI);
+	if (argcnt > 2) __set_arg(jit, &(args[2]), AMD64_RDX);
+	if (argcnt > 3) __set_arg(jit, &(args[3]), AMD64_RCX);
+	if (argcnt > 4) __set_arg(jit, &(args[4]), AMD64_R8);
+	if (argcnt > 5) __set_arg(jit, &(args[5]), AMD64_R9);
+
+	for (x = jit->prepared_args->count - 1; x >= 6; x --) {
+		if (args[x].isreg) {
+			if (__is_spilled(args[x].value.generic, jit->prepared_args->op, &sreg)) {
+				amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(args[x].value.generic));
+			} else {
+				amd64_push_reg(jit->ip, sreg);
+			}
+		} else {
+			amd64_mov_reg_reg(jit->ip, AMD64_RAX, args[x].value.generic, REG_SIZE);
+			amd64_push_reg(jit->ip, AMD64_RAX);
+		}
+	}
+
+	/* al is used to pass number of floating point arguments */
+	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
+}
+
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
 	int pos, i, sreg;
+	__configure_args(jit);
 
-	jit_op * prepare = op;
-	/*
-	while (GET_OP(prepare) != JIT_PREPARE)
-		prepare = prepare->prev;
-
-	for (i = jit->prepare_args - 1, pos = 0; i >= 0; i--, pos++) {
-		int reg;
-		if (pos < 6) {
-			switch (pos) {
-				case 0: reg = AMD64_RDI; break;
-				case 1: reg = AMD64_RSI; break;
-				case 2: reg = AMD64_RDX; break;
-				case 3: reg = AMD64_RCX; break;
-				case 4: reg = AMD64_R8; break;
-				case 5: reg = AMD64_R9; break;
-			}
-
-			if (jit->args[i].isreg) {
-				if (__is_spilled(jit->args[i].value, prepare, &sreg)) {
-					amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit->args[i].value), REG_SIZE);
-				} else {
-					amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
-				}
-			} else amd64_mov_reg_imm_size(jit->ip, reg, jit->args[i].value, 8);
-
-		} else {
-			int x = pos - 6;
-			if (jit->args[x].isreg) {
-				if (__is_spilled(jit->args[x].value, prepare, &sreg)) {
-					amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(jit->args[x].value));
-				} else {
-					amd64_push_reg(jit->ip, sreg);
-				}
-
-			} else {
-				//amd64_push_imm(jit->ip, jit->args[x].value);
-				amd64_mov_reg_reg(jit->ip, AMD64_RAX, jit->args[x].value, REG_SIZE);
-				amd64_push_reg(jit->ip, AMD64_RAX);
-			}
-		}
-	}
-	*/
-	/* al is used to pass number of floating point arguments */
-	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
 	if (!imm) {
 		amd64_call_reg(jit->ip, op->r_arg[0]);
 	} else {
 		op->patch_addr = __PATCH_ADDR(jit);
-		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
+		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); // 4: magic constant
 	}
 
-	/*
-	if (jit->prepare_args > 6) {
-		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, (jit->prepare_args - 6) * PTR_SIZE);
-		JIT_FREE(jit->args);
+	if (jit->prepared_args) {
+		if (jit->prepared_args > 0)
+			amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, jit->prepared_args->stack_size);
+		JIT_FREE(jit->prepared_args->args);
+		JIT_FREE(jit->prepared_args);
+		jit->prepared_args = NULL;
 	}
-	jit->prepare_args = 0;
-	*/
 
 	/* pops caller saved registers */
 	static int regs[] = { AMD64_RCX, AMD64_RDX, AMD64_RSI, AMD64_RDI, AMD64_R8, AMD64_R9, AMD64_R10, AMD64_R11 };
@@ -619,7 +619,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					 jit->prepared_args->args[pos].isfp = 0;
 					 jit->prepared_args->args[pos].value.generic = op->arg[0];
 					 jit->prepared_args->ready++;
-					 jit->prepared_args->stack_size += REG_SIZE;
+					 if (jit->prepared_args->ready >= 6)
+						 jit->prepared_args->stack_size += REG_SIZE;
 				 } while (0);
 			break;
 
@@ -674,24 +675,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else amd64_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
-		case JIT_PREPARE:/* FIXME: REMOVEME
-				    jit->prepare_args = a1; 
-				  jit->argspos = 0;
-				  jit->args = JIT_MALLOC(sizeof(struct arg) * a1);
-				  */
-				  __prepare_call(jit, op, a1);
+		case JIT_PREPARE: __prepare_call(jit, op, a1);
 				  __push_caller_saved_regs(jit, op);
 				  break;
 
-				  /* FIXME: REMOVEME
-		case JIT_PUSHARG | REG: jit->args[jit->argspos].isreg = 1;
-				  	jit->args[jit->argspos++].value = op->arg[0];
-					break;
-
-		case JIT_PUSHARG | IMM: jit->args[jit->argspos].isreg = 0;
-				  	jit->args[jit->argspos++].value = op->arg[0];
-					break;
-*/
 		case JIT_PROLOG:
 			*(void **)(a1) = jit->ip;
 			amd64_push_reg(jit->ip, AMD64_RBP);

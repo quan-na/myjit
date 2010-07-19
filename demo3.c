@@ -38,7 +38,7 @@ int main()
 	jit_prepare(p, 1);
 
 	// passes an argument
-	jit_pushargr(p, R(0));
+	jit_putargr(p, R(0));
 
 	// calls the functions
 	jit_call(p, fibfn);
@@ -49,7 +49,7 @@ int main()
 	// another call of fib. function
 	jit_subi(p, R(0), R(0), 1);
 	jit_prepare(p, 1);
-	jit_pushargr(p, R(0));
+	jit_putargr(p, R(0));
 	jit_call(p, fibfn);
 
 	// stores the result into R(2)

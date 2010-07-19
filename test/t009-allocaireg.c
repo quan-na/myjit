@@ -63,12 +63,13 @@ int main()
 	jit_call(p, foobar);
 
 	// print outs allocated memory
+
 	jit_movi(p, R(0), 0);	// index
 	jit_addi(p, R(1), R_FP, i); // pointer to the allocated memory
 	jit_label * lab2 = jit_get_label(p);
-
-	jit_ldxr(p, R(2), R(1), R(0), 1);
 	
+	jit_ldxr(p, R(2), R(1), R(0), 1);
+
 	jit_prepare(p, 2);
 	jit_putargi(p, msg2);
 	jit_putargr(p, R(2));
@@ -76,7 +77,7 @@ int main()
 
 	jit_addi(p, R(0), R(0), 1);
 	jit_blti(p, lab2, R(0), BLOCK_SIZE);
-	
+
 	jit_retr(p, R(0));
 
 	jit_generate_code(p);
