@@ -717,7 +717,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  __push_caller_saved_regs(jit, op);
 				  break;
 
-				  /*
+				  /* FIXME: REMOVEME
 		case JIT_PUTARG | REG: x86_push_reg(jit->ip, a1); break;
 		case JIT_PUTARG | IMM: x86_push_imm(jit->ip, a1); break;
 */

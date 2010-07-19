@@ -102,7 +102,7 @@ static inline void jit_correct_long_imms(struct jit * jit)
 		if (GET_OP(op) == JIT_CALL) continue;
 		if (GET_OP(op) == JIT_PATCH) continue;
 		if (GET_OP(op) == JIT_MOV) continue;
-		if (GET_OP(op) == JIT_PUSHARG) continue;
+		if (GET_OP(op) == JIT_PUTARG) continue;
 		if (GET_OP(op) == JIT_MSG) continue;
 		int imm_arg;
 		for (int i = 1; i < 4; i++)
@@ -110,7 +110,7 @@ static inline void jit_correct_long_imms(struct jit * jit)
 		long value = op->arg[imm_arg];
 
 		if (jit_imm_overflow(jit, IS_SIGNED(op), value)) {
-			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), JIT_IMMREG, value, 0, REG_SIZE);
+			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), R_IMM, value, 0, REG_SIZE);
 			jit_op_prepend(op, newop);
 
 			op->code &= ~(0x3);
@@ -118,7 +118,7 @@ static inline void jit_correct_long_imms(struct jit * jit)
 
 			op->spec &= ~(0x3 << (2 * imm_arg));
 			op->spec |=  (REG << (2 * imm_arg));
-			op->arg[imm_arg] = JIT_IMMREG;
+			op->arg[imm_arg] = R_IMM;
 		}
 	}
 }
