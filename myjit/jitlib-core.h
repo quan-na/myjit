@@ -588,4 +588,16 @@ static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 	jit->prepared_args->stack_size = 0;
 	jit->prepared_args->op = op;
 }
+
+static inline void __put_arg(struct jit * jit, jit_op * op)
+{
+	int pos = jit->prepared_args->ready;
+	jit->prepared_args->args[pos].isreg = !IS_IMM(op);
+	jit->prepared_args->args[pos].isfp = 0;
+	jit->prepared_args->args[pos].value.generic = op->arg[0];
+	jit->prepared_args->ready++;
+
+	if (jit->prepared_args->ready >= jit->reg_al->gp_arg_reg_cnt)
+		jit->prepared_args->stack_size += REG_SIZE;
+}
 #endif

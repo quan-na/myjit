@@ -96,11 +96,11 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	sparc_nop(jit->ip);
 }
 
-/* determines whether the argument value was spilled or not,
+/* determines whether the argument value was spilled out or not,
  * if the register is associated with the hardware register
  * it is returned through the reg argument
  */
-// FIXME: more general, should use information from reg. allocator
+// FIXME: more general, should use information from the reg. allocator
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
 	int args = prepare_op->arg[0];
@@ -118,51 +118,51 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 	return 0;
 }
 
-static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
+static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
 {
-	int pos, i, sreg;
-
-	jit_op * prepare = op;
-	while (GET_OP(prepare) != JIT_PREPARE)
-		prepare = prepare->prev;
-
-	for (i = jit->prepare_args - 1, pos = 0; i >= 0; i--, pos++) {
-		int reg;
-		// FIXME: should take information from the allocator
-		if (pos < 6) {
-			switch (pos) {
-				case 0: reg = sparc_o0; break;
-				case 1: reg = sparc_o1; break;
-				case 2: reg = sparc_o2; break;
-				case 3: reg = sparc_o3; break;
-				case 4: reg = sparc_o4; break;
-				case 5: reg = sparc_o5; break;
-			}
-
-			if (jit->args[i].isreg) {
-			
-				if (__is_spilled(jit->args[i].value, prepare, &sreg)) {
-					sparc_ld_imm(jit->ip, sparc_fp, - jit->args[i].value * 4, reg);
-				} else {
-					sparc_mov_reg_reg(jit->ip, sreg, reg);
-				}
-			} else sparc_set32(jit->ip, jit->args[i].value, reg);
-
+	int sreg;
+	long value = arg->value.generic;
+	if (arg->isreg) {
+		if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
+			sparc_ld_imm(jit->ip, sparc_fp, - value * 4, reg);
 		} else {
-			int x = i;
-			if (jit->args[x].isreg) {
-				if (__is_spilled(jit->args[x].value, prepare, &sreg)) {
-					sparc_ld_imm(jit->ip, sparc_fp, - jit->args[i].value * 4, sparc_g1);
-					sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
-				} else {
-					sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (pos - 6) * 4);
-				}
+			sparc_mov_reg_reg(jit->ip, sreg, reg);
+		}
+	} else sparc_set32(jit->ip, value, reg);
+}
+
+static inline void __configure_args(struct jit * jit)
+{
+	int sreg;
+	struct jit_arg * args = jit->prepared_args->args;
+	int argcnt = jit->prepared_args->count;
+
+	if (argcnt > 0) __set_arg(jit, &(args[0]), sparc_o0);
+	if (argcnt > 1) __set_arg(jit, &(args[1]), sparc_o1);
+	if (argcnt > 2) __set_arg(jit, &(args[2]), sparc_o2);
+	if (argcnt > 3) __set_arg(jit, &(args[3]), sparc_o3);
+	if (argcnt > 4) __set_arg(jit, &(args[4]), sparc_o4);
+	if (argcnt > 5) __set_arg(jit, &(args[5]), sparc_o5);
+
+	for (int i = 6; i < argcnt; i++) {
+		long value = args[i].value.generic;
+		if (args[i].isreg) {
+			if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
+				sparc_ld_imm(jit->ip, sparc_fp, - value * 4, sparc_g1);
+				sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (i - 6) * 4);
 			} else {
-				sparc_set32(jit->ip, jit->args[i].value, sparc_g1);
-				sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
+				sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (i - 6) * 4);
 			}
+		} else {
+			sparc_set32(jit->ip, value, sparc_g1);
+			sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (i - 6) * 4);
 		}
 	}
+}
+
+static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
+{
+	__configure_args(jit);
 	if (!imm) {
 		sparc_call(jit->ip, op->r_arg[0], sparc_g0);
 	} else {
@@ -182,7 +182,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 void __get_arg(struct jit * jit, jit_op * op, int reg)
 {
 	int arg_id = op->r_arg[1];
-	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
+	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is R_IMM
 	int dreg = op->r_arg[0];
 
 	if (rmap_get(op->regmap, reg_id) == NULL) {
@@ -419,6 +419,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			sparc_ret(jit->ip);
 			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
 			break;
+
+		case JIT_PUTARG: __put_arg(jit, op); break;
+
 		case JIT_GETARG:
 			if (a2 == 0) __get_arg(jit, op, sparc_i0);
 			if (a2 == 1) __get_arg(jit, op, sparc_i1);
@@ -445,19 +448,7 @@ op_complete:
 	switch (op->code) {
 		case (JIT_MOV | REG): if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1); break;
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
-		case JIT_PREPARE: jit->prepare_args = a1; 
-				  jit->argspos = 0;
-				  jit->args = JIT_MALLOC(sizeof(struct arg) * a1);
-				  break;
-
-		case JIT_PUSHARG | REG: jit->args[jit->argspos].isreg = 1;
-				  	jit->args[jit->argspos++].value = op->arg[0];
-					break;
-
-		case JIT_PUSHARG | IMM: jit->args[jit->argspos].isreg = 0;
-				  	jit->args[jit->argspos++].value = op->arg[0];
-					break;
-
+		case JIT_PREPARE: __prepare_call(jit, op, a1); break;
 		case JIT_PROLOG:
 			*(void **)(a1) = jit->ip;
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
@@ -569,7 +560,7 @@ op_complete:
 		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_fp, - a2 * 4, a1); break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
-		default: printf("sparc: unknown operation (opcode: 0x%x)\n", GET_OP(op));
+		default: printf("sparc: unknown operation (opcode: 0x%x)\n", GET_OP(op) >> 3);
 	}
 }
 
@@ -577,12 +568,12 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 {
 	static int __arg_regs[] = { sparc_i0, sparc_i1, sparc_i2, sparc_i3, sparc_i4, sparc_i5 };
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->hw_reg_cnt = 14;
+	a->gp_reg_cnt = 14;
 #ifdef JIT_REGISTER_TEST
-	a->hw_reg_cnt -= 5;
+	a->gp_reg_cnt -= 5;
 #endif 
-	a->hwreg_pool = JIT_MALLOC(sizeof(struct __hw_reg *) * a->hw_reg_cnt);
-	a->hw_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->hw_reg_cnt + 1));
+	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
+	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->gp_reg_cnt + 1));
 
 	/* only the l0-l7 and i0-i5 registers are used
 	 * all these registers are callee-saved withou special care
@@ -590,31 +581,38 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	 * all g1-g3 are free for use in the codegenarator
 	 */
 	int i = 0;
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l0, 0, "l0", 1, 14 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l1, 0, "l1", 1, 13 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l2, 0, "l2", 1, 12 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l0, 0, "l0", 1, 0, 14 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l1, 0, "l1", 1, 0, 13 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l2, 0, "l2", 1, 0, 12 };
 #ifndef JIT_REGISTER_TEST
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l3, 0, "l3", 1, 11 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 10 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 9 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 8 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 7 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l3, 0, "l3", 1, 0, 11 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 0, 10 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 0, 9 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 0, 8 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 0, 7 };
 #endif
 
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_i0, 0, "i0", 1,  1 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_i1, 0, "i1", 1, 2 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_i2, 0, "i2", 1, 3 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_i3, 0, "i3", 1, 4 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_i4, 0, "i4", 1, 5 };
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_i5, 0, "i5", 1, 6 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_i0, 0, "i0", 1, 0, 1 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_i1, 0, "i1", 1, 0, 2 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_i2, 0, "i2", 1, 0, 3 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_i3, 0, "i3", 1, 0, 4 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_i4, 0, "i4", 1, 0, 5 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_i5, 0, "i5", 1, 0, 6 };
 
-	a->hw_regs[i++] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 0 };
+	a->gp_regs[i++] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 0, 0 };
 
 	a->fp_reg = sparc_fp;
 	a->ret_reg = sparc_i7;
 
-	a->arg_registers_cnt = 6;
-	a->arg_registers = __arg_regs;
+	a->fp_reg_cnt = 0;
+	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
+	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+
+	a->gp_arg_reg_cnt = 6;
+	a->gp_arg_regs = __arg_regs;
+
+	a->fp_arg_reg_cnt = 0;
+	a->fp_arg_regs = NULL;
 
 	return a;
 }
