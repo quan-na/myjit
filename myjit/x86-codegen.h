@@ -1921,6 +1921,13 @@ typedef enum {
 		x86_reg_emit ((inst), (dreg), (reg));	\
 	} while (0)
 
+#define x86_cvtss2sd(inst,dreg,reg)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x5a;	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
+	} while (0)
 
 #define x86_cvttsd2si(inst,dreg,reg)	\
 	do {	\
@@ -2123,12 +2130,28 @@ typedef enum {
 		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
 	} while (0)
 
+#define x86_movlpd_xreg_memindex(inst,sreg,basereg,disp,indexreg,shift)	\
+	do {	\
+		*(inst)++ = (unsigned char)0x66;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x12;	\
+		x86_memindex_emit ((inst), (sreg), (basereg), (disp), (indexreg), (shift));	\
+	} while (0)
+
 #define x86_movlpd_xreg_membase(inst,sreg,basereg,disp)	\
 	do {	\
 		*(inst)++ = (unsigned char)0x66;	\
 		*(inst)++ = (unsigned char)0x0f;	\
 		*(inst)++ = (unsigned char)0x12;	\
 		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
+	} while (0)
+
+#define x86_movlpd_xreg_mem(inst,sreg,mem)	\
+	do {	\
+		*(inst)++ = (unsigned char)0x66;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x12;	\
+		x86_mem_emit ((inst), (sreg), (mem));	\
 	} while (0)
 
 #define x86_movhpd_xreg_membase(inst,sreg,basereg,disp)	\
@@ -2172,6 +2195,14 @@ typedef enum {
 		x86_mem_emit ((inst), (sreg), (mem));	\
 	} while (0)
 
+#define x86_movss_xreg_mem(inst,sreg,mem)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x10;	\
+		x86_mem_emit ((inst), (sreg), (mem));	\
+	} while (0)
+
 #define x86_movss_membase_xreg(inst,sreg,basereg,disp)	\
 	do {	\
 		*(inst)++ = (unsigned char)0xf3;	\
@@ -2180,6 +2211,15 @@ typedef enum {
 		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
 	} while (0)
 
+#define x86_movss_xreg_membase(inst,sreg,basereg,disp)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x10;	\
+		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
+	} while (0)
+
+
 #define x86_movss_memindex_xreg(inst,sreg,basereg,disp,indexreg,shift)	\
 	do {	\
 		*(inst)++ = (unsigned char)0xf3;	\
@@ -2187,6 +2227,15 @@ typedef enum {
 		*(inst)++ = (unsigned char)0x11;	\
 		x86_memindex_emit ((inst), (sreg), (basereg), (disp), (indexreg), (shift));	\
 	} while (0)
+
+#define x86_movss_xreg_memindex(inst,sreg,basereg,disp,indexreg,shift)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x10;	\
+		x86_memindex_emit ((inst), (sreg), (basereg), (disp), (indexreg), (shift));	\
+	} while (0)
+
 
 #define x86_movhpd_membase_xreg(inst,sreg,basereg,disp)	\
 	do {	\

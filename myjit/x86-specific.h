@@ -710,13 +710,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  __push_caller_saved_regs(jit, op);
 				  break;
 
-				  /* FIXME: REMOVEME
-		case JIT_PUTARG | REG: x86_push_reg(jit->ip, a1); break;
-		case JIT_PUTARG | IMM: x86_push_imm(jit->ip, a1); break;
-*/
 		case JIT_PROLOG:
-			//*(void **)(a1) = jit->ip;
-			//op->patch_addr = jit->ip - (long)jit->buf;
 			op->patch_addr = __PATCH_ADDR(jit);
 			x86_push_reg(jit->ip, X86_EBP);
 			x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
@@ -834,8 +828,30 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					       x86_movss_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
 					       x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
 				       } else x86_movlpd_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
-				       
-//				       x86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+
+		case (JIT_FLD | IMM): if (op->arg_size == 4)  { 
+					      x86_movss_xreg_mem(jit->ip, a1, a2);
+					      x86_cvtss2sd(jit->ip, a1, a1);
+				      } else x86_movlpd_xreg_mem(jit->ip, a1, a2);
+				      break;
+
+		case (JIT_FLD | REG): if (op->arg_size == 4)  { 
+					      x86_movss_xreg_membase(jit->ip, a1, a2, 0);
+					      x86_cvtss2sd(jit->ip, a1, a1);
+				      } else x86_movlpd_xreg_membase(jit->ip, a1, a2, 0);
+				      break;
+
+		case (JIT_FLDX | IMM): if (op->arg_size == 4)  { 
+					      x86_movss_xreg_membase(jit->ip, a1, a2, a3);
+					      x86_cvtss2sd(jit->ip, a1, a1);
+				      } else x86_movlpd_xreg_membase(jit->ip, a1, a2, a3);
+				      break;
+
+		case (JIT_FLDX | REG): if (op->arg_size == 4)  { 
+					      x86_movss_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
+					      x86_cvtss2sd(jit->ip, a1, a1);
+				      } else x86_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
+				      break;
 
 		case (JIT_FRET | REG): x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);      // creates extra space on the stack
 				       x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, 0); // pushes the value on the top of the stack

@@ -3,7 +3,7 @@
 
 #include "myjit/jitlib.h"
 
-typedef long (* pdfdd)(double, double);
+typedef double (* pdfdd)(double, double);
 
 int main()
 {
@@ -14,7 +14,7 @@ int main()
 	g[1] = 2.3;
 	g[2] = 3.4;
 	g[3] = 4.5;
-	printf(":TTTTTTTTT:%lx\n", g);
+	printf(":TTTTTTTTT:%lx\n", (long)g);
 
 	pdfdd foo;
 	jit_prolog(p, &foo);
@@ -27,21 +27,21 @@ int main()
 	jit_movi(p, R(2), g);
 	jit_fmovi(p, FPR(0), -5.1);
 
-	jit_fstxi(p, g, R(0), FPR(0), sizeof(double));
+	jit_fldxr(p, FPR(0), R(2), R(0), sizeof(double));
 
-	jit_retr(p, R(0));
+	jit_fretr(p, FPR(0));
 
 	jit_generate_code(p);
 
 	jit_dump_code(p, 0);
 
-	foo(1.2, 2.5);
-	for (int i = 0; i < 4; i++)
-		printf("X:%f\n", g[i]);
+//	foo(1.2, 2.5);
+//	for (int i = 0; i < 4; i++)
+//		printf("X:%f\n", g[i]);
 
 
 	// check
-	//printf("Check #1: %i\n", foo(1.2, 2.5));
+	printf("Check #1: %f\n", foo(1.2, 2.5));
 	//printf("Check #2: %li\n", foo(100));
 	//printf("Check #3: %li\n", foo(255));
 
