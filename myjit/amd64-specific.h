@@ -613,16 +613,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			amd64_ret(jit->ip);
 			break;
 
-		case JIT_PUTARG: do {
-					 int pos = jit->prepared_args->ready;
-					 jit->prepared_args->args[pos].isreg = !IS_IMM(op);
-					 jit->prepared_args->args[pos].isfp = 0;
-					 jit->prepared_args->args[pos].value.generic = op->arg[0];
-					 jit->prepared_args->ready++;
-					 if (jit->prepared_args->ready >= 6)
-						 jit->prepared_args->stack_size += REG_SIZE;
-				 } while (0);
-			break;
+		case JIT_PUTARG: __put_arg(jit, op); break;
 
 		case JIT_GETARG:
 			if (a2 == 0) __get_arg(jit, op, AMD64_RDI);

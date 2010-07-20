@@ -9,30 +9,39 @@ int main()
 {
 	struct jit * p = jit_init(4, 4);
 
+	static double g[4];
+	g[0] = 1.2;
+	g[1] = 2.3;
+	g[2] = 3.4;
+	g[3] = 4.5;
+	printf(":TTTTTTTTT:%lx\n", g);
+
 	pdfdd foo;
 	jit_prolog(p, &foo);
 
 	int ar1 = jit_arg(p);
 
-//	jit_getarg(p, R(0), ar1, sizeof(long));
 
+	jit_movi(p, R(0), 2 * sizeof(double));
 	jit_movi(p, R(1), 10);
-//	jit_fextr(p, FPR(0), R(1));
+	jit_movi(p, R(2), g);
 	jit_fmovi(p, FPR(0), -5.1);
-//	jit_fmovi(p, FPR(1), 5.0);
-//	jit_fdivr(p, FPR(1), FPR(0), FPR(1));
-//	jit_fbger(p, JIT_FORWARD, FPR(0), FPR(1));
-	jit_froundr(p, R(0), FPR(0));
+
+	jit_fstxi(p, g, R(0), FPR(0), sizeof(double));
 
 	jit_retr(p, R(0));
-//	jit_fretr(p, FPR(0));
 
 	jit_generate_code(p);
 
 	jit_dump_code(p, 0);
 
+	foo(1.2, 2.5);
+	for (int i = 0; i < 4; i++)
+		printf("X:%f\n", g[i]);
+
+
 	// check
-	printf("Check #1: %i\n", foo(1.2, 2.5));
+	//printf("Check #1: %i\n", foo(1.2, 2.5));
 	//printf("Check #2: %li\n", foo(100));
 	//printf("Check #3: %li\n", foo(255));
 

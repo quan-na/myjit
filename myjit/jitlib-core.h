@@ -505,6 +505,10 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_fbner(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | REG, SPEC(IMM, REG, REG), a, b, c, 0, 0)
 #define jit_fbnei(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | IMM, SPEC(IMM, REG, IMM), a, b, 0, c, 0)
 
+#define jit_fstr(jit, a, b, c) jit_add_op(jit, JIT_FST | REG, SPEC(REG, REG, NO), a, b, 0, c) 
+#define jit_fsti(jit, a, b, c) jit_add_op(jit, JIT_FST | IMM, SPEC(IMM, REG, NO), (long)a, b, 0, c) 
+#define jit_fstxr(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | REG, SPEC(REG, REG, REG), a, b, c, d) 
+#define jit_fstxi(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | IMM, SPEC(IMM, REG, REG), (long)a, b, c, d) 
 
 #define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
 #define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)

@@ -675,16 +675,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			x86_ret(jit->ip);
 			break;
 
-		case JIT_PUTARG: do {
-					 int pos = jit->prepared_args->ready;
-					 jit->prepared_args->args[pos].isreg = !IS_IMM(op);
-					 jit->prepared_args->args[pos].isfp = 0;
-					 jit->prepared_args->args[pos].value.generic = op->arg[0];
-					 jit->prepared_args->ready++;
-					 if (jit->prepared_args > 6)
-						 jit->prepared_args->stack_size += REG_SIZE;
-				 } while (0);
-				 break;
+		case JIT_PUTARG: __put_arg(jit, op); break;
 
 		case JIT_GETARG:
 			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, REG_SIZE); 
@@ -811,6 +802,41 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FFLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
 		case (JIT_FROUND | REG): __sse_round(jit, a1, a2); break;
 
+		case (JIT_FST | IMM): 	if (op->arg_size == 4) {
+						// TODO: test if a2 is live_out and if not,
+						// then remove this shuffling
+						x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+						x86_cvtsd2ss(jit->ip, a2, a2);
+						x86_movss_mem_xreg(jit->ip, a2, a1);
+						x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+					} else x86_movlpd_mem_xreg(jit->ip, a2, a1);
+					break;		 
+
+		case (JIT_FST | REG): if (op->arg_size == 4) {
+					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+					      x86_cvtsd2ss(jit->ip, a2, a2);
+					      x86_movss_membase_xreg(jit->ip, a2, a1, 0);
+					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+				      } else x86_movlpd_membase_xreg(jit->ip, a2, a1, 0);
+				      break;
+
+		case (JIT_FSTX | IMM): if (op->arg_size == 4) {
+					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+					      x86_cvtsd2ss(jit->ip, a3, a3);
+					      x86_movss_membase_xreg(jit->ip, a3, a2, a1);
+					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+				       } else x86_movlpd_membase_xreg(jit->ip, a3, a2, a1);
+				       break;
+
+		case (JIT_FSTX | REG): if (op->arg_size == 4) {
+					       x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+					       x86_cvtsd2ss(jit->ip, a3, a3);
+					       x86_movss_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
+					       x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+				       } else x86_movlpd_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
+				       
+//				       x86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+
 		case (JIT_FRET | REG): x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);      // creates extra space on the stack
 				       x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, 0); // pushes the value on the top of the stack
 				       x86_fld_membase(jit->ip, X86_ESP, 0, 1);            // transfers the value from the stack to the ST(0)
@@ -820,7 +846,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       x86_pop_reg(jit->ip, X86_EBP);
 				       x86_ret(jit->ip);
 				       break;
-
 
 		// platform specific opcodes; used byt optimizer
 		case (JIT_X86_STI | IMM): x86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;

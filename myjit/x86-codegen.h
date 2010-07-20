@@ -1913,6 +1913,14 @@ typedef enum {
 		x86_reg_emit ((inst), (reg), (dreg));	\
 	} while (0)
 
+#define x86_cvtsd2ss(inst,dreg,reg)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf2;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x5a;	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
+	} while (0)
+
 
 #define x86_cvttsd2si(inst,dreg,reg)	\
 	do {	\
@@ -2139,6 +2147,47 @@ typedef enum {
 		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
 	} while (0)
 
+#define x86_movlpd_memindex_xreg(inst,sreg,basereg,disp,indexreg,shift)	\
+	do {	\
+		*(inst)++ = (unsigned char)0x66;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x13;	\
+		x86_memindex_emit ((inst), (sreg), (basereg), (disp), (indexreg), (shift));	\
+	} while (0)
+
+
+#define x86_movlpd_mem_xreg(inst,sreg,mem)	\
+	do {	\
+		*(inst)++ = (unsigned char)0x66;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x13;	\
+		x86_mem_emit ((inst), (sreg), (mem));	\
+	} while (0)
+
+#define x86_movss_mem_xreg(inst,sreg,mem)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x11;	\
+		x86_mem_emit ((inst), (sreg), (mem));	\
+	} while (0)
+
+#define x86_movss_membase_xreg(inst,sreg,basereg,disp)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x11;	\
+		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
+	} while (0)
+
+#define x86_movss_memindex_xreg(inst,sreg,basereg,disp,indexreg,shift)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x11;	\
+		x86_memindex_emit ((inst), (sreg), (basereg), (disp), (indexreg), (shift));	\
+	} while (0)
+
 #define x86_movhpd_membase_xreg(inst,sreg,basereg,disp)	\
 	do {	\
 		*(inst)++ = (unsigned char)0x66;	\
@@ -2146,9 +2195,6 @@ typedef enum {
 		*(inst)++ = (unsigned char)0x17;	\
 		x86_membase_emit ((inst), (sreg), (basereg), (disp));	\
 	} while (0)
-
-
-
 
 #define x86_pshufw_reg_reg(inst,dreg,sreg,mask,high_words)	\
 	do {	\
