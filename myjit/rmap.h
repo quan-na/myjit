@@ -52,8 +52,9 @@ static inline struct __hw_reg * rmap_get(rmap_t * rmap, int reg)
  * If so, returns to pointer to this register and sets the id of the virtual
  * register
  */
-static inline struct __hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int * virt_reg)
+static inline struct __hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, int * virt_reg)
 {
+	if (fp) reg_id = -reg_id - 1;
 	rb_node * found = rb_search(rmap->revmap, reg_id);
 	if (found) {
 		int r = (long)found->value;
@@ -66,14 +67,16 @@ static inline struct __hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, in
 static inline void rmap_assoc(rmap_t * rmap, int reg, struct __hw_reg * hreg)
 {
 	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
-	rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(long)reg, NULL);
+	if (!hreg->fp) rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(long)reg, NULL);
+	else rmap->revmap = rb_insert(rmap->revmap, - hreg->id - 1, (void *)(long)reg, NULL);
 }
 
-static inline void rmap_unassoc(rmap_t * rmap, int reg)
+static inline void rmap_unassoc(rmap_t * rmap, int reg, int fp)
 {
 	struct __hw_reg * hreg = (struct __hw_reg *)rb_search(rmap->map, reg);
 	rmap->map = rb_delete(rmap->map, reg, NULL);
-	rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
+	if (!fp) rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
+	rmap->revmap = rb_delete(rmap->revmap, - hreg->id - 1, NULL);
 }
 
 static inline rmap_t * rmap_clone(rmap_t * rmap)

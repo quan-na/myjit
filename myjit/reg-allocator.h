@@ -117,7 +117,7 @@ static inline struct __hw_reg * make_free_reg(jit_op * op, int fp)
 	int spill_candidate;
 	struct __hw_reg * hreg = rmap_spill_candidate(op, fp, &spill_candidate);
 	unload_reg(op, hreg, spill_candidate);
-	rmap_unassoc(op->regmap, spill_candidate);
+	rmap_unassoc(op->regmap, spill_candidate, fp);
 	hreg->used = 0;
 	return hreg;
 }
@@ -160,7 +160,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	if (GET_OP(op) == JIT_PREPARE) {
 		// FIXME: FP reg support
-		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
+		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 		if (hreg) {
 			// checks whether there is a free callee-saved register
 			// that can be used to store the eax register
@@ -188,25 +188,25 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		int args = op->arg[0];
 		if (args > al->gp_arg_reg_cnt) args = al->gp_arg_reg_cnt;
 		for (int q = 0; q < args; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], &reg);
+			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
 			if (hreg) {
 				unload_reg(op, hreg, reg);
 				jit_regpool_put(al->gp_regpool, hreg);
-				rmap_unassoc(op->regmap, reg);
+				rmap_unassoc(op->regmap, reg, 0);
 			}
 		}
 	}
 
 	// PUTARG have to take care of the register allocation by itself
 	// FIXME: FP reg support
-	if ((al->gp_arg_reg_cnt >= 0) && (GET_OP(op) == JIT_PUTARG)) return;
+	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
 	// FIXME: FP reg support
 	if (GET_OP(op) == JIT_CALL) {
-		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, &r);
+		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 		if (hreg) {
 			jit_regpool_put(al->gp_regpool, hreg);
-			rmap_unassoc(op->regmap, r);
+			rmap_unassoc(op->regmap, r, hreg->fp);
 		}
 	}
 
@@ -347,9 +347,9 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a)
 /**
  * @return true if the given hw. register (e.g., X86_EAX) is in use
  */
-int jit_reg_in_use(jit_op * op, int reg)
+int jit_reg_in_use(jit_op * op, int reg, int fp)
 {
-	return rmap_is_associated(op->regmap, reg, NULL) != NULL;
+	return rmap_is_associated(op->regmap, reg, fp, NULL) != NULL;
 }
 
 // FIXME: obsolete???

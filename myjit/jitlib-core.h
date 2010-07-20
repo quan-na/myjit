@@ -28,6 +28,7 @@
 
 /* these three macros are obsolete and will be removed */
 
+#define FPR_IMM	(-1)
 #define R_FP	(0)
 #define R_OUT	(1)
 #define R_IMM	(2) /* used by amd64 and sparc*/
@@ -96,7 +97,7 @@ typedef struct jit_op {
 	unsigned char spec;
 	unsigned char arg_size; /* used by ld, st */
 	unsigned char assigned;
-	unsigned char fp;	/* FP if it's and floating-point operation */	
+	unsigned char fp;	/* FP if it's an floating-point operation */	
 	double flt_imm;
 	long arg[3];
 	long r_arg[3];
@@ -127,6 +128,7 @@ typedef struct jit_prepared_args {
 		} value;
 		char isreg;
 		char isfp;
+		char size;
 	} * args;
 } jit_prepared_args;
 
@@ -181,7 +183,7 @@ struct jit_reg_allocator * jit_reg_allocator_create();
 void jit_reg_allocator_free(struct jit_reg_allocator * a);
 void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
-int jit_reg_in_use(jit_op * op, int reg);
+int jit_reg_in_use(jit_op * op, int reg, int fp);
 struct jit_regpool * jit_regpool_init(int size);
 void jit_regpool_free(struct jit_regpool * p);
 
@@ -515,6 +517,9 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_fldxr(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | REG, SPEC(TREG, REG, REG), a, b, c, d) 
 #define jit_fldxi(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | IMM, SPEC(TREG, REG, IMM), a, b, (long)c, d) 
 
+#define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0, b)
+#define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, b)
+
 #define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
 #define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)
 
@@ -601,12 +606,28 @@ static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 static inline void __put_arg(struct jit * jit, jit_op * op)
 {
 	int pos = jit->prepared_args->ready;
-	jit->prepared_args->args[pos].isreg = !IS_IMM(op);
-	jit->prepared_args->args[pos].isfp = 0;
-	jit->prepared_args->args[pos].value.generic = op->arg[0];
+	struct jit_arg * arg = &(jit->prepared_args->args[pos]);
+	arg->isreg = !IS_IMM(op);
+	arg->isfp = 0;
+	arg->value.generic = op->arg[0];
 	jit->prepared_args->ready++;
 
 	if (jit->prepared_args->ready >= jit->reg_al->gp_arg_reg_cnt)
 		jit->prepared_args->stack_size += REG_SIZE;
+}
+
+static inline void __fput_arg(struct jit * jit, jit_op * op)
+{
+	int pos = jit->prepared_args->ready;
+	struct jit_arg * arg = &(jit->prepared_args->args[pos]);
+	arg->isreg = !IS_IMM(op);
+	arg->isfp = 1;
+	arg->size = op->arg_size;
+	if (IS_IMM(op)) arg->value.fp = op->flt_imm;
+	else arg->value.generic = op->arg[0];
+	jit->prepared_args->ready++;
+
+	if (jit->prepared_args->ready >= jit->reg_al->fp_arg_reg_cnt)
+		jit->prepared_args->stack_size += op->arg_size;
 }
 #endif

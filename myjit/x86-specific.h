@@ -24,7 +24,8 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(r) ((- r * REG_SIZE))
+#define __GET_REG_POS(r) ((- (r) * REG_SIZE))
+#define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit->reg_count) - (abs(r)) * sizeof(double))
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 void jit_dump_registers(struct jit * jit, long * hwregs);
@@ -133,8 +134,8 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 		int shiftreg = op->r_arg[2];
 		int ecx_pathology = 0; // shifting content in the ECX register
 
-		int ecx_in_use = jit_reg_in_use(op, X86_ECX);
-		int edx_in_use = jit_reg_in_use(op, X86_EDX);
+		int ecx_in_use = jit_reg_in_use(op, X86_ECX, 0);
+		int edx_in_use = jit_reg_in_use(op, X86_EDX, 0);
 
 		if (destreg == X86_ECX) {
 			ecx_pathology = 1;
@@ -221,14 +222,33 @@ static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
 
 static inline void __configure_args(struct jit * jit)
 {
+	int sreg;
 	for (int i = jit->prepared_args->ready - 1; i >= 0; i--) {
 		struct jit_arg * args = jit->prepared_args->args;
-		if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
-		else {
-			int sreg;
-			if (__is_spilled(jit, args[i].value.generic, &sreg))
-				x86_push_membase(jit->ip, X86_EBP,  __GET_REG_POS(args[i].value.generic));
-			else x86_push_reg(jit->ip, sreg);
+		if (!args[i].isfp) {
+			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
+			else {
+				if (__is_spilled(jit, args[i].value.generic, &sreg))
+					x86_push_membase(jit->ip, X86_EBP, __GET_REG_POS(args[i].value.generic));
+				else x86_push_reg(jit->ip, sreg);
+			}
+		} else {
+			// FIXME: singles
+			if (args[i].isreg) {
+				if (__is_spilled(jit, args[i].value.generic, &sreg)) {
+					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic) - 4);
+					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic));
+				} else {
+					printf("::::::%i\n", sreg);
+					// ``PUSH sreg'' for XMM regs
+					x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
+					x86_movlpd_membase_xreg(jit->ip, sreg, X86_ESP, 0);
+				}
+			} else {
+				double b = args[i].value.fp;
+				x86_push_imm(jit->ip, *((unsigned long long *)&b) >> 32);
+				x86_push_imm(jit->ip, *((unsigned long long *)&b) && 0xffffffff);
+			}
 		}
 	}
 }
@@ -255,10 +275,9 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	for (int i = 1; i >= 0; i--) {
 		int reg;
 		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
+		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
 	}
-
 }
 
 static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
@@ -289,8 +308,8 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 		}
 	}
 
-	int eax_in_use = jit_reg_in_use(op, X86_EAX);
-	int edx_in_use = jit_reg_in_use(op, X86_EDX);
+	int eax_in_use = jit_reg_in_use(op, X86_EAX, 0);
+	int edx_in_use = jit_reg_in_use(op, X86_EDX, 0);
 
 	/* generic multiplication */
 
@@ -319,6 +338,7 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 	if ((dest != X86_EDX) && edx_in_use) x86_pop_reg(jit->ip, X86_EDX);
 	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
+
 static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
 	long dest = op->r_arg[0];
@@ -343,8 +363,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		return;
 	}
 
-	int eax_in_use = jit_reg_in_use(op, X86_EAX);
-	int edx_in_use = jit_reg_in_use(op, X86_EDX);
+	int eax_in_use = jit_reg_in_use(op, X86_EAX, 0);
+	int edx_in_use = jit_reg_in_use(op, X86_EDX, 0);
 
 	if ((dest != X86_EAX) && eax_in_use) x86_push_reg(jit->ip, X86_EAX);
 	if ((dest != X86_EDX) && edx_in_use) x86_push_reg(jit->ip, X86_EDX);
@@ -442,7 +462,7 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	for (int i = 0; i < 2; i++) {
 		int reg;
 		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
+		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_push_reg(jit->ip, regs[i]);
 	}
 }
@@ -676,6 +696,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
+		case JIT_FPUTARG: __fput_arg(jit, op); break;
 
 		case JIT_GETARG:
 			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, REG_SIZE); 
@@ -768,9 +789,19 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | IMM): x86_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
 		case (JIT_STX | REG): x86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
-		case (JIT_UREG): x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE); break;
-		case (JIT_LREG): x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(a2), REG_SIZE); break;
-		case (JIT_SYNCREG): x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);  break;
+		case (JIT_UREG):
+			if (IS_FP_REG(a1)) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
+			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);
+			break;
+		case (JIT_LREG): 
+			if (IS_FP_REG(a2)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
+			else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(a2), REG_SIZE);
+			break;
+		case (JIT_SYNCREG):
+			if (IS_FP_REG(a1)) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
+			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);
+			break;
+
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 

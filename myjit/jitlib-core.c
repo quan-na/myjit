@@ -56,6 +56,7 @@ struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count)
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
 	reg_count += JIT_ALIAS_CNT; 	// lower registers remain reserved for R_FP, R_OUT, etc.
 	reg_count += JIT_SPP_REGS_CNT;  // these registers are used to store e.g. passed arguments
+	fp_reg_count++;			// register used for immediate values
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (reg_count % 4) reg_count ++; // stack has to be aligned to 16 bytes
 	if (fp_reg_count % 1) fp_reg_count ++;

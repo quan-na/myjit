@@ -5,9 +5,14 @@
 
 typedef double (* pdfdd)(double, double);
 
+void foofn(double a, int b, double c)
+{
+	printf("Test: %f x %i = %f\n", a, b, c);
+}
+
 int main()
 {
-	struct jit * p = jit_init(4, 4);
+	struct jit * p = jit_init(4, 6);
 
 	static double g[4];
 	g[0] = 1.2;
@@ -22,12 +27,31 @@ int main()
 	int ar1 = jit_arg(p);
 
 
-	jit_movi(p, R(0), 2 * sizeof(double));
-	jit_movi(p, R(1), 10);
-	jit_movi(p, R(2), g);
-	jit_fmovi(p, FPR(0), -5.1);
+//	jit_movi(p, R(0), 2 * sizeof(double));
+//	jit_movi(p, R(1), 10);
+//	jit_movi(p, R(2), g);
+	jit_fmovi(p, FPR(0), 1.0);
+	jit_fmovi(p, FPR(1), 2.0);
+	jit_fmovi(p, FPR(2), 3.0);
+	jit_fmovi(p, FPR(3), 4.0);
+	jit_fmovi(p, FPR(4), 5.0);
+	jit_fmovi(p, FPR(5), 6.0);
 
-	jit_fldxr(p, FPR(0), R(2), R(0), sizeof(double));
+	jit_faddr(p, FPR(0), FPR(0), FPR(1));
+	jit_faddr(p, FPR(0), FPR(0), FPR(2));
+	jit_faddr(p, FPR(0), FPR(0), FPR(3));
+	jit_faddr(p, FPR(0), FPR(0), FPR(4));
+	jit_faddr(p, FPR(0), FPR(0), FPR(5));
+
+	jit_prepare(p, 3);
+//	jit_fputargi(p, 1.2, sizeof(double));
+	jit_fputargr(p, FPR(1), sizeof(double));
+	jit_putargi(p, 666);
+//	jit_fputargi(p, 2.2, sizeof(double));
+	jit_fputargr(p, FPR(5), sizeof(double));
+	jit_call(p, foofn);
+
+	jit_fmovi(p, FPR(0), 123.456);
 
 	jit_fretr(p, FPR(0));
 
