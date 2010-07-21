@@ -125,6 +125,36 @@ static inline void jit_correct_long_imms(struct jit * jit)
 }
 #endif
 
+static inline void jit_correct_float_imms(struct jit * jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (!IS_IMM(op)) continue;
+		if (!op->fp) continue;
+		if (GET_OP(op) == JIT_FMOV) continue;
+		if (GET_OP(op) == JIT_FPUTARG) continue;
+		if (GET_OP(op) == JIT_FLD) continue;
+		if (GET_OP(op) == JIT_FLDX) continue;
+		if (GET_OP(op) == JIT_FST) continue;
+		if (GET_OP(op) == JIT_FSTX) continue;
+// FIXME: TODO		if (GET_OP(op) == JIT_FMSG) continue;
+		int imm_arg;
+		for (int i = 1; i < 4; i++)
+			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
+
+		jit_op * newop = __new_op(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), FPR_IMM, 0, 0, 0);
+		newop->fp = 1;
+		newop->flt_imm = op->flt_imm;
+		jit_op_prepend(op, newop);
+
+		op->code &= ~(0x3);
+		op->code |= REG;
+
+		op->spec &= ~(0x3 << (2 * imm_arg));
+		op->spec |=  (REG << (2 * imm_arg));
+		op->arg[imm_arg] = FPR_IMM;
+	}
+}
+
 static inline void __expand_patches_and_labels(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
@@ -143,7 +173,6 @@ static inline void __expand_patches_and_labels(struct jit * jit)
 
 static inline void __buf_expand(struct jit * jit)
 {
-	//printf("expanding buffer\n");
 	long pos = jit->ip - jit->buf;
 	jit->buf_capacity *= 2;
 	jit->buf = JIT_REALLOC(jit->buf, jit->buf_capacity);
@@ -156,6 +185,7 @@ void jit_generate_code(struct jit * jit)
 #if JIT_IMM_BITS > 0
 	jit_correct_long_imms(jit);
 #endif
+	jit_correct_float_imms(jit);
 	jit_flw_analysis(jit);
 
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)

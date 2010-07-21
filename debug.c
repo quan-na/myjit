@@ -38,11 +38,10 @@ int main()
 	jit_fmovi(p, FPR(5), 6.0);
 
 	jit_faddr(p, FPR(0), FPR(0), FPR(1));
-	jit_faddr(p, FPR(0), FPR(0), FPR(2));
-	jit_faddr(p, FPR(0), FPR(0), FPR(3));
-	jit_faddr(p, FPR(0), FPR(0), FPR(4));
-	jit_faddr(p, FPR(0), FPR(0), FPR(5));
+	jit_faddi(p, FPR(0), FPR(0), 1.1);
+	jit_fsubi(p, FPR(0), FPR(0), 2.5);
 
+	/*
 	jit_prepare(p, 3);
 //	jit_fputargi(p, 1.2, sizeof(double));
 	jit_fputargr(p, FPR(1), sizeof(double));
@@ -52,7 +51,7 @@ int main()
 	jit_call(p, foofn);
 
 	jit_fmovi(p, FPR(0), 123.456);
-
+*/
 	jit_fretr(p, FPR(0));
 
 	jit_generate_code(p);

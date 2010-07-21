@@ -152,17 +152,6 @@ struct jit {
 	struct jit_op * current_func;
 	jit_label * labels;
 	jit_prepared_args * prepared_args;
-/*
-	// FIXME: option in cpu-detect.h
-//	unsigned int prepare_args;
-#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
-	int argspos; // FIXME: better name
-	struct arg {
-		int isreg;
-		long value;
-	} * args;
-#endif
-*/
 };
 
 struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count);

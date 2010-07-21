@@ -6,13 +6,15 @@ ROADMAP
 	* (generic) support for floating point arithmetics
 	* register allocator support for FP registers
 	+ test-cases
-	+ conversion of immediates values
+	+ conversion of immediate values
+	+ automatic reg_count and fp_reg_count initialization
 	+ i386 (SSE2)
 		* arithmetics
 		* branches
 		* conversions
 		* load/store
 		* argument passing
+		+ fretval
 		+ single precision floats passing
 		+ argument reading
 	+ AMD64 (SSE2)

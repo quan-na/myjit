@@ -198,7 +198,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	// PUTARG have to take care of the register allocation by itself
-	// FIXME: FP reg support
 	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
 	// FIXME: FP reg support
