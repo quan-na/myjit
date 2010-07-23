@@ -25,7 +25,7 @@
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(r) ((- (r) * REG_SIZE))
+#define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE))
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
 void jit_dump_registers(struct jit * jit, long * hwregs);
@@ -41,6 +41,7 @@ static inline int jit_arg(struct jit * jit)
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
+	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
 	jit->allocai_mem += real_size;	
 	return -(jit->allocai_mem);
 }
@@ -134,8 +135,8 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 		int shiftreg = op->r_arg[2];
 		int ecx_pathology = 0; // shifting content in the ECX register
 
-		int rcx_in_use = jit_reg_in_use(op, AMD64_RCX);
-		int rdx_in_use = jit_reg_in_use(op, AMD64_RDX);
+		int rcx_in_use = jit_reg_in_use(op, AMD64_RCX, 0);
+		int rdx_in_use = jit_reg_in_use(op, AMD64_RDX, 0);
 
 		if (destreg == AMD64_RCX) {
 			ecx_pathology = 1;
@@ -231,7 +232,7 @@ static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
 	long value = arg->value.generic;
 	if (arg->isreg) {
 		if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
-			amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(value), REG_SIZE);
+			amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit, value), REG_SIZE);
 		} else {
 			amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
 		}
@@ -240,7 +241,7 @@ static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
 }
 static inline void __configure_args(struct jit * jit)
 {
-	int i, pos, reg, sreg, x;
+	int sreg, x;
 	struct jit_arg * args = jit->prepared_args->args;
 	int argcnt = jit->prepared_args->count;
 
@@ -254,7 +255,7 @@ static inline void __configure_args(struct jit * jit)
 	for (x = jit->prepared_args->count - 1; x >= 6; x --) {
 		if (args[x].isreg) {
 			if (__is_spilled(args[x].value.generic, jit->prepared_args->op, &sreg)) {
-				amd64_push_membase(jit->ip, AMD64_RBP,  __GET_REG_POS(args[x].value.generic));
+				amd64_push_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, args[x].value.generic));
 			} else {
 				amd64_push_reg(jit->ip, sreg);
 			}
@@ -270,7 +271,6 @@ static inline void __configure_args(struct jit * jit)
 
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
-	int pos, i, sreg;
 	__configure_args(jit);
 
 	if (!imm) {
@@ -281,7 +281,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	}
 
 	if (jit->prepared_args) {
-		if (jit->prepared_args > 0)
+		if (jit->prepared_args != NULL)
 			amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, jit->prepared_args->stack_size);
 		JIT_FREE(jit->prepared_args->args);
 		JIT_FREE(jit->prepared_args);
@@ -293,7 +293,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	for (int i = 7; i >= 0; i--) {
 		int reg;
 		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
+		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) amd64_pop_reg(jit->ip, regs[i]);
 	}
 }
@@ -328,8 +328,8 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 
 
 	/* generic multiplication */
-	int rax_in_use = jit_reg_in_use(op, AMD64_RAX);
-	int rdx_in_use = jit_reg_in_use(op, AMD64_RDX);
+	int rax_in_use = jit_reg_in_use(op, AMD64_RAX, 0);
+	int rdx_in_use = jit_reg_in_use(op, AMD64_RDX, 0);
 
 	if ((dest != AMD64_RAX) && rax_in_use) amd64_push_reg(jit->ip, AMD64_RAX);
 	if ((dest != AMD64_RDX) && rdx_in_use) amd64_push_reg(jit->ip, AMD64_RDX);
@@ -380,8 +380,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 		return;
 	}
 
-	int rax_in_use = jit_reg_in_use(op, AMD64_RAX);
-	int rdx_in_use = jit_reg_in_use(op, AMD64_RDX);
+	int rax_in_use = jit_reg_in_use(op, AMD64_RAX, 0);
+	int rdx_in_use = jit_reg_in_use(op, AMD64_RDX, 0);
 
 	if ((dest != AMD64_RAX) && rax_in_use) amd64_push_reg(jit->ip, AMD64_RAX);
 	if ((dest != AMD64_RDX) && rdx_in_use) amd64_push_reg(jit->ip, AMD64_RDX);
@@ -495,7 +495,7 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	for (int i = 0; i < 8; i++) {
 		int reg;
 		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], &reg);
+		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) amd64_push_reg(jit->ip, regs[i]);
 	}
 }
@@ -508,7 +508,7 @@ void __get_arg(struct jit * jit, jit_op * op, int reg)
 
 	if (rmap_get(op->regmap, reg_id) == NULL) {
 		/* the register is not associated and the value has to be read from the memory */
-		int reg_offset = __GET_REG_POS(reg_id);
+		int reg_offset = __GET_REG_POS(jit, reg_id);
 		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, REG_SIZE);
 		else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
 		else {
@@ -650,7 +650,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			      } while (0);
 			      break;
 
-			
+		case JIT_ALLOCA: break;
 
 		default: found = 0;
 	}
@@ -671,6 +671,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  break;
 
 		case JIT_PROLOG:
+			__initialize_reg_counts(jit, op);
 			*(void **)(a1) = jit->ip;
 			amd64_push_reg(jit->ip, AMD64_RBP);
 			amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
@@ -740,9 +741,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
 		case (JIT_STX | REG): amd64_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
-		case (JIT_UREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(a1), a2, REG_SIZE); break;
-		case (JIT_LREG): amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(a2), REG_SIZE); break;
-		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(a1), a2, REG_SIZE);  break;
+		case (JIT_UREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE); break;
+		case (JIT_LREG): amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE); break;
+		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);  break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 
