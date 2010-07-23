@@ -13,7 +13,7 @@ typedef long (*plfpcus)(char *, unsigned short);
 void test1()
 {
 	long r;
-	struct jit * p = jit_init(16, 0);
+	struct jit * p = jit_init();
 	plfsss f1;
 	jit_prolog(p, &f1);
 	int a1 = jit_arg(p);
@@ -42,7 +42,7 @@ void test1()
 void test2()
 {
 	long r;
-	struct jit * p = jit_init(16, 0);
+	struct jit * p = jit_init();
 	plfiui f1;
 
 	jit_prolog(p, &f1);
@@ -79,7 +79,7 @@ void test2()
 void test3()
 {
 	long r;
-	struct jit * p = jit_init(16, 0);
+	struct jit * p = jit_init();
 	plfuc f1;
 
 	jit_prolog(p, &f1);
@@ -114,7 +114,7 @@ void test3()
 void test4()
 {
 	long r;
-	struct jit * p = jit_init(8, 0);
+	struct jit * p = jit_init();
 	plfus f1;
 
 	jit_label * fib = jit_get_label(p);
@@ -166,7 +166,7 @@ void test4()
 void test5()
 {
 	long r;
-	struct jit * p = jit_init(8, 0);
+	struct jit * p = jit_init();
 	plfpcus f1; // string, radix -> long 
 
 	jit_prolog(p, &f1);
@@ -230,7 +230,7 @@ void test6()
 {
 	long r;
 	static char * str = "Hello, World! Number of the day is %i!!!\n";
-	struct jit * p = jit_init(8, 0);
+	struct jit * p = jit_init();
 	plfv f1; 
 
 	jit_prolog(p, &f1);
@@ -274,7 +274,7 @@ void test7()
 	static int ARR_SIZE = 10;
 	long r;
 	static char * formatstr = "%i\n";
-	struct jit * p = jit_init(8, 0);
+	struct jit * p = jit_init();
 	plfv f1; 
 
 	jit_prolog(p, &f1);
@@ -335,7 +335,7 @@ void test8()
 {
 	long r;
 	static char * formatstr = "sum: %i\navg: %i\n";
-	struct jit * p = jit_init(8, 0);
+	struct jit * p = jit_init();
 
 	static struct mystruct s = { NULL, 0, 0, 0};
 	s.items = (short []){1, 2, 3, 4, 5};

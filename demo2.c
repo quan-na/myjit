@@ -10,8 +10,7 @@ typedef long (* plfl)(long);
 int main()
 {
 	// we create a new instance of a compiler
-	// the first indicates number of used registers (4)
-	struct jit * p = jit_init(4, 0);
+	struct jit * p = jit_init();
 
 	plfl factorial;
 

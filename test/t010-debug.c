@@ -8,7 +8,7 @@ typedef long (* plfl)(long);
 
 int main()
 {
-	struct jit * p = jit_init(16, 0);
+	struct jit * p = jit_init();
 	plfl factorial;
 	jit_prolog(p, &factorial);
 	int ar1 = jit_arg(p);

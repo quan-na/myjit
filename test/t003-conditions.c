@@ -6,7 +6,7 @@
 void testname(int id, int samereg, int equal, int negative, int greater)\
 {\
 	long r;\
-	struct jit * p = jit_init(16, 0);\
+	struct jit * p = jit_init();\
 	plfv f1;\
 	jit_prolog(p, &f1);\
 \
@@ -40,7 +40,7 @@ void testname(int id, int samereg, int equal, int negative, int greater)\
 void testname(int id, int samereg, int equal, int negative, int greater)\
 {\
 	long r;\
-	struct jit * p = jit_init(16, 0);\
+	struct jit * p = jit_init();\
 	plfv f1;\
 	jit_prolog(p, &f1);\
 \

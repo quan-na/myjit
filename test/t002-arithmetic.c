@@ -7,7 +7,7 @@
 void __name() \
 { \
 	long r; \
-	struct jit * p = jit_init(16, 0); \
+	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), __arg1); \
@@ -25,7 +25,7 @@ void __name() \
 void __name() \
 { \
 	long r; \
-	struct jit * p = jit_init(16, 0); \
+	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), __arg1); \
@@ -43,7 +43,7 @@ void __name() \
 void __name() \
 { \
 	long r; \
-	struct jit * p = jit_init(16, 0); \
+	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), __arg1); \
@@ -62,7 +62,7 @@ void __name() \
 void __name() \
 { \
 	long r; \
-	struct jit * p = jit_init(16, 0); \
+	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), __arg1); \
@@ -81,7 +81,7 @@ void __name() \
 void __name() \
 { \
 	long r; \
-	struct jit * p = jit_init(16, 0); \
+	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), __arg1); \
@@ -99,7 +99,7 @@ void __name() \
 void __name() \
 { \
 	long r; \
-	struct jit * p = jit_init(16, 0); \
+	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), __arg1); \

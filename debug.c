@@ -12,7 +12,7 @@ void foofn(double a, int b, double c)
 
 int main()
 {
-	struct jit * p = jit_init(4, 6);
+	struct jit * p = jit_init();
 
 	static double g[4];
 	g[0] = 1.2;

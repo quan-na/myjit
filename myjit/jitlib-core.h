@@ -150,7 +150,7 @@ struct jit {
 	jit_prepared_args * prepared_args; // list of arguments passed between PREPARE-CALL
 };
 
-struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count);
+struct jit * jit_init();
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size);
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);
@@ -621,7 +621,7 @@ static inline void __fput_arg(struct jit * jit, jit_op * op)
 
 static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 {
-	int last_gp = 0;
+	int last_gp = -1;
 	int last_fp = 0;
 	int allocai_mem = 0;
 	op = op->next;
@@ -639,13 +639,13 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 	}
 
 	jit->reg_count = last_gp + 1;
-	jit->fp_reg_count = abs(last_fp) + 1;
+	jit->fp_reg_count = abs(last_fp);
 
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	while (jit->reg_count % 4) jit->reg_count ++; // stack has to be aligned to 16 bytes
-//	while (jit->fp_reg_count % 1) jit->fp_reg_count ++;
+	while (jit->fp_reg_count % 1) jit->fp_reg_count ++;
 #endif
-	printf(":XXX:%i:%i:%i\n", allocai_mem, jit->reg_count, jit->fp_reg_count);
+//	printf(":YYY:%i:%i:%i\n", allocai_mem, jit->reg_count, jit->fp_reg_count);
 	jit->allocai_mem = allocai_mem;
 	jit->allocai_mem += jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
 }

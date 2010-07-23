@@ -22,7 +22,7 @@ You can also checkout the latest release from the Bazaar repository (bzr://myjit
 
 Instruction Set
 ---------------
-The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited but you have to set the number of registers while initializing the compiler.
+The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.
 
 All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and if you have 64-bit machine, MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to ``signed long`` type. In specific cases, e.g., if you need smaller values than ``long`` or if you need an ``unsigned`` value and if it is appropriate, you may specify the size or the type of the value. This topic is discussed in the sequel.
 
@@ -36,9 +36,9 @@ Name of each instruction consist of three parts:
 Registers
 .........
 
-MyJIT supports arbitrary number of register, however, this number have to be specified in advance. If the number of requested registers is higher than the number of available hardware registers, MyJIT can emulate them. Nevertheless, to achieve the best performance, it is good practice to set the number of used registers as low as possible. All registers are denoted by numbers from 0 up to n-1. To refer to these registers you should use the macro ``R(x)``.
+MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulate them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by numbers from 0 up to n-1. To refer to these registers you should use the macro ``R(x)``.
 
-Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior.
+Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior.
 
 
 Transfer Operations
@@ -158,21 +158,21 @@ The following operations and auxiliary macros helps to create a function, read i
 Function calls
 --------------
 
-Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using ``pusharg``. It should be stressed that the *arguments are passed in the reverse order!* Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
+Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using ``putarg``. (The arguments are passed in the normal order not in reverse order as in case of GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
 
 Let us make few notes on function calls:
 
 + If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.
 
-+ You should not nest prepare operations.
++ You should not nest the prepare operations.
 
-+ Only ``pushargr`` or ``pushargi`` operations are allowed within the ``prepare-call`` block, otherwise, the behavior of the library is unspecified.
++ Only ``putargr`` or ``putargi`` operations are allowed within the ``prepare-call`` block, otherwise, the behavior of the library is unspecified.
 
 List of operations related to function calls:
 
 + ``prepare imm`` -- prepares a function call (generic)
-+ ``pushargr reg`` -- passes the argument to a function
-+ ``pushargi imm`` -- passes the argument to a function
++ ``putargr reg`` -- passes the argument to a function
++ ``putargi imm`` -- passes the argument to a function
 + ``call imm`` -- calls a function
 + ``callr reg``
 + ``retval reg`` -- retrieves return value
@@ -243,9 +243,7 @@ We start with a really simple example---with a function returning its argument i
 	int main()
 	{
 		// we create a new instance of a compiler
-		// the first argument is the number of registers provided by the compiler,
-		// i.e., in this case compiler will provide four registers
-		struct jit * p = jit_init(4);
+		struct jit * p = jit_init();
 	
 		plfl foo;
 	
