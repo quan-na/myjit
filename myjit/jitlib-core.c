@@ -54,6 +54,7 @@ struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char
 struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count)
 {
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
+	/* FIXME: REMOVEME
 	reg_count += JIT_ALIAS_CNT; 	// lower registers remain reserved for R_FP, R_OUT, etc.
 	reg_count += JIT_SPP_REGS_CNT;  // these registers are used to store e.g. passed arguments
 	fp_reg_count++;			// register used for immediate values
@@ -61,14 +62,17 @@ struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count)
 	if (reg_count % 4) reg_count ++; // stack has to be aligned to 16 bytes
 	if (fp_reg_count % 1) fp_reg_count ++;
 #endif
-
+	r->allocai_mem = reg_count * REG_SIZE;
+	*/
 	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;
-	r->allocai_mem = reg_count * REG_SIZE;
+
 	r->labels = NULL;
 
+	/* FIXME: REMOVEME
 	r->reg_count = reg_count;
 	r->fp_reg_count = fp_reg_count;
+	*/
 	r->reg_al = jit_reg_allocator_create();
 	r->argpos = 0;
 
@@ -105,6 +109,7 @@ static inline void jit_correct_long_imms(struct jit * jit)
 		if (GET_OP(op) == JIT_MOV) continue;
 		if (GET_OP(op) == JIT_PUTARG) continue;
 		if (GET_OP(op) == JIT_MSG) continue;
+		if (GET_OP(op) == JIT_PROLOG) continue;
 		int imm_arg;
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;

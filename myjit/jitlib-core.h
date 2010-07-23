@@ -133,25 +133,21 @@ typedef struct jit_prepared_args {
 } jit_prepared_args;
 
 struct jit {
-	// FIXME: comments
+	unsigned char * buf; 		// buffer used to store generated code
+	unsigned int buf_capacity; 	// its capacity
 
-	/* buffer used to store generated code */
-	unsigned char * buf;
-	unsigned int buf_capacity;
+	unsigned char * ip;		// pointer to the buffer
 
-	/* pointer to the buffer */
-	unsigned char * ip;
-
-	int argpos;
-	int reg_count;
-	int fp_reg_count;
-	struct jit_op * ops;
-	struct jit_op * last_op;
-	long allocai_mem;
-	struct jit_reg_allocator * reg_al;
-	struct jit_op * current_func;
-	jit_label * labels;
-	jit_prepared_args * prepared_args;
+	int argpos;			// FIXME: REMOVEME
+	int reg_count;			// total number of GP registers used in the processed function
+	int fp_reg_count;		// total number of FP registers used in the processed function
+	struct jit_op * ops;		// list of operations
+	struct jit_op * last_op;	// last operation
+	long allocai_mem;		// size of allocated memory
+	struct jit_reg_allocator * reg_al; // register allocatot
+	struct jit_op * current_func;	// pointer to the PROLOG operation of the currently processed function
+	jit_label * labels;		// list of labels used in the c
+	jit_prepared_args * prepared_args; // list of arguments passed between PREPARE-CALL
 };
 
 struct jit * jit_init(unsigned int reg_count, unsigned int fp_reg_count);
@@ -179,12 +175,16 @@ void jit_regpool_free(struct jit_regpool * p);
 #define JIT_CODESTART	(0x00 << 3)
 #define JIT_UREG	(0x01 << 3)
 #define JIT_LREG	(0x02 << 3)
+#define JIT_SYNCREG	(0x03 << 3)
 
-#define JIT_MOV 	(0x05 << 3)
-#define JIT_LD		(0x06 << 3)
-#define JIT_LDX		(0x07 << 3)
-#define JIT_ST		(0x08 << 3)
-#define JIT_STX		(0x09 << 3)
+#define JIT_DECL_ARG	(0x04 << 3)
+#define JIT_ALLOCA	(0x05 << 3)
+
+#define JIT_MOV 	(0x06 << 3)
+#define JIT_LD		(0x07 << 3)
+#define JIT_LDX		(0x08 << 3)
+#define JIT_ST		(0x09 << 3)
+#define JIT_STX		(0x0a << 3)
 
 #define JIT_JMP 	(0x10 << 3)
 #define JIT_PATCH 	(0x11 << 3)
@@ -197,7 +197,6 @@ void jit_regpool_free(struct jit_regpool * p);
 #define JIT_GETARG	(0x1a << 3)
 #define JIT_RETVAL	(0x1b << 3)
 #define JIT_LABEL	(0x1c << 3)
-#define JIT_SYNCREG	(0x1d << 3)
 
 #define JIT_ADD 	(0x20 << 3)
 #define JIT_ADDC	(0x21 << 3)
@@ -618,5 +617,36 @@ static inline void __fput_arg(struct jit * jit, jit_op * op)
 
 	if (jit->prepared_args->ready >= jit->reg_al->fp_arg_reg_cnt)
 		jit->prepared_args->stack_size += op->arg_size;
+}
+
+static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
+{
+	int last_gp = 0;
+	int last_fp = 0;
+	int allocai_mem = 0;
+	op = op->next;
+	while (op) {
+		if (GET_OP(op) == JIT_PROLOG) break;
+		for (int i = 0; i < 3; i++)
+			if ((ARG_TYPE(op, i + 1) == TREG) || (ARG_TYPE(op, i + 1) == REG)) {
+				int r = op->arg[i];
+				if ((r >= 0) && (r > last_gp)) last_gp = r;
+				if ((r < 0) && (r < last_fp)) last_fp = r;
+			}
+				
+		if (GET_OP(op) == JIT_ALLOCA) allocai_mem += op->arg[0];
+		op = op->next;
+	}
+
+	jit->reg_count = last_gp + 1;
+	jit->fp_reg_count = abs(last_fp) + 1;
+
+#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
+	while (jit->reg_count % 4) jit->reg_count ++; // stack has to be aligned to 16 bytes
+//	while (jit->fp_reg_count % 1) jit->fp_reg_count ++;
+#endif
+	printf(":XXX:%i:%i:%i\n", allocai_mem, jit->reg_count, jit->fp_reg_count);
+	jit->allocai_mem = allocai_mem;
+	jit->allocai_mem += jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
 }
 #endif

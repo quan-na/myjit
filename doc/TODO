@@ -5,8 +5,8 @@ ROADMAP
 	* new putarg operation
 	* (generic) support for floating point arithmetics
 	* register allocator support for FP registers
+	* conversion of immediate values
 	+ test-cases
-	+ conversion of immediate values
 	+ automatic reg_count and fp_reg_count initialization
 	+ i386 (SSE2)
 		* arithmetics

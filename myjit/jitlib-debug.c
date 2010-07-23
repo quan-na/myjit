@@ -79,6 +79,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_LEAF:		return "leaf";
 		case JIT_GETARG:	return "getarg";
 		case JIT_RETVAL:	return "retval";
+		case JIT_ALLOCA:	return "alloca";
 
 		case JIT_ADD:	return "add";
 		case JIT_ADDC:	return "addc";

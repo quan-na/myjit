@@ -24,8 +24,8 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(r) ((- (r) * REG_SIZE))
-#define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit->reg_count) - (abs(r)) * sizeof(double))
+#define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE) - (jit)->allocai_mem)
+#define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit, jit->reg_count) - (abs(r)) * sizeof(double))
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 void jit_dump_registers(struct jit * jit, long * hwregs);
@@ -41,6 +41,7 @@ static inline int jit_arg(struct jit * jit)
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 3) & 0xfffffffc; // 4-bytes aligned
+	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
 	jit->allocai_mem += real_size;	
 	return -(jit->allocai_mem);
 }
@@ -229,7 +230,7 @@ static inline void __configure_args(struct jit * jit)
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
 				if (__is_spilled(jit, args[i].value.generic, &sreg))
-					x86_push_membase(jit->ip, X86_EBP, __GET_REG_POS(args[i].value.generic));
+					x86_push_membase(jit->ip, X86_EBP, __GET_REG_POS(jit, args[i].value.generic));
 				else x86_push_reg(jit->ip, sreg);
 			}
 		} else {
@@ -713,7 +714,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			      else x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
 			      x86_popad(jit->ip);
 			      break; 
-
+		case JIT_ALLOCA: break;
 		default: found = 0;
 	}
 
@@ -730,8 +731,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PREPARE: __prepare_call(jit, op, a1); 
 				  __push_caller_saved_regs(jit, op);
 				  break;
-
 		case JIT_PROLOG:
+			__initialize_reg_counts(jit, op);
 			op->patch_addr = __PATCH_ADDR(jit);
 			x86_push_reg(jit->ip, X86_EBP);
 			x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
@@ -791,15 +792,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case (JIT_UREG):
 			if (IS_FP_REG(a1)) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
-			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);
+			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
 			break;
 		case (JIT_LREG): 
 			if (IS_FP_REG(a2)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
-			else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(a2), REG_SIZE);
+			else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(jit, a2), REG_SIZE);
 			break;
 		case (JIT_SYNCREG):
 			if (IS_FP_REG(a1)) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
-			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(a1), a2, REG_SIZE);
+			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
 			break;
 
 		case JIT_CODESTART: break;
