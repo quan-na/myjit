@@ -15,7 +15,7 @@ int main()
 	jit_getarg(p, R(0), 0);
 	jit_movi(p, R(1), 1);
 
-	jit_msgi(p, "Check 1.\n");
+	jit_msg(p, "Check 1.\n");
 	jit_label * loop = jit_get_label(p);
 	jit_op * o = jit_blei(p, JIT_FORWARD, R(0), 0);
 	jit_msgr(p, "Check R(1): %i\n", R(1));
@@ -25,7 +25,7 @@ int main()
 
 	jit_patch(p, o);
 	
-	jit_msgi(p, "Check X.\n");
+	jit_msg(p, "Check X.\n");
 	jit_retr(p, R(1));
 
 	jit_generate_code(p);

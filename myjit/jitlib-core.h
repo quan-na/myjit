@@ -475,7 +475,7 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_stxr(jit, a, b, c, d) jit_add_op(jit, JIT_STX | REG, SPEC(REG, REG, REG), a, b, c, d) 
 #define jit_stxi(jit, a, b, c, d) jit_add_op(jit, JIT_STX | IMM, SPEC(IMM, REG, REG), (long)a, b, c, d) 
 
-#define jit_msgi(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
+#define jit_msg(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (long)a, b, 0, 0)
 
 /* FPU */
@@ -496,11 +496,11 @@ void jit_regpool_free(struct jit_regpool * p);
 
 #define jit_fnegr(jit, a, b) jit_add_fop(jit, JIT_FNEG | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
 
-#define jit_fextr(jit, a, b) jit_add_fop(jit, JIT_FEXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_ftruncr(jit, a, b) jit_add_fop(jit, JIT_FTRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_ffloorr(jit, a, b) jit_add_fop(jit, JIT_FFLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_fceilr(jit, a, b) jit_add_fop(jit, JIT_FCEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_froundr(jit, a, b) jit_add_fop(jit, JIT_FROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_extr(jit, a, b) jit_add_fop(jit, JIT_FEXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_truncr(jit, a, b) jit_add_fop(jit, JIT_FTRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_floorr(jit, a, b) jit_add_fop(jit, JIT_FFLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_ceilr(jit, a, b) jit_add_fop(jit, JIT_FCEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_roundr(jit, a, b) jit_add_fop(jit, JIT_FROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
 
 #define jit_fbltr(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | REG, SPEC(IMM, REG, REG), a, b, c, 0, 0)
 #define jit_fblti(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | IMM, SPEC(IMM, REG, IMM), a, b, 0, c, 0)
