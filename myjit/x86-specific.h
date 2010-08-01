@@ -28,8 +28,6 @@
 #define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit, jit->reg_count) - (abs(r)) * sizeof(double))
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
-void jit_dump_registers(struct jit * jit, long * hwregs);
-
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 3) & 0xfffffffc; // 4-bytes aligned
@@ -217,7 +215,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
  */
 static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
 {
-	struct __hw_reg * hreg = rmap_get(jit->prepared_args->op->regmap, arg_id);
+	struct __hw_reg * hreg = rmap_get(jit->prepared_args.op->regmap, arg_id);
 	if (hreg) {
 		*reg = hreg->id;
 		return 0;
@@ -227,8 +225,8 @@ static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
 static inline void __configure_args(struct jit * jit)
 {
 	int sreg;
-	for (int i = jit->prepared_args->ready - 1; i >= 0; i--) {
-		struct jit_arg * args = jit->prepared_args->args;
+	for (int i = jit->prepared_args.ready - 1; i >= 0; i--) {
+		struct jit_out_arg * args = jit->prepared_args.args;
 		if (!args[i].isfp) {
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
@@ -268,11 +266,9 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		x86_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
 	}
 	
-	if (jit->prepared_args) 
-		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args->stack_size);
-	JIT_FREE(jit->prepared_args->args);
-	JIT_FREE(jit->prepared_args);
-	jit->prepared_args = NULL;
+	if (jit->prepared_args.stack_size) 
+		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args.stack_size);
+	JIT_FREE(jit->prepared_args.args);
 
 	/* pops caller saved registers */
 	static int regs[] = { X86_ECX, X86_EDX };

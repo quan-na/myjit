@@ -121,7 +121,7 @@ typedef struct jit_prepared_args {
 	int ready;	// number of arguments that have been prapared
 	int stack_size; // size of stack occupied by passed arguments
 	jit_op * op;	// corresponding ``PREPARE'' operation
-	struct jit_arg {// array of arguments
+	struct jit_out_arg {// array of arguments
 		union {
 			long generic;
 			double fp;
@@ -170,7 +170,7 @@ struct jit {
 	struct jit_reg_allocator * reg_al; // register allocatot
 	struct jit_op * current_func;	// pointer to the PROLOG operation of the currently processed function
 	jit_label * labels;		// list of labels used in the c
-	jit_prepared_args * prepared_args; // list of arguments passed between PREPARE-CALL
+	jit_prepared_args prepared_args; // list of arguments passed between PREPARE-CALL
 	jit_declared_args input_args;  // list of arguments passed to the function
 };
 
@@ -615,40 +615,39 @@ static inline void jit_prolog(struct jit * jit, void * func)
 
 static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 {
-	jit->prepared_args = JIT_MALLOC(sizeof(jit_prepared_args));
-	jit->prepared_args->args = JIT_MALLOC(sizeof(struct jit_arg) * count);
-	jit->prepared_args->count = count;
-	jit->prepared_args->ready = 0;
-	jit->prepared_args->stack_size = 0;
-	jit->prepared_args->op = op;
+	jit->prepared_args.args = JIT_MALLOC(sizeof(struct jit_out_arg) * count);
+	jit->prepared_args.count = count;
+	jit->prepared_args.ready = 0;
+	jit->prepared_args.stack_size = 0;
+	jit->prepared_args.op = op;
 }
 
 static inline void __put_arg(struct jit * jit, jit_op * op)
 {
-	int pos = jit->prepared_args->ready;
-	struct jit_arg * arg = &(jit->prepared_args->args[pos]);
+	int pos = jit->prepared_args.ready;
+	struct jit_out_arg * arg = &(jit->prepared_args.args[pos]);
 	arg->isreg = !IS_IMM(op);
 	arg->isfp = 0;
 	arg->value.generic = op->arg[0];
-	jit->prepared_args->ready++;
+	jit->prepared_args.ready++;
 
-	if (jit->prepared_args->ready >= jit->reg_al->gp_arg_reg_cnt)
-		jit->prepared_args->stack_size += REG_SIZE;
+	if (jit->prepared_args.ready >= jit->reg_al->gp_arg_reg_cnt)
+		jit->prepared_args.stack_size += REG_SIZE;
 }
 
 static inline void __fput_arg(struct jit * jit, jit_op * op)
 {
-	int pos = jit->prepared_args->ready;
-	struct jit_arg * arg = &(jit->prepared_args->args[pos]);
+	int pos = jit->prepared_args.ready;
+	struct jit_out_arg * arg = &(jit->prepared_args.args[pos]);
 	arg->isreg = !IS_IMM(op);
 	arg->isfp = 1;
 	arg->size = op->arg_size;
 	if (IS_IMM(op)) arg->value.fp = op->flt_imm;
 	else arg->value.generic = op->arg[0];
-	jit->prepared_args->ready++;
+	jit->prepared_args.ready++;
 
-	if (jit->prepared_args->ready >= jit->reg_al->fp_arg_reg_cnt)
-		jit->prepared_args->stack_size += op->arg_size;
+	if (jit->prepared_args.ready >= jit->reg_al->fp_arg_reg_cnt)
+		jit->prepared_args.stack_size += op->arg_size;
 }
 
 static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)

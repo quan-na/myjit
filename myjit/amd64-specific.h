@@ -237,12 +237,12 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 	return 0;
 }
 
-static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
+static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg, int reg)
 {
 	int sreg;
 	long value = arg->value.generic;
 	if (arg->isreg) {
-		if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
+		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 			amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit, value), REG_SIZE);
 		} else {
 			amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
@@ -253,8 +253,8 @@ static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
 static inline void __configure_args(struct jit * jit)
 {
 	int sreg, x;
-	struct jit_arg * args = jit->prepared_args->args;
-	int argcnt = jit->prepared_args->count;
+	struct jit_out_arg * args = jit->prepared_args.args;
+	int argcnt = jit->prepared_args.count;
 
 	if (argcnt > 0) __set_arg(jit, &(args[0]), AMD64_RDI);
 	if (argcnt > 1) __set_arg(jit, &(args[1]), AMD64_RSI);
@@ -263,9 +263,9 @@ static inline void __configure_args(struct jit * jit)
 	if (argcnt > 4) __set_arg(jit, &(args[4]), AMD64_R8);
 	if (argcnt > 5) __set_arg(jit, &(args[5]), AMD64_R9);
 
-	for (x = jit->prepared_args->count - 1; x >= 6; x --) {
+	for (x = jit->prepared_args.count - 1; x >= 6; x --) {
 		if (args[x].isreg) {
-			if (__is_spilled(args[x].value.generic, jit->prepared_args->op, &sreg)) {
+			if (__is_spilled(args[x].value.generic, jit->prepared_args.op, &sreg)) {
 				amd64_push_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, args[x].value.generic));
 			} else {
 				amd64_push_reg(jit->ip, sreg);
@@ -291,12 +291,9 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); // 4: magic constant
 	}
 
-	if (jit->prepared_args) {
-		if (jit->prepared_args != NULL)
-			amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, jit->prepared_args->stack_size);
-		JIT_FREE(jit->prepared_args->args);
-		JIT_FREE(jit->prepared_args);
-		jit->prepared_args = NULL;
+	if (jit->prepared_args.stack_size) {
+		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, jit->prepared_args.stack_size);
+		JIT_FREE(jit->prepared_args.args);
 	}
 
 	/* pops caller saved registers */

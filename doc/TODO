@@ -8,8 +8,8 @@ ROADMAP
 	* conversion of immediate values
 	* automatic reg_count and fp_reg_count initialization
 	* BUG: jit_prolog should reset the value of jit->allocai_mem
-	+ prapared_args doesnot have to be a pointer
-	+ rename jit_arg -> jit_out_arg
+	* rename jit_arg -> jit_out_arg
+	* prapared_args doesnot have to be a pointer
 	+ rename jit_msgi -> jit_msg (documentation update)
 	+ rename ftrunc, fround, etc. -> trunc, round
 	+ test-cases

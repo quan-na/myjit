@@ -130,12 +130,12 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 	return 0;
 }
 
-static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
+static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg, int reg)
 {
 	int sreg;
 	long value = arg->value.generic;
 	if (arg->isreg) {
-		if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
+		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 			sparc_ld_imm(jit->ip, sparc_fp, - value * 4, reg);
 		} else {
 			sparc_mov_reg_reg(jit->ip, sreg, reg);
@@ -146,8 +146,8 @@ static inline void __set_arg(struct jit * jit, struct jit_arg * arg, int reg)
 static inline void __configure_args(struct jit * jit)
 {
 	int sreg;
-	struct jit_arg * args = jit->prepared_args->args;
-	int argcnt = jit->prepared_args->count;
+	struct jit_out_arg * args = jit->prepared_args.args;
+	int argcnt = jit->prepared_args.count;
 
 	if (argcnt > 0) __set_arg(jit, &(args[0]), sparc_o0);
 	if (argcnt > 1) __set_arg(jit, &(args[1]), sparc_o1);
@@ -159,7 +159,7 @@ static inline void __configure_args(struct jit * jit)
 	for (int i = 6; i < argcnt; i++) {
 		long value = args[i].value.generic;
 		if (args[i].isreg) {
-			if (__is_spilled(value, jit->prepared_args->op, &sreg)) {
+			if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 				sparc_ld_imm(jit->ip, sparc_fp, - value * 4, sparc_g1);
 				sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (i - 6) * 4);
 			} else {
