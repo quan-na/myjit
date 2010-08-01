@@ -55,14 +55,7 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 		a->location.stack_pos = 8 + (p - 5) * 8;
 		a->spill_pos = 8 + (p - 5) * 8;
 	}
-	/*
-	if (p == 0) a->location.stack_pos = 8;
-	else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
-
-	a->spill_pos = jit->input_args.args[p - 1].location.stack_pos;
-*/
 }
-
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
 {
@@ -528,12 +521,12 @@ void __get_arg(struct jit * jit, jit_op * op)
 	int read_from_stack = 0;
 	int stack_pos;
 
-	if (arg_id > 5) {
+	if (!arg->passed_by_reg) {
 		read_from_stack = 1;
 		stack_pos = arg->location.stack_pos;
 	}
 	
-	if ((arg_id <= 5) && rmap_get(op->regmap, reg_id) == NULL) {
+	if (arg->passed_by_reg && rmap_get(op->regmap, reg_id) == NULL) {
 		// the register is not associated and the value has to be read from the memory
 		read_from_stack = 1;
 		stack_pos = arg->spill_pos;

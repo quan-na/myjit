@@ -32,6 +32,7 @@ ROADMAP
 		+ argument passing
 		+ branches
 + release 0.4.2
+	+ BUG: stack corruption
 	+ SPARC
 		+ arithmetics
 		+ conversions

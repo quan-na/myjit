@@ -21,24 +21,36 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		((((long)jit->buf + (long)((jit_label *)(imm))->pos - (long)jit->ip)) / 4))
-#define __GET_REG_POS(r) ((- (r) * REG_SIZE) - REG_SIZE)
+#define __GET_REG_POS(jit, r) (+(jit)->allocai_mem + (- (r) * REG_SIZE) - REG_SIZE)
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
-
-void jit_dump_registers(struct jit * jit, long * hwregs);
-
-/* platform specific */
-static inline int jit_arg(struct jit * jit)
-{
-	int r = jit->argpos;
-	jit->argpos += 1;
-	return r;
-}
 
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
+	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
 	jit->allocai_mem += real_size;	
 	return (jit->allocai_mem);
+}
+
+static inline void jit_init_arg_params(struct jit * jit, int p)
+{
+	struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	if (p < 6) {
+		a->passed_by_reg = 1;
+		switch (p) {
+			case 0: a->location.reg = sparc_i0; break;
+			case 1: a->location.reg = sparc_i1; break;
+			case 2: a->location.reg = sparc_i2; break;
+			case 3: a->location.reg = sparc_i3; break;
+			case 4: a->location.reg = sparc_i4; break;
+			case 5: a->location.reg = sparc_i5; break;
+		}
+		a->spill_pos = -(p + JIT_FIRST_REG + 1) * 4;
+	} else {
+		a->passed_by_reg = 0;
+		a->location.stack_pos = 92 + (p - 6) * 4;
+		a->spill_pos = 92 + (p - 6) * 4;
+	}
 }
 
 static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
@@ -179,20 +191,29 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	sparc_nop(jit->ip);
 }
 
-void __get_arg(struct jit * jit, jit_op * op, int reg)
+void __get_arg(struct jit * jit, jit_op * op)
 {
 	int arg_id = op->r_arg[1];
 	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is R_IMM
 	int dreg = op->r_arg[0];
 
-	if (rmap_get(op->regmap, reg_id) == NULL) {
-		// the register is not associated and the value has to be read from the memory
-		//sparc_ld_imm(jit->ip, sparc_sp, 96 + reg_id * 4, dreg);
-		sparc_ld_imm(jit->ip, sparc_fp, -reg_id * 4, dreg);
-		return;
+	struct jit_inp_arg * arg = &(jit->input_args.args[arg_id]);
+	int read_from_stack = 0;
+	int stack_pos;
+
+	if (!arg->passed_by_reg) {
+		read_from_stack = 1;
+		stack_pos = arg->location.stack_pos;
 	}
 
-	sparc_mov_reg_reg(jit->ip, reg, dreg);
+	if (arg->passed_by_reg && rmap_get(op->regmap, reg_id) == NULL) {
+		// the register is not associated and the value has to be read from the memory
+		read_from_stack = 1;
+		stack_pos = arg->spill_pos;
+	}
+
+	if (read_from_stack) sparc_ld_imm(jit->ip, sparc_fp, stack_pos, dreg);
+	sparc_mov_reg_reg(jit->ip, arg->location.reg, dreg);
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -421,16 +442,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
-
-		case JIT_GETARG:
-			if (a2 == 0) __get_arg(jit, op, sparc_i0);
-			if (a2 == 1) __get_arg(jit, op, sparc_i1);
-			if (a2 == 2) __get_arg(jit, op, sparc_i2);
-			if (a2 == 3) __get_arg(jit, op, sparc_i3);
-			if (a2 == 4) __get_arg(jit, op, sparc_i4);
-			if (a2 == 5) __get_arg(jit, op, sparc_i5);
-			if (a2 > 5) sparc_ld_imm(jit->ip, sparc_fp, 92 + (a2 - 6) * 4, a1);
-			break;
+		case JIT_GETARG: __get_arg(jit, op); break;
 		case JIT_MSG:
 			sparc_set(jit->ip, a1, sparc_o0);
 			if (!IS_IMM(op)) sparc_mov_reg_reg(jit->ip, a2, sparc_o1);
@@ -438,6 +450,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			sparc_call_simple(jit->ip, printf);
 			sparc_nop(jit->ip);
 			break;
+
+		case JIT_ALLOCA: break;
 
 		default: found = 0;
 	}
@@ -450,6 +464,7 @@ op_complete:
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
 		case JIT_PREPARE: __prepare_call(jit, op, a1); break;
 		case JIT_PROLOG:
+			__initialize_reg_counts(jit, op);
 			*(void **)(a1) = jit->ip;
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
 			break;
