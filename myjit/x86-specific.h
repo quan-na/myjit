@@ -30,20 +30,23 @@
 
 void jit_dump_registers(struct jit * jit, long * hwregs);
 
-/* platform specific */
-static inline int jit_arg(struct jit * jit)
-{
-	int r = jit->argpos;
-	jit->argpos += REG_SIZE;
-	return r;
-}
-
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 3) & 0xfffffffc; // 4-bytes aligned
 	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
 	jit->allocai_mem += real_size;	
 	return -(jit->allocai_mem);
+}
+
+static inline void jit_init_arg_params(struct jit * jit, int p)
+{
+	struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	a->passed_by_reg = 0;
+
+	if (p == 0) a->location.stack_pos = 8;
+	else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
+
+	a->spill_pos = jit->input_args.args[p - 1].location.stack_pos; 
 }
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
@@ -700,9 +703,16 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_FPUTARG: __fput_arg(jit, op); break;
 
 		case JIT_GETARG:
-			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, REG_SIZE); 
-			else if (IS_SIGNED(op)) x86_movsx_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, op->arg_size); 
-			else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, 8 + a2, op->arg_size); 
+			do {
+				struct jit_inp_arg * arg = &(jit->input_args.args[a2]);
+				if (arg->type != JIT_FLOAT_NUM) {
+					int stack_pos = arg->location.stack_pos;
+					if (arg->size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, stack_pos, REG_SIZE); 
+					else if (arg->type == JIT_SIGNED_NUM) x86_movsx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
+					else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
+				} else assert(0);
+
+			} while (0);
 			break;
 			
 		case JIT_MSG: x86_pushad(jit->ip);

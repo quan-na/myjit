@@ -132,6 +132,29 @@ typedef struct jit_prepared_args {
 	} * args;
 } jit_prepared_args;
 
+enum jit_inp_type {
+	JIT_SIGNED_NUM,
+	JIT_UNSIGNED_NUM,
+	JIT_FLOAT_NUM,
+	JIT_PTR
+};
+
+typedef struct jit_declared_args {
+	int capacity;
+	int pos;
+	struct jit_inp_arg { 
+		enum jit_inp_type type; // type of the argument
+		int size;		// its size
+		char passed_by_reg; 	// indicates whether the argument was passed by register
+		union { 
+			int reg;
+			int stack_pos;
+		} location;		// location of the value
+		int spill_pos;		// location of the argument on the stack, if the value was spilled off
+	} * args;
+} jit_declared_args;
+
+
 struct jit {
 	unsigned char * buf; 		// buffer used to store generated code
 	unsigned int buf_capacity; 	// its capacity
@@ -148,6 +171,7 @@ struct jit {
 	struct jit_op * current_func;	// pointer to the PROLOG operation of the currently processed function
 	jit_label * labels;		// list of labels used in the c
 	jit_prepared_args * prepared_args; // list of arguments passed between PREPARE-CALL
+	jit_declared_args input_args;  // list of arguments passed to the function
 };
 
 struct jit * jit_init();
@@ -161,6 +185,7 @@ void jit_dump_ops(struct jit * jit, int verbosity);
 void jit_get_reg_name(char * r, int reg, jit_op * op);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);
+static inline void jit_init_arg_params(struct jit * jit, int p);
 
 /* FIXME: presunout do generic-reg-allocator.h */
 void jit_assign_regs(struct jit * jit);
@@ -296,13 +321,11 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 
-#define jit_prolog(jit, a) jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 #define jit_reti(jit, a) jit_add_op(jit, JIT_RET | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_retval(jit, a) jit_add_op(jit, JIT_RETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0)
 
-#define jit_getarg(jit, a, b, c) jit_add_op(jit, JIT_GETARG, SPEC(TREG, IMM, NO), a, (long)b, 0, c)
-#define jit_getarg_u(jit, a, b, c) jit_add_op(jit, JIT_GETARG | UNSIGNED, SPEC(TREG, IMM, NO), a, (long)b, 0, c)
+#define jit_getarg(jit, a, b) jit_add_op(jit, JIT_GETARG, SPEC(TREG, IMM, NO), a, (long)b, 0, 0)
 
 /* arithmethic */
 
@@ -581,6 +604,15 @@ static inline int jit_is_label(struct jit * jit, void * ptr)
 	}
 }
 
+static inline void jit_prolog(struct jit * jit, void * func)
+{
+	jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0);
+	jit->allocai_mem = 0;
+	jit->input_args.pos = 0;
+	jit->input_args.capacity = 10;
+	jit->input_args.args = JIT_MALLOC(sizeof(struct jit_inp_arg) * jit->input_args.capacity);
+}
+
 static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 {
 	jit->prepared_args = JIT_MALLOC(sizeof(jit_prepared_args));
@@ -649,4 +681,19 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 	jit->allocai_mem = allocai_mem;
 	jit->allocai_mem += jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
 }
+
+static inline void jit_declare_arg(struct jit * jit, enum jit_inp_type type, int size)
+{
+	if (jit->input_args.pos + 1 >= jit->input_args.capacity) {
+		jit->input_args.capacity *= 2;
+		jit->input_args.args = JIT_REALLOC(jit->input_args.args, sizeof(struct jit_inp_arg) * jit->input_args.capacity);
+	}
+
+	int p = jit->input_args.pos;
+	jit->input_args.args[p].type = type;
+	jit->input_args.args[p].size = size;
+	jit_init_arg_params(jit, p);
+	jit->input_args.pos++;
+}
+
 #endif

@@ -13,27 +13,27 @@ int main()
 
 	jit_prolog(p, &foo);
 
-	int ar0 = jit_arg(p);
-	int ar1 = jit_arg(p);
-	int ar2 = jit_arg(p);
-	int ar3 = jit_arg(p);
-	int ar4 = jit_arg(p);
-	int ar5 = jit_arg(p);
-	int ar6 = jit_arg(p);
-	int ar7 = jit_arg(p);
-	int ar8 = jit_arg(p);
-	int ar9 = jit_arg(p);
-
-	jit_getarg(p, R(0), ar0, sizeof(short));
-	jit_getarg(p, R(1), ar1, sizeof(short));
-	jit_getarg(p, R(2), ar2, sizeof(short));
-	jit_getarg(p, R(3), ar3, sizeof(short));
-	jit_getarg(p, R(4), ar4, sizeof(short));
-	jit_getarg(p, R(5), ar5, sizeof(short));
-	jit_getarg(p, R(6), ar6, sizeof(short));
-	jit_getarg(p, R(7), ar7, sizeof(short));
-	jit_getarg(p, R(8), ar8, sizeof(short));
-	jit_getarg(p, R(9), ar9, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	
+	jit_getarg(p, R(0), 0);
+	jit_getarg(p, R(1), 1);
+	jit_getarg(p, R(2), 2);
+	jit_getarg(p, R(3), 3);
+	jit_getarg(p, R(4), 4);
+	jit_getarg(p, R(5), 5);
+	jit_getarg(p, R(6), 6);
+	jit_getarg(p, R(7), 7);
+	jit_getarg(p, R(8), 8);
+	jit_getarg(p, R(9), 9);
 
 	
 	jit_movi(p, R(10), 0);

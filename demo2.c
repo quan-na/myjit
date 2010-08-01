@@ -18,10 +18,10 @@ int main()
 	jit_prolog(p, &factorial);
 
 	// first argument of the function
-	int ar1 = jit_arg(p);
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
 
 	// moves the first argument into the register R(0)
-	jit_getarg(p, R(0), ar1, sizeof(long));
+	jit_getarg(p, R(0), 0);
 
 	// register R(1) serves as an accumulator
 	jit_movi(p, R(1), 1);

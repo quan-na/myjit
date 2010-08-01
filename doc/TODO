@@ -6,9 +6,13 @@ ROADMAP
 	* (generic) support for floating point arithmetics
 	* register allocator support for FP registers
 	* conversion of immediate values
-	+ BUG: jit_prolog should reset the value of jit->allocai_mem
+	* automatic reg_count and fp_reg_count initialization
+	* BUG: jit_prolog should reset the value of jit->allocai_mem
+	+ prapared_args doesnot have to be a pointer
+	+ rename jit_arg -> jit_out_arg
+	+ rename jit_msgi -> jit_msg (documentation update)
+	+ rename ftrunc, fround, etc. -> trunc, round
 	+ test-cases
-	+ automatic reg_count and fp_reg_count initialization
 	+ i386 (SSE2)
 		* arithmetics
 		* branches
@@ -18,6 +22,8 @@ ROADMAP
 		+ fretval
 		+ single precision floats passing
 		+ argument reading
+
++ release 0.4.1
 	+ AMD64 (SSE2)
 		+ arithmetics
 		+ conversions
@@ -25,6 +31,7 @@ ROADMAP
 		+ argument reading
 		+ argument passing
 		+ branches
++ release 0.4.2
 	+ SPARC
 		+ arithmetics
 		+ conversions
@@ -33,7 +40,7 @@ ROADMAP
 		+ argument passing
 		+ branches
 
-+ release 0.4.1
++ release 0.5.0
 	+ i386 (emulated)
 		+ arithmetics
 		+ conversions

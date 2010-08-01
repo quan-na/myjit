@@ -11,8 +11,8 @@ int main()
 	struct jit * p = jit_init();
 	plfl factorial;
 	jit_prolog(p, &factorial);
-	int ar1 = jit_arg(p);
-	jit_getarg(p, R(0), ar1, sizeof(long));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
+	jit_getarg(p, R(0), 0);
 	jit_movi(p, R(1), 1);
 
 	jit_msgi(p, "Check 1.\n");

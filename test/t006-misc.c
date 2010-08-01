@@ -16,9 +16,9 @@ void test1(long cond, long value1, long value2)
 	struct jit * p = jit_init();
 	plfl f1;
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
 
-	jit_getarg(p, R(0), a1, REG_SIZE);
+	jit_getarg(p, R(0), 0);
 	jit_movi(p, R(1), LOOP_CNT);
 
 	jit_label * loop = jit_get_label(p);
@@ -50,9 +50,9 @@ void test2(long cond, long value1, long value2)
 	struct jit * p = jit_init();
 	plfl f1;
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
 
-	jit_getarg(p, R(0), a1, REG_SIZE);
+	jit_getarg(p, R(0), 0);
 	jit_movi(p, R(1), LOOP_CNT);
 
 	jit_label * loop = jit_get_label(p);

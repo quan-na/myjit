@@ -16,13 +16,13 @@ void test1()
 	struct jit * p = jit_init();
 	plfsss f1;
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
-	int a2 = jit_arg(p);
-	int a3 = jit_arg(p);
-	jit_getarg(p, R(0), a1, sizeof(short));
-	jit_getarg(p, R(1), a2, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
+	jit_getarg(p, R(0), 0);
+	jit_getarg(p, R(1), 1);
 	jit_addr(p, R(0), R(0), R(1));
-	jit_getarg(p, R(1), a3, sizeof(short));
+	jit_getarg(p, R(1), 2);
 	jit_addr(p, R(0), R(0), R(1));
 	jit_divi(p, R(0), R(0), 3);
 	jit_retr(p, R(0));
@@ -46,10 +46,10 @@ void test2()
 	plfiui f1;
 
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
-	int a2 = jit_arg(p);
-	jit_getarg(p, R(0), a1, sizeof(int));
-	jit_getarg_u(p, R(1), a2, sizeof(int));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
+	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(int));
+	jit_getarg(p, R(0), 0);
+	jit_getarg(p, R(1), 1);
 
 	jit_movi(p, R(2), 1);
 
@@ -83,9 +83,8 @@ void test3()
 	plfuc f1;
 
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
-	int a2 = jit_arg(p);
-	jit_getarg_u(p, R(0), a1, sizeof(char));
+	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(char));
+	jit_getarg(p, R(0), 0);
 
 	jit_movi(p, R(1), 1);
 
@@ -119,10 +118,9 @@ void test4()
 
 	jit_label * fib = jit_get_label(p);
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
-	int a2 = jit_arg(p);
+	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(short));
 
-	jit_getarg_u(p, R(0), a1, sizeof(short));
+	jit_getarg(p, R(0), 0);
 
 	jit_op * br = jit_blti_u(p, JIT_FORWARD, R(0), 3);
 
@@ -134,7 +132,7 @@ void test4()
 
 	jit_retval(p, R(1));
 
-	jit_getarg_u(p, R(0), a1, sizeof(short));
+	jit_getarg(p, R(0), 0);
 	jit_subi(p, R(0), R(0), 2);
 	jit_prepare(p, 1);
 	jit_putargr(p, R(0));
@@ -170,16 +168,16 @@ void test5()
 	plfpcus f1; // string, radix -> long 
 
 	jit_prolog(p, &f1);
-	int a1 = jit_arg(p);
-	int a2 = jit_arg(p);
+	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(long));
+	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(short));
 
 	// R(0): string
 	// R(1): radix
 	// R(2): position in string
 	// R(3): current char
 	// R(4): result
-	jit_getarg_u(p, R(0), a1, sizeof(long));
-	jit_getarg_u(p, R(1), a2, sizeof(short));
+	jit_getarg(p, R(0), 0);
+	jit_getarg(p, R(1), 1);
 	jit_movi(p, R(2), 0);
 	jit_movi(p, R(4), 0);
 
