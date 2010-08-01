@@ -28,16 +28,6 @@
 #define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE))
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
-void jit_dump_registers(struct jit * jit, long * hwregs);
-
-/* platform specific */
-static inline int jit_arg(struct jit * jit)
-{
-	int r = jit->argpos;
-	jit->argpos += 1;
-	return r;
-}
-
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
@@ -45,6 +35,34 @@ static inline int jit_allocai(struct jit * jit, int size)
 	jit->allocai_mem += real_size;	
 	return -(jit->allocai_mem);
 }
+
+static inline void jit_init_arg_params(struct jit * jit, int p)
+{
+	struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	if (p < 6) {
+		a->passed_by_reg = 1;
+		switch (p) {
+			case 0: a->location.reg = AMD64_RDI; break;
+			case 1: a->location.reg = AMD64_RSI; break;
+			case 2: a->location.reg = AMD64_RDX; break;
+			case 3: a->location.reg = AMD64_RCX; break;
+			case 4: a->location.reg = AMD64_R8; break;
+			case 5: a->location.reg = AMD64_R9; break;
+		}
+		a->spill_pos = __GET_REG_POS(jit, p + JIT_FIRST_REG + 1);
+	} else {
+		a->passed_by_reg = 0;
+		a->location.stack_pos = 8 + (p - 5) * 8;
+		a->spill_pos = 8 + (p - 5) * 8;
+	}
+	/*
+	if (p == 0) a->location.stack_pos = 8;
+	else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
+
+	a->spill_pos = jit->input_args.args[p - 1].location.stack_pos;
+*/
+}
+
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
 {
@@ -500,27 +518,46 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	}
 }
 
-void __get_arg(struct jit * jit, jit_op * op, int reg)
+void __get_arg(struct jit * jit, jit_op * op)
 {
-	int arg_id = op->r_arg[1];
-	int reg_id = arg_id + JIT_FIRST_REG + 1; /* 1 -- is JIT_IMMREG */
 	int dreg = op->r_arg[0];
+	int arg_id = op->r_arg[1];
+	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
 
-	if (rmap_get(op->regmap, reg_id) == NULL) {
-		/* the register is not associated and the value has to be read from the memory */
-		int reg_offset = __GET_REG_POS(jit, reg_id);
-		if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, REG_SIZE);
-		else if (IS_SIGNED(op)) amd64_movsx_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
-		else {
-			amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
-			amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, reg_offset, op->arg_size);
-		}
-		return;
+	struct jit_inp_arg * arg = &(jit->input_args.args[arg_id]);
+	int read_from_stack = 0;
+	int stack_pos;
+
+	if (arg_id > 5) {
+		read_from_stack = 1;
+		stack_pos = arg->location.stack_pos;
+	}
+	
+	if ((arg_id <= 5) && rmap_get(op->regmap, reg_id) == NULL) {
+		// the register is not associated and the value has to be read from the memory
+		read_from_stack = 1;
+		stack_pos = arg->spill_pos;
 	}
 
-	if (op->arg_size == REG_SIZE) amd64_mov_reg_reg(jit->ip, dreg, reg, 8);
-	else if (IS_SIGNED(op)) amd64_movsx_reg_reg(jit->ip, dreg, reg, op->arg_size);
-	else amd64_movzx_reg_reg(jit->ip, dreg, reg, op->arg_size);
+	if (read_from_stack) {
+		if (arg->type != JIT_FLOAT_NUM) {
+			if (arg->size == REG_SIZE) amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, REG_SIZE);
+			else if (arg->type == JIT_SIGNED_NUM) {
+				amd64_movsx_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, arg->size);
+			} else {
+				amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
+				amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, arg->size);
+			}
+		}
+		return;
+	} 
+
+	int reg = arg->location.reg;
+	if (arg->type != JIT_FLOAT_NUM) {
+		if (arg->size == REG_SIZE) amd64_mov_reg_reg(jit->ip, dreg, reg, REG_SIZE);
+		else if (arg->type == JIT_SIGNED_NUM) amd64_movsx_reg_reg(jit->ip, dreg, reg, arg->size);
+		else amd64_movzx_reg_reg(jit->ip, dreg, reg, arg->size);
+	} else assert(0);
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -614,24 +651,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
-
-		case JIT_GETARG:
-			if (a2 == 0) __get_arg(jit, op, AMD64_RDI);
-			if (a2 == 1) __get_arg(jit, op, AMD64_RSI);
-			if (a2 == 2) __get_arg(jit, op, AMD64_RDX);
-			if (a2 == 3) __get_arg(jit, op, AMD64_RCX);
-			if (a2 == 4) __get_arg(jit, op, AMD64_R8);
-			if (a2 == 5) __get_arg(jit, op, AMD64_R9);
-			if (a2 > 5) {
-				if (op->arg_size == REG_SIZE) amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, REG_SIZE); 
-				else if (IS_SIGNED(op)) {
-					amd64_movsx_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size);
-				} else {
-					amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1); // register cleanup
-					amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, 8 + (a2 - 5) * 8, op->arg_size); 
-				}
-			}
-			break;
+		case JIT_GETARG: __get_arg(jit, op); break;
 		case JIT_MSG: do {
 				      struct jit_reg_allocator * al = jit->reg_al;
 				      for (int i = 0; i < al->gp_reg_cnt; i++)

@@ -24,7 +24,7 @@ int main()
 	pdfdd foo;
 	jit_prolog(p, &foo);
 
-	jit_declare_arg(p, JIT_FLOAT, sizeof(double));
+	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 
 
 //	jit_movi(p, R(0), 2 * sizeof(double));
