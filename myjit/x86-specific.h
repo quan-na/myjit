@@ -232,19 +232,24 @@ static inline void __configure_args(struct jit * jit)
 	int sreg;
 	for (int i = jit->prepared_args.ready - 1; i >= 0; i--) {
 		struct jit_out_arg * args = jit->prepared_args.args;
-		if (!args[i].isfp) {
+		if (!args[i].isfp) { // integers
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
 				if (__is_spilled(jit, args[i].value.generic, &sreg))
 					x86_push_membase(jit->ip, X86_EBP, __GET_REG_POS(jit, args[i].value.generic));
 				else x86_push_reg(jit->ip, sreg);
 			}
-		} else {
-			// FIXME: singles
-			if (args[i].isreg) {
+			continue;
+		}
+		//
+		// floats (double)
+		// 
+		if (args[i].size == sizeof(double)) {
+			if (args[i].isreg) { // doubles
 				if (__is_spilled(jit, args[i].value.generic, &sreg)) {
-					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic) + 4);
-					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic));
+					int pos = __GET_FPREG_POS(jit, args[i].value.generic);
+					x86_push_membase(jit->ip, X86_EBP, pos + 4);
+					x86_push_membase(jit->ip, X86_EBP, pos);
 				} else {
 					// ``PUSH sreg'' for XMM regs
 					x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
@@ -255,6 +260,33 @@ static inline void __configure_args(struct jit * jit)
 				x86_push_imm(jit->ip, *((unsigned long long *)&b) >> 32);
 				x86_push_imm(jit->ip, *((unsigned long long *)&b) && 0xffffffff);
 			}
+			continue;
+		}
+		//
+		// single prec. floats
+		//
+
+		//if (args[i].isreg) printf("FP-REG:%i\n", i);
+		//if (!args[i].isreg) printf("FP-IMM:%i\n", i);
+		if (args[i].isreg) { 
+			if (__is_spilled(jit, args[i].value.generic, &sreg)) {
+				int pos = __GET_FPREG_POS(jit, args[i].value.generic);
+				x86_fld_membase(jit->ip, X86_EBP, pos, 1); 
+				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 4);
+				x86_fst_membase(jit->ip, X86_ESP, 0, 0, 1);
+				//printf("spilled\n");
+				//assert(0);
+
+			} else {
+				// pushes the value beyond the top of the stack
+				x86_movlpd_membase_xreg(jit->ip, sreg, X86_ESP, -8); 
+				x86_fld_membase(jit->ip, X86_ESP, -8, 1); 
+				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 4);
+				x86_fst_membase(jit->ip, X86_ESP, 0, 0, 1);
+			}
+		} else {
+			float b = (float)args[i].value.fp;
+			x86_push_imm(jit->ip, *((unsigned long *)&b));
 		}
 	}
 }

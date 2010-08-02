@@ -5,7 +5,7 @@
 
 typedef double (* pdfdd)(int, float, short, double);
 
-double foofn(double a, int b, double c)
+double foofn(float a, int b, float c)
 {
 	printf("Test: %f x %i = %f\n", a, b, c);
 	return a + b + c;
@@ -43,7 +43,6 @@ int main()
 //	jit_movi(p, R(0), 2 * sizeof(double));
 //	jit_movi(p, R(1), 10);
 //	jit_movi(p, R(2), g);
-/*
 	jit_fmovi(p, FPR(0), 1.0);
 	jit_fmovi(p, FPR(1), 2.0);
 	jit_fmovi(p, FPR(2), 3.0);
@@ -54,18 +53,23 @@ int main()
 	jit_faddr(p, FPR(0), FPR(0), FPR(1));
 	jit_faddi(p, FPR(0), FPR(0), 1.1);
 	jit_fsubi(p, FPR(0), FPR(0), 2.5);
-	
+
+	jit_faddr(p, FPR(0), FPR(0), FPR(5));
+	jit_faddr(p, FPR(0), FPR(1), FPR(4));
+	jit_faddr(p, FPR(0), FPR(2), FPR(3));
+	jit_faddr(p, FPR(0), FPR(3), FPR(2));
+	jit_faddr(p, FPR(0), FPR(4), FPR(1));
+
 	jit_prepare(p, 3);
-//	jit_fputargi(p, 1.2, sizeof(double));
-	jit_fputargr(p, FPR(1), sizeof(double));
+//	jit_fputargi(p, 1.2, sizeof(float));
+	jit_fputargr(p, FPR(0), sizeof(float));
 	jit_putargi(p, 666);
-//	jit_fputargi(p, 2.2, sizeof(double));
-	jit_fputargr(p, FPR(5), sizeof(double));
+	jit_fputargr(p, FPR(5), sizeof(float));
 	jit_call(p, foofn);
 	jit_fretval(p, FPR(0));
 
 //	jit_fmovi(p, FPR(0), 123.456);
-*/
+
 	jit_fretr(p, FPR(0));
 
 	jit_generate_code(p);

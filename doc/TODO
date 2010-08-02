@@ -12,8 +12,7 @@ ROADMAP
 	* prapared_args doesnot have to be a pointer
 	* rename jit_msgi -> jit_msg (documentation update)
 	* rename ftrunc, fround, etc. -> trunc, round
-	+ test-cases
-	+ i386 (SSE2)
+	* i386 (SSE2)
 		* arithmetics
 		* branches
 		* conversions
@@ -21,7 +20,8 @@ ROADMAP
 		* argument passing
 		* fretval
 		* argument reading
-		+ single precision floats passing
+		* single precision floats passing
+	+ test-cases
 
 + release 0.4.1
 	+ AMD64 (SSE2)

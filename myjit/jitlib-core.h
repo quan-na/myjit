@@ -176,6 +176,7 @@ struct jit {
 
 struct jit * jit_init();
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size);
+struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, double flt_imm, unsigned char arg_size);
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);
 
@@ -528,8 +529,8 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_fldxr(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | REG, SPEC(TREG, REG, REG), a, b, c, d) 
 #define jit_fldxi(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | IMM, SPEC(TREG, REG, IMM), a, b, (long)c, d) 
 
-#define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0, b)
-#define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, b)
+#define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), (a), 0, 0, 0, (b))
+#define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, (a), (b))
 
 #define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
 #define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)
