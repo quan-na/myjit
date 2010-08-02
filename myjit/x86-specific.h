@@ -265,18 +265,12 @@ static inline void __configure_args(struct jit * jit)
 		//
 		// single prec. floats
 		//
-
-		//if (args[i].isreg) printf("FP-REG:%i\n", i);
-		//if (!args[i].isreg) printf("FP-IMM:%i\n", i);
 		if (args[i].isreg) { 
 			if (__is_spilled(jit, args[i].value.generic, &sreg)) {
 				int pos = __GET_FPREG_POS(jit, args[i].value.generic);
 				x86_fld_membase(jit->ip, X86_EBP, pos, 1); 
 				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 4);
 				x86_fst_membase(jit->ip, X86_ESP, 0, 0, 1);
-				//printf("spilled\n");
-				//assert(0);
-
 			} else {
 				// pushes the value beyond the top of the stack
 				x86_movlpd_membase_xreg(jit->ip, sreg, X86_ESP, -8); 

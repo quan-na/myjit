@@ -12,5 +12,8 @@ test/t007
 test/t008
 test/t009
 test/t010
+test/t101
+test/t102
+test/t104
 sse-test
 debug

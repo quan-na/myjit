@@ -237,7 +237,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 					reg = jit_regpool_get(al->gp_regpool);
 					if (reg == NULL) reg = make_free_reg(op, 0);
 				} else {
-					printf("using FP reg.\n");
 					reg = jit_regpool_get(al->fp_regpool);
 					if (reg == NULL) reg = make_free_reg(op, 1);
 				}
