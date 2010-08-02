@@ -238,7 +238,7 @@ static inline void __configure_args(struct jit * jit)
 			// FIXME: singles
 			if (args[i].isreg) {
 				if (__is_spilled(jit, args[i].value.generic, &sreg)) {
-					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic) - 4);
+					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic) + 4);
 					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic));
 				} else {
 					printf("::::::%i\n", sreg);
@@ -891,15 +891,17 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				      } else x86_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
 				      break;
 
-		case (JIT_FRET | REG): x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);      // creates extra space on the stack
-				       x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, 0); // pushes the value on the top of the stack
-				       x86_fld_membase(jit->ip, X86_ESP, 0, 1);            // transfers the value from the stack to the ST(0)
+		case (JIT_FRET | REG): x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, -8); // pushes the value beyond the top of the stack
+				       x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)
 
 				       // common epilogue
 				       x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
 				       x86_pop_reg(jit->ip, X86_EBP);
 				       x86_ret(jit->ip);
 				       break;
+		case JIT_FRETVAL: x86_fst_membase(jit->ip, X86_ESP, -8, 1, 0);
+				  x86_movlpd_xreg_membase(jit->ip, a1, X86_ESP, -8);
+				  break;
 
 		// platform specific opcodes; used byt optimizer
 		case (JIT_X86_STI | IMM): x86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;

@@ -534,6 +534,8 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
 #define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)
 
+#define jit_fretval(jit, a) jit_add_fop(jit, JIT_FRETVAL, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
+
 static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
 	struct jit_op * r = JIT_MALLOC(sizeof(struct jit_op));

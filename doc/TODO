@@ -10,8 +10,8 @@ ROADMAP
 	* BUG: jit_prolog should reset the value of jit->allocai_mem
 	* rename jit_arg -> jit_out_arg
 	* prapared_args doesnot have to be a pointer
-	+ rename jit_msgi -> jit_msg (documentation update)
-	+ rename ftrunc, fround, etc. -> trunc, round
+	* rename jit_msgi -> jit_msg (documentation update)
+	* rename ftrunc, fround, etc. -> trunc, round
 	+ test-cases
 	+ i386 (SSE2)
 		* arithmetics
@@ -19,7 +19,7 @@ ROADMAP
 		* conversions
 		* load/store
 		* argument passing
-		+ fretval
+		* fretval
 		+ single precision floats passing
 		+ argument reading
 
