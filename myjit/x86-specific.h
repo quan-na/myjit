@@ -42,9 +42,14 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 	a->passed_by_reg = 0;
 
 	if (p == 0) a->location.stack_pos = 8;
-	else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
+	//else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
+	else {
+		struct jit_inp_arg * prev_a = &(jit->input_args.args[p - 1]);
+		int stack_shift = (prev_a->size + 3) & 0xfffffffc; // 4-bytes aligned
+		a->location.stack_pos = prev_a->location.stack_pos + stack_shift;
+	}
 
-	a->spill_pos = jit->input_args.args[p - 1].location.stack_pos; 
+	a->spill_pos = a->location.stack_pos; 
 }
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
@@ -241,7 +246,6 @@ static inline void __configure_args(struct jit * jit)
 					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic) + 4);
 					x86_push_membase(jit->ip, X86_EBP, __GET_FPREG_POS(jit, args[i].value.generic));
 				} else {
-					printf("::::::%i\n", sreg);
 					// ``PUSH sreg'' for XMM regs
 					x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
 					x86_movlpd_membase_xreg(jit->ip, sreg, X86_ESP, 0);
@@ -701,12 +705,18 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_GETARG:
 			do {
 				struct jit_inp_arg * arg = &(jit->input_args.args[a2]);
+				int stack_pos = arg->location.stack_pos;
 				if (arg->type != JIT_FLOAT_NUM) {
-					int stack_pos = arg->location.stack_pos;
 					if (arg->size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, stack_pos, REG_SIZE); 
 					else if (arg->type == JIT_SIGNED_NUM) x86_movsx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
 					else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
-				} else assert(0);
+				} else {
+					if (arg->size == sizeof(double)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
+					else if (arg->size == sizeof(float)) {
+						x86_movss_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
+						x86_cvtss2sd(jit->ip, a1, a1);
+					} else assert(0);
+				}
 
 			} while (0);
 			break;

@@ -20,8 +20,8 @@ ROADMAP
 		* load/store
 		* argument passing
 		* fretval
+		* argument reading
 		+ single precision floats passing
-		+ argument reading
 
 + release 0.4.1
 	+ AMD64 (SSE2)

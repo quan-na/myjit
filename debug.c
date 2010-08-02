@@ -3,7 +3,7 @@
 
 #include "myjit/jitlib.h"
 
-typedef double (* pdfdd)(double, double);
+typedef double (* pdfdd)(int, float, short, double);
 
 double foofn(double a, int b, double c)
 {
@@ -25,12 +25,25 @@ int main()
 	pdfdd foo;
 	jit_prolog(p, &foo);
 
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
+	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
+
+	jit_getarg(p, R(0), 0);
+	jit_getarg(p, FPR(0), 1);
+	jit_getarg(p, R(1), 2);
+	jit_getarg(p, FPR(1), 3);
+	jit_addr(p, R(0), R(0), R(1));
+//	jit_extr(p, FPR(0), R(0));
+
+	jit_faddr(p, FPR(0), FPR(0), FPR(1));
 
 
 //	jit_movi(p, R(0), 2 * sizeof(double));
 //	jit_movi(p, R(1), 10);
 //	jit_movi(p, R(2), g);
+/*
 	jit_fmovi(p, FPR(0), 1.0);
 	jit_fmovi(p, FPR(1), 2.0);
 	jit_fmovi(p, FPR(2), 3.0);
@@ -52,7 +65,7 @@ int main()
 	jit_fretval(p, FPR(0));
 
 //	jit_fmovi(p, FPR(0), 123.456);
-
+*/
 	jit_fretr(p, FPR(0));
 
 	jit_generate_code(p);
@@ -65,7 +78,7 @@ int main()
 
 
 	// check
-	printf("Check #1: %f\n", foo(1.2, 2.5));
+	printf("Check #1: %f\n", foo(1, 1.2, 2, 2.5));
 	//printf("Check #2: %li\n", foo(100));
 	//printf("Check #3: %li\n", foo(255));
 
