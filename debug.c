@@ -31,31 +31,31 @@ int main()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 
 	jit_getarg(p, R(0), 0);
-	jit_getarg(p, FPR(0), 1);
+	jit_getarg(p, FR(0), 1);
 	jit_getarg(p, R(1), 2);
-	jit_getarg(p, FPR(1), 3);
+	jit_getarg(p, FR(1), 3);
 	jit_addr(p, R(0), R(0), R(1));
-//	jit_extr(p, FPR(0), R(0));
+//	jit_extr(p, FR(0), R(0));
 
-	jit_faddr(p, FPR(0), FPR(0), FPR(1));
+	jit_faddr(p, FR(0), FR(0), FR(1));
 
 
-	jit_fmovi(p, FPR(0), 1.0);
-	jit_fmovi(p, FPR(1), 2.0);
-	jit_fmovi(p, FPR(2), 3.0);
-	jit_fmovi(p, FPR(3), 4.0);
-	jit_fmovi(p, FPR(4), 5.0);
-	jit_fmovi(p, FPR(5), 111222333.444555);
+	jit_fmovi(p, FR(0), 1.0);
+	jit_fmovi(p, FR(1), 2.0);
+	jit_fmovi(p, FR(2), 3.0);
+	jit_fmovi(p, FR(3), 4.0);
+	jit_fmovi(p, FR(4), 5.0);
+	jit_fmovi(p, FR(5), 111222333.444555);
 
 	jit_prepare(p, 2);
 	jit_putargi(p, str);
-	jit_fputargr(p, FPR(5), sizeof(double));
+	jit_fputargr(p, FR(5), sizeof(double));
 	jit_call(p, printf);
-	jit_fretval(p, FPR(0));
+	jit_fretval(p, FR(0));
 
-//	jit_fmovi(p, FPR(0), 123.456);
+//	jit_fmovi(p, FR(0), 123.456);
 
-	jit_fretr(p, FPR(0));
+	jit_fretr(p, FR(0));
 
 	jit_generate_code(p);
 

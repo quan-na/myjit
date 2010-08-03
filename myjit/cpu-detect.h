@@ -97,7 +97,7 @@
 #define JIT_FIRST_REG   (JIT_ALIAS_CNT)
 
 #define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
-#define FPR(x)    (-(x) - 2)
+#define FR(x)    (-(x) - 2)
 
 #ifndef JIT_MALLOC
 #define JIT_MALLOC(x)	(malloc(x))

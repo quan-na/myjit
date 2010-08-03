@@ -163,7 +163,7 @@ void jit_get_reg_name(char * r, int reg, jit_op * op)
 	if (reg == R_FP) strcpy(r, "fp");
 	else if (reg == R_OUT) strcpy(r, "out");
 	else if (reg == R_IMM) strcpy(r, "imm");
-	else if (reg == FPR_IMM) strcpy(r, "fimm");
+	else if (reg == FR_IMM) strcpy(r, "fimm");
 	else if (reg >= 0) sprintf(r, "r%i", reg - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT);
 	else sprintf(r, "f%i", (-reg) - 2);
 }

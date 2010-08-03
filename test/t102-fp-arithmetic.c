@@ -10,9 +10,9 @@ void __name() \
 	struct jit * p = jit_init(); \
 	pdfv f1; \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FPR(0), __arg1); \
-	__op(p, FPR(0), FPR(0), __arg2); \
-	jit_fretr(p, FPR(0)); \
+	jit_fmovi(p, FR(0), __arg1); \
+	__op(p, FR(0), FR(0), __arg2); \
+	jit_fretr(p, FR(0)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -28,9 +28,9 @@ void __name() \
 	struct jit * p = jit_init(); \
 	pdfv f1; \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FPR(0), __arg1); \
-	__op(p, FPR(1), FPR(0), __arg2); \
-	jit_fretr(p, FPR(1)); \
+	jit_fmovi(p, FR(0), __arg1); \
+	__op(p, FR(1), FR(0), __arg2); \
+	jit_fretr(p, FR(1)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -46,10 +46,10 @@ void __name() \
 	struct jit * p = jit_init(); \
 	pdfv f1; \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FPR(0), __arg1); \
-	jit_fmovi(p, FPR(1), __arg2); \
-	__op(p, FPR(1), FPR(0), FPR(1)); \
-	jit_fretr(p, FPR(1)); \
+	jit_fmovi(p, FR(0), __arg1); \
+	jit_fmovi(p, FR(1), __arg2); \
+	__op(p, FR(1), FR(0), FR(1)); \
+	jit_fretr(p, FR(1)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -65,10 +65,10 @@ void __name() \
 	struct jit * p = jit_init(); \
 	pdfv f1; \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FPR(0), __arg1); \
-	jit_fmovi(p, FPR(1), __arg2); \
-	__op(p, FPR(2), FPR(0), FPR(1)); \
-	jit_fretr(p, FPR(2)); \
+	jit_fmovi(p, FR(0), __arg1); \
+	jit_fmovi(p, FR(1), __arg2); \
+	__op(p, FR(2), FR(0), FR(1)); \
+	jit_fretr(p, FR(2)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -84,9 +84,9 @@ void __name() \
 	struct jit * p = jit_init(); \
 	pdfv f1; \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FPR(0), __arg1); \
-	__op(p, FPR(2), FPR(0)); \
-	jit_fretr(p, FPR(2)); \
+	jit_fmovi(p, FR(0), __arg1); \
+	__op(p, FR(2), FR(0)); \
+	jit_fretr(p, FR(2)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -102,9 +102,9 @@ void __name() \
 	struct jit * p = jit_init(); \
 	pdfv f1; \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FPR(0), __arg1); \
-	__op(p, FPR(0), FPR(0)); \
-	jit_fretr(p, FPR(0)); \
+	jit_fmovi(p, FR(0), __arg1); \
+	__op(p, FR(0), FR(0)); \
+	jit_fretr(p, FR(0)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \

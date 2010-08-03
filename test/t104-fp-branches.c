@@ -16,18 +16,18 @@ void testname(int id, int eql, int negative, int greater)\
 	if (greater) secval = 60;\
 	if (negative) secval *= -1;\
 \
-	jit_fmovi(p, FPR(1), firstval);\
-	jit_fmovi(p, FPR(2), secval);\
+	jit_fmovi(p, FR(1), firstval);\
+	jit_fmovi(p, FR(2), secval);\
 \
 	jit_op * br; \
-	br = __ji_op(p, 0, FPR(1), FPR(2));\
-	jit_fmovi(p, FPR(3), -10); \
+	br = __ji_op(p, 0, FR(1), FR(2));\
+	jit_fmovi(p, FR(3), -10); \
 	jit_op * e = jit_jmpi(p, 0); \
 	\
 	jit_patch(p, br); \
-	jit_fmovi(p, FPR(3), 10); \
+	jit_fmovi(p, FR(3), 10); \
 	jit_patch(p, e); \
-	jit_fretr(p, FPR(3)); \
+	jit_fretr(p, FR(3)); \
 \
 	jit_generate_code(p);\
 	r = f1();\
@@ -52,18 +52,18 @@ void testname(int id, int eql, int negative, int greater)\
 	if (greater) secval = 60;\
 	if (negative) secval *= -1;\
 	\
-	jit_fmovi(p, FPR(1), firstval);\
-	jit_fmovi(p, FPR(2), secval);\
+	jit_fmovi(p, FR(1), firstval);\
+	jit_fmovi(p, FR(2), secval);\
 \
 	jit_op * br; \
-	br = __ji_op(p, 0, FPR(1), secval);\
-	jit_fmovi(p, FPR(3), -10); \
+	br = __ji_op(p, 0, FR(1), secval);\
+	jit_fmovi(p, FR(3), -10); \
 	jit_op * e = jit_jmpi(p, 0); \
 	\
 	jit_patch(p, br); \
-	jit_fmovi(p, FPR(3), 10); \
+	jit_fmovi(p, FR(3), 10); \
 	jit_patch(p, e); \
-	jit_fretr(p, FPR(3)); \
+	jit_fretr(p, FR(3)); \
 \
 	jit_generate_code(p);\
 	r = f1();\

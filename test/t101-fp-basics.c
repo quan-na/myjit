@@ -24,10 +24,10 @@ void test2()
 	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
-	jit_fmovi(p, FPR(0), 100);
-	jit_faddi(p, FPR(0), FPR(0), 200);
-	jit_faddi(p, FPR(1), FPR(0), 200);
-	jit_fretr(p, FPR(1));
+	jit_fmovi(p, FR(0), 100);
+	jit_faddi(p, FR(0), FR(0), 200);
+	jit_faddi(p, FR(1), FR(0), 200);
+	jit_fretr(p, FR(1));
 	jit_generate_code(p);
 
 	r = f1();
@@ -43,11 +43,11 @@ void test3()
 	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
-	jit_fmovi(p, FPR(0), 100);
-	jit_faddr(p, FPR(0), FPR(0), FPR(0));
-	jit_fsubi(p, FPR(1), FPR(0), 50);
-	jit_fsubr(p, FPR(2), FPR(1), FPR(0));
-	jit_fretr(p, FPR(2));
+	jit_fmovi(p, FR(0), 100);
+	jit_faddr(p, FR(0), FR(0), FR(0));
+	jit_fsubi(p, FR(1), FR(0), 50);
+	jit_fsubr(p, FR(2), FR(1), FR(0));
+	jit_fretr(p, FR(2));
 	jit_generate_code(p);
 
 	r = f1();
@@ -66,13 +66,13 @@ void test4()
 	jit_movi(p, R(0), 100);
 	jit_movi(p, R(1), 50);
 
-	jit_extr(p, FPR(0), R(0));
-	jit_extr(p, FPR(1), R(1));
+	jit_extr(p, FR(0), R(0));
+	jit_extr(p, FR(1), R(1));
 
-	jit_faddr(p, FPR(0), FPR(0), FPR(0));
-	jit_fsubr(p, FPR(1), FPR(0), FPR(1));
-	jit_fsubr(p, FPR(2), FPR(1), FPR(0));
-	jit_fretr(p, FPR(2));
+	jit_faddr(p, FR(0), FR(0), FR(0));
+	jit_fsubr(p, FR(1), FR(0), FR(1));
+	jit_fsubr(p, FR(2), FR(1), FR(0));
+	jit_fretr(p, FR(2));
 	jit_generate_code(p);
 	jit_dump_code(p, 0);
 

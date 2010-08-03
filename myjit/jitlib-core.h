@@ -28,7 +28,7 @@
 
 /* these three macros are obsolete and will be removed */
 
-#define FPR_IMM	(-1)
+#define FR_IMM	(-1)
 #define R_FP	(0)
 #define R_OUT	(1)
 #define R_IMM	(2) /* used by amd64 and sparc*/

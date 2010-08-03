@@ -19,13 +19,13 @@ void test1()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
-	jit_getarg(p, FPR(0), 0);
-	jit_getarg(p, FPR(1), 1);
-	jit_faddr(p, FPR(0), FPR(0), FPR(1));
-	jit_getarg(p, FPR(1), 2);
-	jit_faddr(p, FPR(0), FPR(0), FPR(1));
-	jit_fdivi(p, FPR(0), FPR(0), 3);
-	jit_fretr(p, FPR(0));
+	jit_getarg(p, FR(0), 0);
+	jit_getarg(p, FR(1), 1);
+	jit_faddr(p, FR(0), FR(0), FR(1));
+	jit_getarg(p, FR(1), 2);
+	jit_faddr(p, FR(0), FR(0), FR(1));
+	jit_fdivi(p, FR(0), FR(0), 3);
+	jit_fretr(p, FR(0));
 	jit_generate_code(p);
 
 //	jit_dump_code(p, 0);
@@ -48,19 +48,19 @@ void test2()
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(int));
-	jit_getarg(p, FPR(0), 0);
+	jit_getarg(p, FR(0), 0);
 	jit_getarg(p, R(1), 1);
 
-	jit_fmovi(p, FPR(2), 1);
+	jit_fmovi(p, FR(2), 1);
 
 	jit_label * loop = jit_get_label(p);
 	jit_op * end = jit_beqi(p, JIT_FORWARD, R(1), 0);
-	jit_fmulr(p, FPR(2), FPR(2), FPR(0));
+	jit_fmulr(p, FR(2), FR(2), FR(0));
 	jit_subi(p, R(1), R(1), 1);
 	jit_jmpi(p, loop);
 
 	jit_patch(p, end);	
-	jit_fretr(p, FPR(2));
+	jit_fretr(p, FR(2));
 	jit_generate_code(p);
 
 	r = f1(3, 4);
@@ -85,20 +85,20 @@ void test3()
 	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(char));
 	jit_getarg(p, R(0), 0);
 
-	jit_fmovi(p, FPR(1), 1);
+	jit_fmovi(p, FR(1), 1);
 
 	jit_label * loop = jit_get_label(p);
 
 	jit_op * end = jit_beqi(p, JIT_FORWARD, R(0), 0);
 
-	jit_extr(p, FPR(0), R(0));
-	jit_fmulr(p, FPR(1), FPR(1), FPR(0));
+	jit_extr(p, FR(0), R(0));
+	jit_fmulr(p, FR(1), FR(1), FR(0));
 	jit_subi(p, R(0), R(0), 1);
 
 	jit_jmpi(p, loop);
 	jit_patch(p, end);
 
-	jit_fretr(p, FPR(1));
+	jit_fretr(p, FR(1));
 
 	jit_generate_code(p);
 
@@ -121,35 +121,35 @@ void test4()
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 
-	jit_getarg(p, FPR(0), 0);
+	jit_getarg(p, FR(0), 0);
 
-	jit_op * br1 = jit_fblti(p, JIT_FORWARD, FPR(0), 3);
+	jit_op * br1 = jit_fblti(p, JIT_FORWARD, FR(0), 3);
 	jit_op * gr = jit_jmpi(p, JIT_FORWARD);
 
 	jit_patch(p, br1);
 	jit_op * br = jit_jmpi(p, JIT_FORWARD);
 
 	jit_patch(p, gr);
-	jit_fsubi(p, FPR(0), FPR(0), 1);
+	jit_fsubi(p, FR(0), FR(0), 1);
 
 	jit_prepare(p, 1);
-	jit_fputargr(p, FPR(0), sizeof(double));
+	jit_fputargr(p, FR(0), sizeof(double));
 	jit_call(p, fib);
 
-	jit_fretval(p, FPR(1));
-//	jit_fmovi(p, FPR(1), 4);
+	jit_fretval(p, FR(1));
+//	jit_fmovi(p, FR(1), 4);
 
-	jit_getarg(p, FPR(0), 0);
-	jit_fsubi(p, FPR(0), FPR(0), 2);
+	jit_getarg(p, FR(0), 0);
+	jit_fsubi(p, FR(0), FR(0), 2);
 	jit_prepare(p, 1);
-	jit_fputargr(p, FPR(0), sizeof(double));
+	jit_fputargr(p, FR(0), sizeof(double));
 	jit_call(p, fib);
 
-	jit_fretval(p, FPR(2));
+	jit_fretval(p, FR(2));
 
-	jit_faddr(p, FPR(0), FPR(1), FPR(2));
+	jit_faddr(p, FR(0), FR(1), FR(2));
 
-	jit_fretr(p, FPR(0));
+	jit_fretr(p, FR(0));
 
 	jit_patch(p, br);
 	jit_freti(p, 1.2);
@@ -189,8 +189,8 @@ void test5()
 	jit_getarg(p, R(0), 0);
 	jit_getarg(p, R(1), 1);
 	jit_movi(p, R(2), 0);
-	jit_fmovi(p, FPR(4), 0);
-	jit_extr(p, FPR(1), R(1));
+	jit_fmovi(p, FR(4), 0);
+	jit_extr(p, FR(1), R(1));
 
 	jit_label * loop = jit_get_label(p);
 
@@ -214,14 +214,14 @@ void test5()
 	jit_patch(p, comput);
 	jit_patch(p, comput0);
 	jit_patch(p, comput1);
-	jit_fmulr(p, FPR(4), FPR(4), FPR(1));
-	jit_extr(p, FPR(3), R(3));
-	jit_faddr(p, FPR(4), FPR(4), FPR(3));
+	jit_fmulr(p, FR(4), FR(4), FR(1));
+	jit_extr(p, FR(3), R(3));
+	jit_faddr(p, FR(4), FR(4), FR(3));
 	jit_addi(p, R(2), R(2), 1);
 	jit_jmpi(p, loop);
 
 	jit_patch(p, end);
-	jit_fretr(p, FPR(4));
+	jit_fretr(p, FR(4));
 	jit_generate_code(p);
 
 //	jit_dump_ops(p, 0); return;
@@ -246,13 +246,13 @@ void test6()
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), str);
 	
-	jit_fmovi(p, FPR(1), 12345.678);
+	jit_fmovi(p, FR(1), 12345.678);
 
 	jit_movi(p, R(2), printf);
 
 	jit_prepare(p, 2);
 	jit_putargr(p, R(0));
-	jit_fputargr(p, FPR(1), sizeof(double));
+	jit_fputargr(p, FR(1), sizeof(double));
 	jit_callr(p, R(2));
 
 	jit_retval(p, R(3));
@@ -280,8 +280,8 @@ void test7()
 	jit_prolog(p, &f1);
 	int arr = jit_allocai(p, ARR_SIZE  * sizeof(double)); // allocates an array
 
-	jit_fmovi(p, FPR(0), 1);			// sets up the first element
-	jit_fstxi(p, arr, R_FP, FPR(0), sizeof(double));	
+	jit_fmovi(p, FR(0), 1);			// sets up the first element
+	jit_fstxi(p, arr, R_FP, FR(0), sizeof(double));	
 	
 	jit_addi(p, R(0), R_FP, arr);			// pointer to the array
 	jit_addi(p, R(1), R(0), sizeof(double));	// position in the array (2nd element)
@@ -289,9 +289,9 @@ void test7()
 
 	jit_label * loop = jit_get_label(p);
 
-	jit_fldxi(p, FPR(3), R(1), -sizeof(double), sizeof(double));
-	jit_faddr(p, FPR(3), FPR(3), FPR(3));
-	jit_fstr(p, R(1), FPR(3), sizeof(double));
+	jit_fldxi(p, FR(3), R(1), -sizeof(double), sizeof(double));
+	jit_faddr(p, FR(3), FR(3), FR(3));
+	jit_fstr(p, R(1), FR(3), sizeof(double));
 
 	jit_addi(p, R(1), R(1), sizeof(double));
 	jit_subi(p, R(2), R(2), 1);
@@ -303,10 +303,10 @@ void test7()
 
 	//jit_addi(p, R(0), R(0), 2 * REG_SIZE);
 
-	jit_fldr(p, FPR(1), R(0), sizeof(double));
+	jit_fldr(p, FR(1), R(0), sizeof(double));
 	jit_prepare(p, 2);
 	jit_putargi(p, formatstr);
-	jit_fputargr(p, FPR(1), sizeof(double));
+	jit_fputargr(p, FR(1), sizeof(double));
 	jit_call(p, printf);
 
 	jit_addi(p, R(0), R(0), sizeof(double));
@@ -354,34 +354,34 @@ void test8()
 	jit_ldi(p, R(2), &s + offsetof(struct mystruct, items), sizeof(void *)); // array
 	jit_movi(p, R(3), 0); // index
 
-	jit_fmovi(p, FPR(5), 0);		// sum
+	jit_fmovi(p, FR(5), 0);		// sum
 	jit_label * loop = jit_get_label(p);
 
-	jit_fldxr(p, FPR(4), R(2), R(3), sizeof(float));
-	jit_faddr(p, FPR(5), FPR(5), FPR(4));
+	jit_fldxr(p, FR(4), R(2), R(3), sizeof(float));
+	jit_faddr(p, FR(5), FR(5), FR(4));
 	
 	jit_addi(p, R(3), R(3), sizeof(float));
 	jit_subi(p, R(0), R(0), 1);
 
 	jit_bgti(p, loop, R(0), 0);
-	jit_fsti(p, &s + offsetof(struct mystruct, sum), FPR(5), sizeof(float));
+	jit_fsti(p, &s + offsetof(struct mystruct, sum), FR(5), sizeof(float));
 	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
 
-	jit_extr(p, FPR(0), R(0));
-	jit_fdivr(p, FPR(5), FPR(5), FPR(0));
+	jit_extr(p, FR(0), R(0));
+	jit_fdivr(p, FR(5), FR(5), FR(0));
 
 	jit_movi(p, R(0), &s);
 	jit_movi(p, R(1), offsetof(struct mystruct, avg));
-	jit_fstxi(p, &s, R(1), FPR(5), sizeof(double));
-	//jit_fstxr(p, R(0), R(1), FPR(5), sizeof(double));
+	jit_fstxi(p, &s, R(1), FR(5), sizeof(double));
+	//jit_fstxr(p, R(0), R(1), FR(5), sizeof(double));
 
-	jit_fldi(p, FPR(0), &s + offsetof(struct mystruct, avg), sizeof(double));
-	jit_fldi(p, FPR(1), &s + offsetof(struct mystruct, sum), sizeof(float));
+	jit_fldi(p, FR(0), &s + offsetof(struct mystruct, avg), sizeof(double));
+	jit_fldi(p, FR(1), &s + offsetof(struct mystruct, sum), sizeof(float));
 
 	jit_prepare(p, 3);
 	jit_putargi(p, formatstr);
-	jit_fputargr(p, FPR(0), sizeof(double));
-	jit_fputargr(p, FPR(1), sizeof(double));
+	jit_fputargr(p, FR(0), sizeof(double));
+	jit_fputargr(p, FR(1), sizeof(double));
 
 	jit_call(p, printf);
 
