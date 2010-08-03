@@ -301,10 +301,22 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	JIT_FREE(jit->prepared_args.args);
 
 	/* pops caller saved registers */
+
+	int reg;
+	struct __hw_reg * hreg;
+
+	static int fp_regs[] = { X86_XMM0, X86_XMM1, X86_XMM2, X86_XMM3,
+				 X86_XMM4, X86_XMM5, X86_XMM6, X86_XMM7 };
+	for (int i = 7; i >= 0; i--) {
+		hreg = rmap_is_associated(op->regmap, fp_regs[i], 1, &reg);
+		if (hreg && jitset_get(op->live_in, reg)) {
+			x86_movlpd_xreg_membase(jit->ip, fp_regs[i], X86_ESP, 0);
+			x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
+		}
+	}
+
 	static int regs[] = { X86_ECX, X86_EDX };
 	for (int i = 1; i >= 0; i--) {
-		int reg;
-		struct __hw_reg * hreg;
 		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
 	}
@@ -488,12 +500,23 @@ static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
 		op = op->next;
 	}
 
-	int regs[] = { X86_ECX, X86_EDX };
+
+	int reg;
+	struct __hw_reg * hreg;
+	static int regs[] = { X86_ECX, X86_EDX };
 	for (int i = 0; i < 2; i++) {
-		int reg;
-		struct __hw_reg * hreg;
 		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_push_reg(jit->ip, regs[i]);
+	}
+
+	static int fp_regs[] = { X86_XMM0, X86_XMM1, X86_XMM2, X86_XMM3,
+				 X86_XMM4, X86_XMM5, X86_XMM6, X86_XMM7 };
+	for (int i = 0; i < 8; i++) {
+		hreg = rmap_is_associated(op->regmap, fp_regs[i], 1, &reg);
+		if (hreg && jitset_get(op->live_in, reg)) {
+			x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
+			x86_movlpd_membase_xreg(jit->ip, fp_regs[i], X86_ESP, 0);
+		}
 	}
 }
 
@@ -902,6 +925,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					       x86_movss_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
 					       x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
 				       } else x86_movlpd_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
+				       break;
 
 		case (JIT_FLD | IMM): if (op->arg_size == 4)  { 
 					      x86_movss_xreg_mem(jit->ip, a1, a2);

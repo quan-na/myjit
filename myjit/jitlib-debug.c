@@ -149,7 +149,9 @@ static inline int __is_cflow(jit_op * op)
 {
 	if (((GET_OP(op) == JIT_CALL) || (GET_OP(op) == JIT_JMP)) && (IS_IMM(op))) return 1;
 	if ((GET_OP(op) == JIT_BLT) || (GET_OP(op) == JIT_BLE) || (GET_OP(op) == JIT_BGT)
-	|| (GET_OP(op) == JIT_BGE) || (GET_OP(op) == JIT_BEQ) ||  (GET_OP(op) == JIT_BNE)) return 1;
+	|| (GET_OP(op) == JIT_BGE) || (GET_OP(op) == JIT_BEQ) ||  (GET_OP(op) == JIT_BNE)
+	|| (GET_OP(op) == JIT_FBLT) || (GET_OP(op) == JIT_FBLE) || (GET_OP(op) == JIT_FBGT)
+	|| (GET_OP(op) == JIT_FBGE) || (GET_OP(op) == JIT_FBEQ) ||  (GET_OP(op) == JIT_FBNE)) return 1;
  
 	return 0;
 }

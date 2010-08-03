@@ -14,13 +14,13 @@ double foofn(float a, int b, float c)
 int main()
 {
 	struct jit * p = jit_init();
+	static char * str = "Hello, World! Number of the day is %f!!!\n";
 
 	static double g[4];
 	g[0] = 1.2;
 	g[1] = 2.3;
 	g[2] = 3.4;
 	g[3] = 4.5;
-	printf(":TTTTTTTTT:%lx\n", (long)g);
 
 	pdfdd foo;
 	jit_prolog(p, &foo);
@@ -40,9 +40,6 @@ int main()
 	jit_faddr(p, FPR(0), FPR(0), FPR(1));
 
 
-//	jit_movi(p, R(0), 2 * sizeof(double));
-//	jit_movi(p, R(1), 10);
-//	jit_movi(p, R(2), g);
 	jit_fmovi(p, FPR(0), 1.0);
 	jit_fmovi(p, FPR(1), 2.0);
 	jit_fmovi(p, FPR(2), 3.0);
@@ -50,22 +47,10 @@ int main()
 	jit_fmovi(p, FPR(4), 5.0);
 	jit_fmovi(p, FPR(5), 111222333.444555);
 
-	jit_faddr(p, FPR(0), FPR(0), FPR(1));
-	jit_faddi(p, FPR(0), FPR(0), 1.1);
-	jit_fsubi(p, FPR(0), FPR(0), 2.5);
-
-	jit_faddr(p, FPR(0), FPR(0), FPR(5));
-	jit_faddr(p, FPR(0), FPR(1), FPR(4));
-	jit_faddr(p, FPR(0), FPR(2), FPR(3));
-	jit_faddr(p, FPR(0), FPR(3), FPR(2));
-	jit_faddr(p, FPR(0), FPR(4), FPR(1));
-
-	jit_prepare(p, 3);
-//	jit_fputargi(p, 1.2, sizeof(float));
-	jit_fputargr(p, FPR(0), sizeof(float));
-	jit_putargi(p, 666);
-	jit_fputargr(p, FPR(5), sizeof(float));
-	jit_call(p, foofn);
+	jit_prepare(p, 2);
+	jit_putargi(p, str);
+	jit_fputargr(p, FPR(5), sizeof(double));
+	jit_call(p, printf);
 	jit_fretval(p, FPR(0));
 
 //	jit_fmovi(p, FPR(0), 123.456);

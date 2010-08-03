@@ -366,7 +366,7 @@ typedef union {
 		disp = (target) - pos;	\
 		if (size) x86_imm_emit32 (pos, disp - 4);	\
 		else if (x86_is_imm8 (disp - 1)) x86_imm_emit8 (pos, disp - 1);	\
-		else assert (0);	\
+		else {printf("0x%x\n", (*(unsigned char*)(ins)));  assert (0);}	\
 	} while (0)
 
 #define x86_breakpoint(inst) \
