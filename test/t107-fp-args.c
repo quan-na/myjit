@@ -108,7 +108,6 @@ int test2()
 	jit_getarg(p, FR(8), 8);
 	jit_getarg(p, FR(9), 9);
 
-	
 	jit_fmovi(p, FR(10), 0);
 	jit_faddr(p, FR(10), FR(10), FR(9));
 	jit_faddr(p, FR(11), FR(10), FR(8));
