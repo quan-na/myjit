@@ -123,7 +123,37 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_CODESTART:	return ".code";
 		case JIT_LABEL:		return ".label";
 		case JIT_SYNCREG:	return ".syncreg";
-		case JIT_MSG	:	return "msg";
+		case JIT_MSG:		return "msg";
+
+		case JIT_FMOV:	return "fmov";
+		case JIT_FADD: 	return "fadd";
+		case JIT_FSUB: 	return "fsub";
+		case JIT_FRSB: 	return "frsb";
+		case JIT_FMUL: 	return "fmul";
+		case JIT_FDIV: 	return "fdiv";
+		case JIT_FNEG: 	return "fneg";
+		case JIT_FRETVAL: return "fretval";
+		case JIT_FPUTARG: return "fputarg";
+
+		case JIT_EXT: 	return "ext";
+		case JIT_ROUND: return "round";
+		case JIT_TRUNC: return "trunc";
+		case JIT_FLOOR: return "floor";
+		case JIT_CEIL: 	return "ceil";
+
+		case JIT_FBLT: return "fblt";
+		case JIT_FBLE: return "fble";
+		case JIT_FBGT: return "fbgt";
+		case JIT_FBGE: return "fbge";
+		case JIT_FBEQ: return "fbeq";
+		case JIT_FBNE: return "fbne";
+
+		case JIT_FLD: 	return "fld";
+		case JIT_FLDX:  return "fldx";
+		case JIT_FST:	return "fst";
+		case JIT_FSTX:	return "fstx";
+
+		case JIT_FRET: return "fret";
 		default: return "(unknown)";
 	}
 }
@@ -132,7 +162,10 @@ void jit_get_reg_name(char * r, int reg, jit_op * op)
 {
 	if (reg == R_FP) strcpy(r, "fp");
 	else if (reg == R_OUT) strcpy(r, "out");
-	else sprintf(r, "r%i", reg - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT);
+	else if (reg == R_IMM) strcpy(r, "imm");
+	else if (reg == FPR_IMM) strcpy(r, "fimm");
+	else if (reg >= 0) sprintf(r, "r%i", reg - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT);
+	else sprintf(r, "f%i", (-reg) - 2);
 }
 
 //static inline int jitset_get(jitset * s, unsigned int bit);

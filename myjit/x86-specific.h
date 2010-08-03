@@ -887,11 +887,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
 		case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
 
-		case (JIT_FEXT | REG): x86_cvtsi2sd(jit->ip, a1, a2); break;
-		case (JIT_FTRUNC | REG): x86_cvttsd2si(jit->ip, a1, a2); break;
-		case (JIT_FCEIL | REG): __sse_floor(jit, a1, a2, 0); break;
-		case (JIT_FFLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
-		case (JIT_FROUND | REG): __sse_round(jit, a1, a2); break;
+		case (JIT_EXT | REG): x86_cvtsi2sd(jit->ip, a1, a2); break;
+		case (JIT_TRUNC | REG): x86_cvttsd2si(jit->ip, a1, a2); break;
+		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
+		case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
+		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
 
 		case (JIT_FST | IMM): 	if (op->arg_size == 4) {
 						// TODO: test if a2 is live_out and if not,

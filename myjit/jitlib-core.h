@@ -275,11 +275,11 @@ void jit_regpool_free(struct jit_regpool * p);
 #define JIT_FRETVAL	(0x77 << 3)
 #define JIT_FPUTARG	(0x78 << 3)
 
-#define JIT_FEXT	(0x79 << 3)
-#define JIT_FROUND	(0x7a << 3)
-#define JIT_FTRUNC	(0x7b << 3)
-#define JIT_FFLOOR	(0x7c << 3)
-#define JIT_FCEIL	(0x7d << 3)
+#define JIT_EXT		(0x79 << 3)
+#define JIT_ROUND	(0x7a << 3)
+#define JIT_TRUNC	(0x7b << 3)
+#define JIT_FLOOR	(0x7c << 3)
+#define JIT_CEIL	(0x7d << 3)
 
 /*
 #define JIT_FLT 	(0x80 << 3)
@@ -302,9 +302,7 @@ void jit_regpool_free(struct jit_regpool * p);
 #define JIT_FST		(0x92 << 3)
 #define JIT_FSTX	(0x93 << 3)
 
-#define JIT_FMSG	(0x94 << 3)
 #define JIT_FRET	(0x95 << 3)
-#define JIT_FGETARG	(0x96 << 3)
 
 
 #define jit_movr(jit, a, b) jit_add_op(jit, JIT_MOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0)
@@ -497,11 +495,11 @@ void jit_regpool_free(struct jit_regpool * p);
 
 #define jit_fnegr(jit, a, b) jit_add_fop(jit, JIT_FNEG | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
 
-#define jit_extr(jit, a, b) jit_add_fop(jit, JIT_FEXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_truncr(jit, a, b) jit_add_fop(jit, JIT_FTRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_floorr(jit, a, b) jit_add_fop(jit, JIT_FFLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_ceilr(jit, a, b) jit_add_fop(jit, JIT_FCEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_roundr(jit, a, b) jit_add_fop(jit, JIT_FROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_extr(jit, a, b) jit_add_fop(jit, JIT_EXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_truncr(jit, a, b) jit_add_fop(jit, JIT_TRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_floorr(jit, a, b) jit_add_fop(jit, JIT_FLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_ceilr(jit, a, b) jit_add_fop(jit, JIT_CEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_roundr(jit, a, b) jit_add_fop(jit, JIT_ROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
 
 #define jit_fbltr(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | REG, SPEC(IMM, REG, REG), (long)a, b, c, 0, 0)
 #define jit_fblti(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | IMM, SPEC(IMM, REG, IMM), (long)a, b, 0, c, 0)
