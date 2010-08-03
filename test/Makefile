@@ -1,4 +1,4 @@
-all: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010 t101 t102 t104 t105 t107 108 109
+all: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010 t101 t102 t104 t105 t107 t108 t109
 
 t001: t001-basics.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t001 t001-basics.c jitlib-core.o 
