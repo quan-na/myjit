@@ -148,15 +148,15 @@ The following operations and auxiliary macros helps to create a function, read i
 
 + ``retr`` and ``reti`` -- are operations which returns from the function; these accept one operand which is a returned value (a register or an immediate value)
 
-+ ``declare_arg`` -- this is not an actual operation but rather a auxiliary macro which declares the type of the argument and its size; ``declare_arg`` can handle the following types of arguments
++ ``declare_arg`` -- this is not an actual operation but rather a auxiliary function which declares the type of the argument and its size; ``declare_arg`` can take the following types of arguments
 
 	+ ``JIT_SIGNED_NUM`` -- signed integer number
 	+ ``JIT_UNSIGNED_NUM`` -- unsigned integer number
 	+ ``JIT_PTR`` -- pointer
 
-+ to read an argument use ``getarg`` operation, which accepts two arguments register and an immediate value. The register is the destination register where the input argument is stored. The immediate value is the position of the argument. 
++ to read an argument use the ``getarg`` operation, which accepts two arguments register and an immediate value. The register is the destination register where the input argument is stored. The immediate value is the position of the argument. 
 
-+ ``allocai`` reserves space on the stack which has at least size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an *offset from the frame pointer R_FP!*
++ ``allocai`` reserves space on the stack which has at least the size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an *offset from the frame pointer R_FP!*
 
 
 
@@ -357,7 +357,7 @@ Notes on Development
 
 + Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.
 
-+ At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to include for floating point arithmetic, however, it is not the priority.
++ At this moment, MyJIT has experimental support floating point arithmetic. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
 
 + The library is still in the early stage of development and the API may slightly change in the near future.
 

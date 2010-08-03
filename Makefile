@@ -24,4 +24,5 @@ clean:
 	rm -f demo1
 	rm -f demo2
 	rm -f demo3
+	rm -f debug
 	rm -f *.o

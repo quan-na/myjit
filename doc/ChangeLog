@@ -1,7 +1,12 @@
 Version 0.4.0.0
 ===============
 + macros JIT_FP, JIT_RETREG, JIT_IMMREG have been removed
-+ PUSHARG have been replaced along with the argument passing order
++ PUSHARG have been replaced with PUTARG along with the argument passing order
++ new operation DECLARE_ARG and new semantics of GETARG 
++ register count detection
++ infrastructure for floating-point arithmetics (registers, etc.)
++ experimental support for FP arithmetics (requires i386-based processor with
+SSE2)
 
 Version 0.3.2.0
 ===============
@@ -9,7 +14,7 @@ Version 0.3.2.0
 + SPARC: optimized MUL, DIV, and MOD for some immediate values
 + SPARC: call operation does not use the temporary register, i.e., it's 10%
 faster
-+ SPARC: fixed stack corruption and the appropriate test case is included
++ SPARC: fixed stack corruption and the appropriate test-case is included
 + changing of large immediate values into a MOV and register-based operations
 became part of the jitlib-core
 + fixed jit_print_ops()

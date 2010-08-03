@@ -131,9 +131,9 @@ hr {
 
 <p>MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of the Schemik (<a class="reference external" href="http://schemik.sourceforge.net">http://schemik.sourceforge.net</a>) programming language and it was considered as a replacement for the GNU lightning library (<a class="reference external" href="http://www.gnu.org/software/lightning/">http://www.gnu.org/software/lightning/</a>). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:</p>
 <ul class="simple">
-<li>unlimited number of registers</li>
+<li>support for an unlimited number of registers</li>
 <li>thread-safety</li>
-<li>support for i386, AMD64, and SPARC processors</li>
+<li>support for the i386, AMD64, and SPARC processors</li>
 <li>convenient debugging</li>
 <li>easy to use and easy to extend design</li>
 <li>particular backward compatibility with GNU lightning</li>
@@ -147,7 +147,7 @@ hr {
 </div>
 <div class="section" id="instruction-set">
 <h1>Instruction Set</h1>
-<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited but you have to set the number of registers while initializing the compiler.</p>
+<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.</p>
 <p>All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and if you have 64-bit machine, MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to <tt class="docutils literal"><span class="pre">signed</span> <span class="pre">long</span></tt> type. In specific cases, e.g., if you need smaller values than <tt class="docutils literal"><span class="pre">long</span></tt> or if you need an <tt class="docutils literal"><span class="pre">unsigned</span></tt> value and if it is appropriate, you may specify the size or the type of the value. This topic is discussed in the sequel.</p>
 <p>Name of each instruction consist of three parts:</p>
 <ul class="simple">
@@ -157,8 +157,8 @@ hr {
 </ul>
 <div class="section" id="registers">
 <h2>Registers</h2>
-<p>MyJIT supports arbitrary number of register, however, this number have to be specified in advance. If the number of requested registers is higher than the number of available hardware registers, MyJIT can emulate them. Nevertheless, to achieve the best performance, it is good practice to set the number of used registers as low as possible. All registers are denoted by numbers from 0 up to n-1. To refer to these registers you should use the macro <tt class="docutils literal"><span class="pre">R(x)</span></tt>.</p>
-<p>Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior.</p>
+<p>MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by numbers from 0 up to n-1. To refer to these registers you should use the macro <tt class="docutils literal"><span class="pre">R(x)</span></tt>.</p>
+<p>Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior.</p>
 </div>
 </div>
 <div class="section" id="transfer-operations">
@@ -202,7 +202,7 @@ lshi       O1 = O2 &lt;&lt; O3
 rshr (u)   O1 = O2 &gt;&gt; O3
 rshi (u)   O1 = O2 &gt;&gt; O3
 </pre>
-<p>Operations <tt class="docutils literal"><span class="pre">subx</span></tt> and <tt class="docutils literal"><span class="pre">addx</span></tt> have to directly follow <tt class="docutils literal"><span class="pre">subc</span></tt> and <tt class="docutils literal"><span class="pre">addc</span></tt> otherwise is the result undefined. Note that you can specify <tt class="docutils literal"><span class="pre">unsigned</span> <span class="pre">sign</span></tt> along with the <tt class="docutils literal"><span class="pre">rshr</span></tt> operation to propagate the first bit accordingly.</p>
+<p>Operations <tt class="docutils literal"><span class="pre">subx</span></tt> and <tt class="docutils literal"><span class="pre">addx</span></tt> have to directly follow <tt class="docutils literal"><span class="pre">subc</span></tt> and <tt class="docutils literal"><span class="pre">addc</span></tt> otherwise the is result undefined. Note that you can specify <tt class="docutils literal"><span class="pre">unsigned</span> <span class="pre">sign</span></tt> along with the <tt class="docutils literal"><span class="pre">rshr</span></tt> operation to propagate the first bit accordingly.</p>
 </div>
 <div class="section" id="unary-arithmetic-operations">
 <h1>Unary Arithmetic Operations</h1>
@@ -254,28 +254,40 @@ nei       O1 = (O2 != O3)
 <div class="section" id="instructions-related-to-function-calls">
 <h1>Instructions Related to Function Calls</h1>
 <p>The following operations and auxiliary macros helps to create a function, read its arguments, and return values.</p>
+<ul>
+<li><p class="first"><tt class="docutils literal"><span class="pre">prolog</span></tt> takes one operand which is an immediate value, which is a reference to a pointer of a function described by the code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the &quot;Getting started&quot;, for more details.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">retr</span></tt> and <tt class="docutils literal"><span class="pre">reti</span></tt> -- are operations which returns from the function; these accept one operand which is a returned value (a register or an immediate value)</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">declare_arg</span></tt> -- this is not an actual operation but rather a auxiliary function which declares the type of the argument and its size; <tt class="docutils literal"><span class="pre">declare_arg</span></tt> can take the following types of arguments</p>
+<blockquote>
 <ul class="simple">
-<li><tt class="docutils literal"><span class="pre">prolog</span></tt> takes one operand which is an immediate value, which is a reference to a pointer of a function described by the code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the &quot;Getting started&quot;, for more details.</li>
-<li><tt class="docutils literal"><span class="pre">retr</span></tt> and <tt class="docutils literal"><span class="pre">reti</span></tt> -- are operations which returns from the function; these accept one operand which is a returned value (a register or an immediate value)</li>
-<li><tt class="docutils literal"><span class="pre">arg</span></tt> -- this is not an actual operation but rather a auxiliary macro which returns an identifier of the argument (interger number)</li>
-<li>to read an argument use <tt class="docutils literal"><span class="pre">getarg</span></tt> operation, which accepts three arguments register and two immediate values (in this order). The register is the destination register where the input argument is stored. The first immediate value is the value generated by the operation <tt class="docutils literal"><span class="pre">arg</span></tt> and identifies argument of the function. The second immediate value defines size of the argument, e.g., 1, 2, 4, or 8 bytes.</li>
-<li><tt class="docutils literal"><span class="pre">allocai</span></tt> reserves space on the stack which has at least size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an <em>offset from the frame pointer R_FP!</em></li>
+<li><tt class="docutils literal"><span class="pre">JIT_SIGNED_NUM</span></tt> -- signed integer number</li>
+<li><tt class="docutils literal"><span class="pre">JIT_UNSIGNED_NUM</span></tt> -- unsigned integer number</li>
+<li><tt class="docutils literal"><span class="pre">JIT_PTR</span></tt> -- pointer</li>
+</ul>
+</blockquote>
+</li>
+<li><p class="first">to read an argument use the <tt class="docutils literal"><span class="pre">getarg</span></tt> operation, which accepts two arguments register and an immediate value. The register is the destination register where the input argument is stored. The immediate value is the position of the argument.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">allocai</span></tt> reserves space on the stack which has at least the size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an <em>offset from the frame pointer R_FP!</em></p>
+</li>
 </ul>
 </div>
 <div class="section" id="function-calls">
 <h1>Function calls</h1>
-<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">pusharg</span></tt>. It should be stressed that the <em>arguments are passed in the reverse order!</em> Afterwards, the function is called with the <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
+<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">putarg</span></tt>. (The arguments are passed in the normal order not in reverse order as in case of GNU Lightning.) Afterwards, the function is called with the <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
 <p>Let us make few notes on function calls:</p>
 <ul class="simple">
 <li>If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.</li>
-<li>You should not nest prepare operations.</li>
-<li>Only <tt class="docutils literal"><span class="pre">pushargr</span></tt> or <tt class="docutils literal"><span class="pre">pushargi</span></tt> operations are allowed within the <tt class="docutils literal"><span class="pre">prepare-call</span></tt> block, otherwise, the behavior of the library is unspecified.</li>
+<li>You should not nest the prepare operations.</li>
+<li>Only <tt class="docutils literal"><span class="pre">putargr</span></tt> or <tt class="docutils literal"><span class="pre">putargi</span></tt> operations are allowed within the <tt class="docutils literal"><span class="pre">prepare-call</span></tt> block, otherwise, the behavior of the library is unspecified.</li>
 </ul>
 <p>List of operations related to function calls:</p>
 <ul class="simple">
 <li><tt class="docutils literal"><span class="pre">prepare</span> <span class="pre">imm</span></tt> -- prepares a function call (generic)</li>
-<li><tt class="docutils literal"><span class="pre">pushargr</span> <span class="pre">reg</span></tt> -- passes the argument to a function</li>
-<li><tt class="docutils literal"><span class="pre">pushargi</span> <span class="pre">imm</span></tt> -- passes the argument to a function</li>
+<li><tt class="docutils literal"><span class="pre">putargr</span> <span class="pre">reg</span></tt> -- passes the argument to a function</li>
+<li><tt class="docutils literal"><span class="pre">putargi</span> <span class="pre">imm</span></tt> -- passes the argument to a function</li>
 <li><tt class="docutils literal"><span class="pre">call</span> <span class="pre">imm</span></tt> -- calls a function</li>
 <li><tt class="docutils literal"><span class="pre">callr</span> <span class="pre">reg</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">retval</span> <span class="pre">reg</span></tt> -- retrieves return value</li>
@@ -339,9 +351,7 @@ bosubi (u)     O2 -= O3, goto O1 on overflow
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
         <span class="c1">// we create a new instance of a compiler</span>
-        <span class="c1">// the first argument is the number of registers provided by the compiler,</span>
-        <span class="c1">// i.e., in this case compiler will provide four registers</span>
-        <span class="k">struct</span> <span class="n">jit</span> <span class="o">*</span> <span class="n">p</span> <span class="o">=</span> <span class="n">jit_init</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+        <span class="k">struct</span> <span class="n">jit</span> <span class="o">*</span> <span class="n">p</span> <span class="o">=</span> <span class="n">jit_init</span><span class="p">();</span>
 
         <span class="n">plfl</span> <span class="n">foo</span><span class="p">;</span>
 
@@ -349,10 +359,10 @@ bosubi (u)     O2 -= O3, goto O1 on overflow
         <span class="n">jit_prolog</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">foo</span><span class="p">);</span>
 
         <span class="c1">// the first argument of the function</span>
-        <span class="kt">int</span> <span class="n">ar1</span> <span class="o">=</span> <span class="n">jit_arg</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+        <span class="n">jit_declare_arg</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">JIT_SIGNED_NUM</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">long</span><span class="p">));</span>
 
         <span class="c1">// moves the first argument into the register R(0)</span>
-        <span class="n">jit_getarg</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ar1</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">long</span><span class="p">));</span>
+        <span class="n">jit_getarg</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="mi">0</span><span class="p">);</span>
 
         <span class="c1">// takes the value in R(0), increments it by one, and stores the result into the</span>
         <span class="c1">// register R(1)</span>
@@ -391,11 +401,11 @@ gcc -o demo1 -g -Wall -std=c99 -pedantic demo1.o jitlib-core.o
 </div>
 <div class="section" id="debugging">
 <h1>Debugging</h1>
-<p>MyJIT contains several tools simplifying application development. The first one, is the <tt class="docutils literal"><span class="pre">msg</span></tt> operation which prints out a given message or a value of the given register. The <tt class="docutils literal"><span class="pre">msg</span></tt> operation takes one or two arguments. The first one is always an immediate value which is a string to display. The second one operand is optional and it must be a register. In this case the first string serves as format string for <tt class="docutils literal"><span class="pre">printf</span></tt> and the value of the register is printed out using this format string. The example of the <tt class="docutils literal"><span class="pre">msg</span></tt> operation usage:</p>
+<p>MyJIT contains several tools simplifying application development. The first one, is the <tt class="docutils literal"><span class="pre">msg</span></tt> operation which prints out a given message or a value of the given register. The <tt class="docutils literal"><span class="pre">msg</span></tt> operation takes one or two arguments. The first one is always an immediate value which is a string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for <tt class="docutils literal"><span class="pre">printf</span></tt> and the value of the register is printed out using this string. The example of the <tt class="docutils literal"><span class="pre">msg</span></tt> operation usage:</p>
 <div class="highlight"><pre><span class="n">jit_msg</span><span class="p">(</span><span class="n">jit</span><span class="p">,</span> <span class="s">&quot;Simple message</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
-<span class="n">jit_msg</span><span class="p">(</span><span class="n">jit</span><span class="p">,</span> <span class="s">&quot;Reg 1: %l</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="n">jit_msgr</span><span class="p">(</span><span class="n">jit</span><span class="p">,</span> <span class="s">&quot;Reg 1: %l</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
 </pre></div>
-<p>The MyJIT library also provides two functions <tt class="docutils literal"><span class="pre">jit_dump_ops</span></tt> and <tt class="docutils literal"><span class="pre">jit_dump_code</span></tt> which allows to print out the code. The first one print outs the high level code and the second one prints out the final machine code. Both functions takes two arguments---the reference to the compiler and the verbosity level. However, the second argument is not used and its value should be always zero.</p>
+<p>The MyJIT library also provides two functions <tt class="docutils literal"><span class="pre">jit_dump_ops</span></tt> and <tt class="docutils literal"><span class="pre">jit_dump_code</span></tt> which allows to print out the code. The first one print outs the high level code and the second one prints out the final machine code. Both functions take two arguments---the reference to the compiler and the verbosity level. However, the second argument is not used and its value should be always zero.</p>
 <p>Examples of the outputs for the above mentioned source code.</p>
 <pre class="literal-block">
 prolog      0xbfd34a64
@@ -419,7 +429,7 @@ retr        r1
   14:   5d                      pop    ebp
   15:   c3                      ret
 </pre>
-<p><em>NOTICE!</em> Do not use the debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the <tt class="docutils literal"><span class="pre">printf</span></tt> function explicitly. The <tt class="docutils literal"><span class="pre">jit_dump_code</span></tt> is using <tt class="docutils literal"><span class="pre">gcc</span></tt> and <tt class="docutils literal"><span class="pre">objdump</span></tt> to disassemble the code, therefore, these two programs are have to be present in the system.</p>
+<p><em>NOTICE!</em> Do not use the debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the <tt class="docutils literal"><span class="pre">printf</span></tt> function explicitly. The <tt class="docutils literal"><span class="pre">jit_dump_code</span></tt> is using <tt class="docutils literal"><span class="pre">gcc</span></tt> and <tt class="docutils literal"><span class="pre">objdump</span></tt> to disassemble the code, therefore, these two programs have to be present in the system.</p>
 </div>
 <div class="section" id="license">
 <h1>License</h1>
@@ -432,7 +442,7 @@ retr        r1
 <li>The primary use of this library is in our compiler of the Schemik programming language and the development of this library affected requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.</li>
 <li>MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.</li>
 <li>Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.</li>
-<li>At this moment, MyJIT does not support floating point arithmetic. We are aware of this and we plan to include for floating point arithmetic, however, it is not the priority.</li>
+<li>At this moment, MyJIT has experimental support floating point arithmetic. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.</li>
 <li>The library is still in the early stage of development and the API may slightly change in the near future.</li>
 <li>If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.</li>
 <li>The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still under development. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (<a class="reference external" href="mailto:myjit-devel&#64;lists.sourceforge.net">myjit-devel&#64;lists.sourceforge.net</a>). If you  would like to participate on documentation improvements, please, let us know, we will really appreciate it.</li>
@@ -441,7 +451,7 @@ retr        r1
 </div>
 <div class="footer">
 <hr class="footer" />
-Generated on: 2010-07-08 20:37 UTC.
+Generated on: 2010-08-03 20:06 UTC.
 
 </div>
 </body>
