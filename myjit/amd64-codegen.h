@@ -542,6 +542,29 @@ typedef union {
 		x86_membase_emit ((inst), (reg) & 0x7, (basereg) & 0x7, (disp));	\
 	} while (0)
 
+#define amd64_movsd_reg_mem(inst,reg,mem)  \
+	do {    \
+		*(inst)++ = (unsigned char)0xf2;        \
+		amd64_emit_rex(inst, 0, (reg), 0, 0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x10;        \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+#define amd64_sse_xorpd_reg_mem(inst,reg,mem)  \
+	do {    \
+		*(inst)++ = (unsigned char)0x66;        \
+		amd64_emit_rex(inst, 0, (reg), 0, 0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x57;        \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+
 #define amd64_movss_reg_membase(inst,reg,basereg,disp)	\
 	do {	\
 		*(inst)++ = (unsigned char)0xf3;	\
@@ -713,6 +736,8 @@ typedef union {
 #define amd64_sse_movsd_reg_reg(inst,dreg,reg) emit_sse_reg_reg ((inst), (dreg), (reg), 0xf2, 0x0f, 0x10)
 
 #define amd64_sse_movsd_reg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0xf2, 0x0f, 0x10)
+
+#define amd64_sse_movlpd_membase_xreg(inst,dreg,basereg,disp) emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0x66, 0x0f, 0x13)
 
 #define amd64_sse_movsd_membase_reg(inst,basereg,disp,reg) emit_sse_membase_reg ((inst), (basereg), (disp), (reg), 0xf2, 0x0f, 0x11)
 

@@ -428,6 +428,83 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 	if ((dest != AMD64_RAX) && rax_in_use) amd64_pop_reg(jit->ip, AMD64_RAX);
 }
 
+/////// SSE -specific
+
+static inline unsigned char * __sse_get_sign_mask();
+static inline void __sse_change_sign(struct jit * jit, long reg)
+{
+	amd64_sse_xorpd_reg_mem(jit->ip, reg, __sse_get_sign_mask());
+}
+
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXX: shared with x86-code
+static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
+{
+	if (op->r_arg[0] == op->r_arg[1]) {
+		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
+	} else if (op->r_arg[0] == op->r_arg[2]) {
+		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[1]);
+	} else {
+		x86_movsd_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1]);
+		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
+	}
+}
+
+static inline unsigned char * __sse_get_sign_mask()
+{
+	// gets 16-bytes aligned value
+	static unsigned char bufx[32];
+	unsigned char * buf = bufx + 1;
+	while ((long)buf % 16) buf++;
+	unsigned long long * bit_mask = (unsigned long long *)buf;
+
+	// inverts 64th (sing) bit
+	*bit_mask = (unsigned long long)1 << 63;
+	return buf;
+}
+
+static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
+{
+	if (a1 == a2) {
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+	} else if (a1 == a3) {
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
+		__sse_change_sign(jit, a1);
+	} else {
+		x86_movsd_reg_reg(jit->ip, a1, a2);
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+	}
+}
+
+static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
+{
+//	static unsigned long long bit_mask = (unsigned long long)1 << 63;
+	if (a1 == a2) {
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
+	} else if (a1 == a3) {
+		// creates a copy of the a2 into high bits of a2
+		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+
+		// divides a2 by a3 and moves to the results
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a2, a3);
+		x86_movsd_reg_reg(jit->ip, a1, a2); 
+
+		// returns the the value of a2
+		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+	} else {
+		x86_movsd_reg_reg(jit->ip, a1, a2); 
+		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
+	}
+}
+
+static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
+{
+	if (a1 != a2) x86_movsd_reg_reg(jit->ip, a1, a2); 
+	__sse_change_sign(jit, a1);
+}
+
+//////////////////////////////////////////////////////////////////////
+
 
 static inline int __uses_hw_reg(struct jit_op * op, long reg)
 {
@@ -751,6 +828,28 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
 		case (JIT_STX | REG): amd64_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
+		//
+		// Floating-point operations;
+		//
+		case (JIT_FMOV | REG): amd64_sse_movsd_reg_reg(jit->ip, a1, a2); break;
+		case (JIT_FMOV | IMM): amd64_movsd_reg_mem(jit->ip, a1, &op->flt_imm); break;
+		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
+		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
+		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
+		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
+		case (JIT_FDIV | REG): __sse_div_op(jit, a1, a2, a3); break;
+                case (JIT_FNEG | REG): __sse_neg_op(jit, a1, a2); break;
+		case (JIT_FRET | REG): amd64_sse_movlpd_membase_xreg(jit->ip, a1, AMD64_RSP, -8); // pushes the value beyond the top of the stack
+				       amd64_mov_reg_membase(jit->ip, AMD64_RAX, AMD64_RSP, -8, 8);            // transfers the value from the stack to RAX
+				       amd64_sse_movsd_reg_membase(jit->ip, AMD64_XMM0, AMD64_RSP, -8);
+
+				       // common epilogue
+				       __pop_callee_saved_regs(jit);
+				       amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
+				       amd64_pop_reg(jit->ip, AMD64_RBP);
+				       amd64_ret(jit->ip);
+				       break;
+
 		case (JIT_UREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE); break;
 		case (JIT_LREG): amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE); break;
 		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);  break;
@@ -797,9 +896,26 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_reg = AMD64_RBP;
 	a->ret_reg = AMD64_RAX;
 
-	a->fp_reg_cnt = 0;
+	a->fp_reg_cnt = 4;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
 	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+
+	int reg = 0;
+	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
+	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM0, 0, "xmm0", 0, 1, 1 };
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM1, 0, "xmm1", 0, 1, 2 };
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM2, 0, "xmm2", 0, 1, 3 };
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM3, 0, "xmm3", 0, 1, 4 };
+	/*
+#ifndef JIT_REGISTER_TEST
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM4, 0, "xmm4", 0, 1, 5 };
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM5, 0, "xmm5", 0, 1, 6 };
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM6, 0, "xmm6", 0, 1, 7 };
+	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM7, 0, "xmm7", 0, 1, 8 };
+#endif
+*/
 
 	a->gp_arg_reg_cnt = 6;
 	a->gp_arg_regs = __arg_regs;

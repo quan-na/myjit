@@ -955,6 +955,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)
 
 				       // common epilogue
+				       __pop_callee_saved_regs(jit);
 				       x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
 				       x86_pop_reg(jit->ip, X86_EBP);
 				       x86_ret(jit->ip);
