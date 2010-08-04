@@ -1,4 +1,4 @@
-all: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010 t101 t102 t104 t105 t107 t108 t109
+all: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010 t101 t102 t103 t104 t105 t107 t108 t109
 
 t001: t001-basics.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t001 t001-basics.c jitlib-core.o 
@@ -35,6 +35,9 @@ t101: t101-fp-basics.c jitlib-core.o tests.h
 
 t102: t102-fp-arithmetic.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t102 t102-fp-arithmetic.c jitlib-core.o 
+
+t103: t103-fp-rounding.c jitlib-core.o tests.h
+	gcc -g -std=c99 -o t103 -lm t103-fp-rounding.c jitlib-core.o 
 
 t104: t104-fp-branches.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t104 t104-fp-branches.c jitlib-core.o 

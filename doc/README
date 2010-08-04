@@ -357,7 +357,7 @@ Notes on Development
 
 + Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.
 
-+ At this moment, MyJIT has experimental support floating point arithmetic. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
++ At this moment, MyJIT has experimental support for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
 
 + The library is still in the early stage of development and the API may slightly change in the near future.
 

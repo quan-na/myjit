@@ -634,11 +634,11 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 
 	if (floor) {
 		// if a2 < tmp_reg, it substracts 1 (using the carry flag)
-		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, X86_XMM7);
+		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, tmp_reg);
 		x86_alu_reg_imm(jit->ip, X86_SBB, a1, 0);
 	} else { // ceil
 		// if tmp_reg < a2, it adds 1 (using the carry flag)
-		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, X86_XMM7, a2);
+		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, tmp_reg, a2);
 		x86_alu_reg_imm(jit->ip, X86_ADC, a1, 0);
 	}
 

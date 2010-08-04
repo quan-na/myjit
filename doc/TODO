@@ -52,7 +52,8 @@ ROADMAP
 		+ branches
 		+ conditionals
 
-+ generic (release 0.5.x+)
++ generic (release 0.6.x+)
+	+ warnings
 	+ integrated disassambler
 	+ separate test-cases
 	+ input (i0, ..., i5) registers should be stored into their positions in the frame
