@@ -21,28 +21,31 @@ ROADMAP
 		* fretval
 		* argument reading
 		* single precision floats passing
-	+ test-cases
+	* test-cases
 
 + release 0.4.1
 	+ AMD64 (SSE2)
-		+ arithmetics
-		+ conversions
+		* arithmetics
+		* branches
+		* conversions
+		+ ureg/lreg/sreg
 		+ load/store
 		+ argument reading
 		+ argument passing
-		+ branches
 + release 0.4.2
 	+ BUG: stack corruption
 	+ SPARC
 		+ arithmetics
 		+ conversions
 		+ load/store
+		+ ureg/lreg/sreg
 		+ argument reading
 		+ argument passing
 		+ branches
 
 + release 0.5.0
 	+ BUG: long jumps in conditional jumps
+	+ BUG: it is impossible to generete two or more functions with one instance of the compiler (see jit_prolog)
 	+ i386 (emulated)
 		+ arithmetics
 		+ conversions

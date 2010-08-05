@@ -140,8 +140,9 @@ enum jit_inp_type {
 };
 
 typedef struct jit_declared_args {
-	int capacity;
 	int pos;
+	int general_arg_cnt;		// number of non-FP arguments
+	int float_arg_cnt;		// number of FP arguments
 	struct jit_inp_arg { 
 		enum jit_inp_type type; // type of the argument
 		int size;		// its size
@@ -319,6 +320,9 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
+
+#define jit_prolog(jit, a) jit_add_op(jit, JIT_PROLOG, SPEC(IMM, IMM, NO), (long)a, 0, 0, 0)
+#define jit_declare_arg(jit, a, b) jit_add_op(jit, JIT_DECL_ARG, SPEC(IMM, IMM, NO), a, b, 0, 0)
 
 #define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 #define jit_reti(jit, a) jit_add_op(jit, JIT_RET | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
@@ -605,15 +609,6 @@ static inline int jit_is_label(struct jit * jit, void * ptr)
 	}
 }
 
-static inline void jit_prolog(struct jit * jit, void * func)
-{
-	jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0);
-	jit->allocai_mem = 0;
-	jit->input_args.pos = 0;
-	jit->input_args.capacity = 10;
-	jit->input_args.args = JIT_MALLOC(sizeof(struct jit_inp_arg) * jit->input_args.capacity);
-}
-
 static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 {
 	jit->prepared_args.args = JIT_MALLOC(sizeof(struct jit_out_arg) * count);
@@ -653,6 +648,7 @@ static inline void __fput_arg(struct jit * jit, jit_op * op)
 
 static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 {
+	int declared_args = 0;
 	int last_gp = -1;
 	int last_fp = 0;
 	int allocai_mem = 0;
@@ -667,6 +663,7 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 			}
 				
 		if (GET_OP(op) == JIT_ALLOCA) allocai_mem += op->arg[0];
+		if (GET_OP(op) == JIT_DECL_ARG) declared_args++;
 		op = op->next;
 	}
 
@@ -677,23 +674,21 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 	while (jit->reg_count % 4) jit->reg_count ++; // stack has to be aligned to 16 bytes
 	while (jit->fp_reg_count % 1) jit->fp_reg_count ++;
 #endif
-//	printf(":YYY:%i:%i:%i\n", allocai_mem, jit->reg_count, jit->fp_reg_count);
 	jit->allocai_mem = allocai_mem;
 	jit->allocai_mem += jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
+
+	jit->input_args.args = JIT_MALLOC(sizeof(struct jit_inp_arg) * declared_args);
 }
 
-static inline void jit_declare_arg(struct jit * jit, enum jit_inp_type type, int size)
+static inline void __declare_arg(struct jit * jit, enum jit_inp_type type, int size)
 {
-	if (jit->input_args.pos + 1 >= jit->input_args.capacity) {
-		jit->input_args.capacity *= 2;
-		jit->input_args.args = JIT_REALLOC(jit->input_args.args, sizeof(struct jit_inp_arg) * jit->input_args.capacity);
-	}
-
 	int p = jit->input_args.pos;
 	jit->input_args.args[p].type = type;
 	jit->input_args.args[p].size = size;
 	jit_init_arg_params(jit, p);
 	jit->input_args.pos++;
+	if (type == JIT_FLOAT_NUM) jit->input_args.float_arg_cnt++;
+	else jit->input_args.general_arg_cnt++;
 }
 
 #endif

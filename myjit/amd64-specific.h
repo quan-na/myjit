@@ -39,21 +39,46 @@ static inline int jit_allocai(struct jit * jit, int size)
 static inline void jit_init_arg_params(struct jit * jit, int p)
 {
 	struct jit_inp_arg * a = &(jit->input_args.args[p]);
-	if (p < 6) {
-		a->passed_by_reg = 1;
-		switch (p) {
-			case 0: a->location.reg = AMD64_RDI; break;
-			case 1: a->location.reg = AMD64_RSI; break;
-			case 2: a->location.reg = AMD64_RDX; break;
-			case 3: a->location.reg = AMD64_RCX; break;
-			case 4: a->location.reg = AMD64_R8; break;
-			case 5: a->location.reg = AMD64_R9; break;
+	if (a->type != JIT_FLOAT_NUM) { // normal argument
+		int pos = jit->input_args.general_arg_cnt;
+		if (pos < 6) {
+			a->passed_by_reg = 1;
+			switch (pos) {
+				case 0: a->location.reg = AMD64_RDI; break;
+				case 1: a->location.reg = AMD64_RSI; break;
+				case 2: a->location.reg = AMD64_RDX; break;
+				case 3: a->location.reg = AMD64_RCX; break;
+				case 4: a->location.reg = AMD64_R8; break;
+				case 5: a->location.reg = AMD64_R9; break;
+			}
+			a->spill_pos = __GET_REG_POS(jit, pos + JIT_FIRST_REG + 1);
+		} else {
+			a->passed_by_reg = 0;
+			a->location.stack_pos = 8 + (pos - 5) * 8;
+			a->spill_pos = 8 + (pos - 5) * 8;
 		}
-		a->spill_pos = __GET_REG_POS(jit, p + JIT_FIRST_REG + 1);
+		return;
+	} // FP argument
+	if (jit->input_args.float_arg_cnt < 6) {
+		a->passed_by_reg = 1;
+		switch (jit->input_args.float_arg_cnt) {
+			case 0: a->location.reg = AMD64_XMM0; break;
+			case 1: a->location.reg = AMD64_XMM1; break;
+			case 2: a->location.reg = AMD64_XMM2; break;
+			case 3: a->location.reg = AMD64_XMM3; break;
+			case 4: a->location.reg = AMD64_XMM4; break;
+			case 5: a->location.reg = AMD64_XMM5; break;
+			case 6: a->location.reg = AMD64_XMM6; break;
+			case 7: a->location.reg = AMD64_XMM7; break;
+		}
+// FIXME:		a->spill_pos = __GET_REG_POS(jit, p + JIT_FIRST_REG + 1);
 	} else {
+		/*
 		a->passed_by_reg = 0;
 		a->location.stack_pos = 8 + (p - 5) * 8;
 		a->spill_pos = 8 + (p - 5) * 8;
+		*/
+		assert(0);
 	}
 }
 
@@ -679,7 +704,7 @@ void __get_arg(struct jit * jit, jit_op * op)
 				amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
 				amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, arg->size);
 			}
-		}
+		} else assert(0);
 		return;
 	} 
 
@@ -688,7 +713,9 @@ void __get_arg(struct jit * jit, jit_op * op)
 		if (arg->size == REG_SIZE) amd64_mov_reg_reg(jit->ip, dreg, reg, REG_SIZE);
 		else if (arg->type == JIT_SIGNED_NUM) amd64_movsx_reg_reg(jit->ip, dreg, reg, arg->size);
 		else amd64_movzx_reg_reg(jit->ip, dreg, reg, arg->size);
-	} else assert(0);
+	} else {
+		amd64_sse_movsd_reg_reg(jit->ip, dreg, reg);
+	}
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -823,12 +850,20 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_PROLOG:
 			__initialize_reg_counts(jit, op);
+
+			jit->allocai_mem = 0;
+			jit->input_args.pos = 0;
+			jit->input_args.general_arg_cnt = 0;
+			jit->input_args.float_arg_cnt = 0;
+
 			*(void **)(a1) = jit->ip;
 			amd64_push_reg(jit->ip, AMD64_RBP);
 			amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
 			if (jit->allocai_mem) amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, jit->allocai_mem);
 			__push_callee_saved_regs(jit, op);
 			break;
+		
+		case JIT_DECL_ARG: __declare_arg(jit, a1, a2); break;
 
 		case JIT_RETVAL: 
 			if (a1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, a1, AMD64_RAX, REG_SIZE);
@@ -939,13 +974,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_X86_STXI | IMM): amd64_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;
 		case (JIT_X86_STXI | REG): amd64_mov_memindex_imm(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
-		default: printf("amd64: unknown operation (opcode: 0x%x)\n", GET_OP(op));
+		default: printf("amd64: unknown operation (opcode: 0x%x)\n", GET_OP(op) >> 3);
 	}
 }
 
 struct jit_reg_allocator * jit_reg_allocator_create()
 {
 	static int __arg_regs[] = { AMD64_RDI, AMD64_RSI, AMD64_RDX, AMD64_RCX, AMD64_R8, AMD64_R9 };
+	static int __fp_arg_regs[] = { AMD64_XMM0, AMD64_XMM1, AMD64_XMM2, AMD64_XMM3, AMD64_XMM4, AMD64_XMM5, AMD64_XMM6, AMD64_XMM7 };
+
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
 	a->gp_reg_cnt = 14;
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
@@ -981,10 +1018,10 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
 	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
 
-	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM0, 0, "xmm0", 0, 1, 1 };
-	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM1, 0, "xmm1", 0, 1, 2 };
-	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM2, 0, "xmm2", 0, 1, 3 };
-	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM3, 0, "xmm3", 0, 1, 4 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 1 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 2 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 3 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 4 };
 	/*
 #ifndef JIT_REGISTER_TEST
 	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM4, 0, "xmm4", 0, 1, 5 };
@@ -997,8 +1034,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_arg_reg_cnt = 6;
 	a->gp_arg_regs = __arg_regs;
 
-	a->fp_arg_reg_cnt = 0;
-	a->fp_arg_regs = NULL;
-
+	a->fp_arg_reg_cnt = 8;
+	a->fp_arg_regs = __fp_arg_regs;
 	return a;
 }
