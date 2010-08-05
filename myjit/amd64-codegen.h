@@ -396,6 +396,32 @@ typedef union {
        x86_imm_emit32 ((inst), (mem)); \
     } while (0)
 
+///XXXXXXXXXXXXXXXX
+#define amd64_sse_alu_pd_reg_mem(inst,op,reg,mem) \
+do {     \
+		*(inst)++ = (unsigned char)0x66;        \
+/*		amd64_emit_rex(inst,8,(reg),0,0);*/ \
+		*(inst)++ = (unsigned char)0x0f; \
+		*(inst)++ = (unsigned char)op; \
+		/*x86_mem_emit ((inst), ((reg)&0x7), (mem));*/ \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+} while (0)
+
+#define amd64_sse_alu_sd_reg_mem(inst,op,reg,mem) \
+do {     \
+		*(inst)++ = (unsigned char)0xf2;        \
+/*		amd64_emit_rex(inst,8,(reg),0,0);*/ \
+		*(inst)++ = (unsigned char)0x0f; \
+		*(inst)++ = (unsigned char)op; \
+		/*x86_mem_emit ((inst), ((reg)&0x7), (mem));*/ \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+} while (0)
+
+
 #define amd64_movsxd_reg_memindex(inst,reg,basereg,disp,indexreg,shift) \
 	do { \
 		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\

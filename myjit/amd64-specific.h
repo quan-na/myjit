@@ -436,6 +436,63 @@ static inline void __sse_change_sign(struct jit * jit, long reg)
 	amd64_sse_xorpd_reg_mem(jit->ip, reg, __sse_get_sign_mask());
 }
 
+static inline void __sse_round(struct jit * jit, long a1, long a2)
+{
+	static const double x0 = 0.0;
+	static const double x05 = 0.5;
+
+	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+
+	amd64_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
+	
+
+	unsigned char * branch1 = jit->ip;
+	amd64_branch_disp(jit->ip, X86_CC_LT, 0, 0);
+
+	amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_ADD, a2, &x05);
+
+	unsigned char * branch2 = jit->ip;
+	amd64_jump_disp(jit->ip, 0);
+
+	amd64_patch(branch1, jit->ip);
+
+	amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_SUB, a2, &x05);
+	amd64_patch(branch2, jit->ip);
+
+	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
+
+	// returns values back
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+}
+
+static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
+{
+	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
+
+	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+	// TODO: test if the register is in use or not
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 0);
+
+	// truncates the value in a2 and stores it into the a1 and tmp_reg
+	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
+	amd64_sse_cvtsi2sd_reg_reg(jit->ip, tmp_reg, a1);
+
+	if (floor) {
+		// if a2 < tmp_reg, it substracts 1 (using the carry flag)
+		amd64_sse_comisd_reg_reg(jit->ip, a2, tmp_reg);
+		amd64_alu_reg_imm(jit->ip, X86_SBB, a1, 0);
+	} else { // ceil
+		// if tmp_reg < a2, it adds 1 (using the carry flag)
+		amd64_sse_comisd_reg_reg(jit->ip, tmp_reg, a2);
+		amd64_alu_reg_imm(jit->ip, X86_ADC, a1, 0);
+	}
+
+	// returns values back
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
+}
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXX: shared with x86-code
 static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
@@ -501,6 +558,13 @@ static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
 {
 	if (a1 != a2) x86_movsd_reg_reg(jit->ip, a1, a2); 
 	__sse_change_sign(jit, a1);
+}
+
+static inline void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
+{
+        x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
+        op->patch_addr = __PATCH_ADDR(jit);
+        x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -839,6 +903,19 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
 		case (JIT_FDIV | REG): __sse_div_op(jit, a1, a2, a3); break;
                 case (JIT_FNEG | REG): __sse_neg_op(jit, a1, a2); break;
+		case (JIT_FBLT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_LT); break;
+                case (JIT_FBGT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
+                case (JIT_FBGE | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
+                case (JIT_FBLE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
+                case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
+                case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
+
+		case (JIT_EXT | REG): amd64_sse_cvtsi2sd_reg_reg(jit->ip, a1, a2); break;
+                case (JIT_TRUNC | REG): amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2); break;
+		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
+                case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
+		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
+
 		case (JIT_FRET | REG): amd64_sse_movlpd_membase_xreg(jit->ip, a1, AMD64_RSP, -8); // pushes the value beyond the top of the stack
 				       amd64_mov_reg_membase(jit->ip, AMD64_RAX, AMD64_RSP, -8, 8);            // transfers the value from the stack to RAX
 				       amd64_sse_movsd_reg_membase(jit->ip, AMD64_XMM0, AMD64_RSP, -8);

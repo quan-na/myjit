@@ -37,8 +37,10 @@ int main()
 	jit_getarg(p, FR(1), 3);*/
 
 	jit_fmovi(p, FR(0), 1.0);
-	jit_fmovi(p, FR(1), 2.2);
-	jit_fsubr(p, FR(1), FR(0), FR(1));
+	jit_fmovi(p, FR(1), -2.2);
+	jit_roundr(p, R(0), FR(1));
+	jit_extr(p, FR(1), R(0));
+	//jit_fsubr(p, FR(1), FR(0), FR(1));
 //	jit_floorr(p, R(0), FR(0));
 //	jit_extr(p, FR(0), R(0));
 
