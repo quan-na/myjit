@@ -321,7 +321,6 @@ void jit_regpool_free(struct jit_regpool * p);
 #define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 
-#define jit_prolog(jit, a) jit_add_op(jit, JIT_PROLOG, SPEC(IMM, IMM, NO), (long)a, 0, 0, 0)
 #define jit_declare_arg(jit, a, b) jit_add_op(jit, JIT_DECL_ARG, SPEC(IMM, IMM, NO), a, b, 0, 0)
 
 #define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
@@ -609,6 +608,12 @@ static inline int jit_is_label(struct jit * jit, void * ptr)
 	}
 }
 
+static inline void jit_prolog(struct jit * jit, void * func)
+{
+	jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0);
+	jit->allocai_mem = 0;
+}
+
 static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 {
 	jit->prepared_args.args = JIT_MALLOC(sizeof(struct jit_out_arg) * count);
@@ -675,7 +680,6 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 	while (jit->fp_reg_count % 1) jit->fp_reg_count ++;
 #endif
 	jit->allocai_mem = allocai_mem;
-	jit->allocai_mem += jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
 
 	jit->input_args.args = JIT_MALLOC(sizeof(struct jit_inp_arg) * declared_args);
 }

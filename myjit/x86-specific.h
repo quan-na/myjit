@@ -797,18 +797,20 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  __push_caller_saved_regs(jit, op);
 				  break;
 		case JIT_PROLOG:
-			__initialize_reg_counts(jit, op);
+			do {
+				__initialize_reg_counts(jit, op);
 
-			jit->allocai_mem = 0;
-			jit->input_args.pos = 0;
-			jit->input_args.general_arg_cnt = 0;
-			jit->input_args.float_arg_cnt = 0;
+				jit->input_args.pos = 0;
+				jit->input_args.general_arg_cnt = 0;
+				jit->input_args.float_arg_cnt = 0;
 
-			op->patch_addr = __PATCH_ADDR(jit);
-			x86_push_reg(jit->ip, X86_EBP);
-			x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
-			if (jit->allocai_mem) x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, jit->allocai_mem);
-			__push_callee_saved_regs(jit, op);
+				op->patch_addr = __PATCH_ADDR(jit);
+				x86_push_reg(jit->ip, X86_EBP);
+				x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
+				int stack_mem = jit->allocai_mem + jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
+				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
+				__push_callee_saved_regs(jit, op);
+			} while(0);
 			break;
 
 		case JIT_DECL_ARG: __declare_arg(jit, a1, a2); break;
