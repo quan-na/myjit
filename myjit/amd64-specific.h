@@ -19,9 +19,6 @@
 
 #include "amd64-codegen.h"
 
-#define JIT_X86_STI	(0x0100 << 3)
-#define JIT_X86_STXI	(0x0101 << 3)
-
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
@@ -520,6 +517,7 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 }
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXX: shared with x86-code
+/*
 static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 {
 	if (op->r_arg[0] == op->r_arg[1]) {
@@ -591,7 +589,7 @@ static inline void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2,
         op->patch_addr = __PATCH_ADDR(jit);
         x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
-
+*/
 //////////////////////////////////////////////////////////////////////
 
 

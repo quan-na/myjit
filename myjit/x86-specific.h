@@ -19,14 +19,13 @@
 
 #include "x86-codegen.h"
 
-#define JIT_X86_STI	(0x0100 << 3)
-#define JIT_X86_STXI	(0x0101 << 3)
-
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 #define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE) - (jit)->allocai_mem)
 #define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit, jit->reg_count) - (abs(r)) * sizeof(double))
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
+
+#include "x86-common-stuff.c"
 
 static inline int jit_allocai(struct jit * jit, int size)
 {
@@ -50,6 +49,24 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 	}
 
 	a->spill_pos = a->location.stack_pos; 
+}
+
+static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
+{
+	if (!r->fp) x86_push_reg(jit->ip, r->id);
+	else {
+		x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
+		x86_movlpd_membase_xreg(jit->ip, r->id, X86_ESP, 0);
+	}
+}
+
+static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
+{
+	if (!r->fp) x86_pop_reg(jit->ip, r->id);
+	else {
+		x86_movlpd_xreg_membase(jit->ip, r->id, X86_ESP, 0);
+		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
+	}
 }
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
@@ -188,7 +205,6 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int x86_con
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	//x86_branch(jit->ip, x86_cond, (unsigned char *)op->r_arg[0], sign);
 	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
@@ -199,7 +215,6 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x8
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	//x86_branch(jit->ip, x86_cond, (unsigned char *)op->r_arg[0], 0);
 	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
@@ -210,7 +225,6 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 
 	op->patch_addr = __PATCH_ADDR(jit); 
 
-	//x86_branch(jit->ip, X86_CC_O, (unsigned char *)op->r_arg[0], 0);
 	x86_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
@@ -300,8 +314,10 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args.stack_size);
 	JIT_FREE(jit->prepared_args.args);
 
-	/* pops caller saved registers */
+	__pop_caller_saved_regs(jit, op);
 
+	/* pops caller saved registers */
+/*
 	int reg;
 	struct __hw_reg * hreg;
 
@@ -320,6 +336,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
 		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
 	}
+	*/
 }
 
 static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
@@ -445,149 +462,9 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 
-
-static inline int __uses_hw_reg(struct jit_op * op, long reg)
-{
-	for (int i = 0; i < 3; i++)
-		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			if (op->r_arg[i] == reg) return 1;
-		}
-	return 0;
-}
-
-
-static inline void __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
-{
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, X86_EBX)) { x86_push_reg(jit->ip, X86_EBX); break; }
-	}
-
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, X86_ESI)) { x86_push_reg(jit->ip, X86_ESI); break; }
-	}
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, X86_EDI)) { x86_push_reg(jit->ip, X86_EDI); break; }
-	}
-}
-
-static inline void __pop_callee_saved_regs(struct jit * jit)
-{
-	struct jit_op * op = jit->current_func;
-
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, X86_EDI)) { x86_pop_reg(jit->ip, X86_EDI); break; }
-	}
-
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, X86_ESI)) { x86_pop_reg(jit->ip, X86_ESI); break; }
-	}
-	
-	for (struct jit_op * o = op->next; o != NULL; o = o->next) {
-		if (GET_OP(o) == JIT_PROLOG) break;
-		if (__uses_hw_reg(o, X86_EBX)) { x86_pop_reg(jit->ip, X86_EBX); break; }
-	}
-}
-
-static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
-{
-	while (op) {
-		if (GET_OP(op) == JIT_CALL) break;
-		op = op->next;
-	}
-
-
-	int reg;
-	struct __hw_reg * hreg;
-	static int regs[] = { X86_ECX, X86_EDX };
-	for (int i = 0; i < 2; i++) {
-		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) x86_push_reg(jit->ip, regs[i]);
-	}
-
-	static int fp_regs[] = { X86_XMM0, X86_XMM1, X86_XMM2, X86_XMM3,
-				 X86_XMM4, X86_XMM5, X86_XMM6, X86_XMM7 };
-	for (int i = 0; i < 8; i++) {
-		hreg = rmap_is_associated(op->regmap, fp_regs[i], 1, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) {
-			x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
-			x86_movlpd_membase_xreg(jit->ip, fp_regs[i], X86_ESP, 0);
-		}
-	}
-}
-
-static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
-{
-	if (op->r_arg[0] == op->r_arg[1]) {
-		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[1]);
-	} else {
-		x86_movsd_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1]); 
-		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
-	}
-}
-
-static inline unsigned char * __sse_get_sign_mask()
-{
-	// gets 16-bytes aligned value
-	static unsigned char bufx[32];
-	unsigned char * buf = bufx + 1;
-	while ((long)buf % 16) buf++;
-	unsigned long long * bit_mask = (unsigned long long *)buf;
-
-	// inverts 64th (sing) bit
-	*bit_mask = (unsigned long long)1 << 63;
-	return buf;
-}
-
 static inline void __sse_change_sign(struct jit * jit, long reg)
 {
 	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, __sse_get_sign_mask());
-}
-
-static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
-{
-	if (a1 == a2) {
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
-	} else if (a1 == a3) {
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
-		__sse_change_sign(jit, a1);
-	} else {
-		x86_movsd_reg_reg(jit->ip, a1, a2); 
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
-	}
-}
-
-static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
-{
-//	static unsigned long long bit_mask = (unsigned long long)1 << 63;
-	if (a1 == a2) {
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
-	} else if (a1 == a3) {
-		// creates a copy of the a2 into high bits of a2
-		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-
-		// divides a2 by a3 and moves to the results
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a2, a3);
-		x86_movsd_reg_reg(jit->ip, a1, a2); 
-
-		// returns the the value of a2
-		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-	} else {
-		x86_movsd_reg_reg(jit->ip, a1, a2); 
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
-	}
-}
-
-static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
-{
-	if (a1 != a2) x86_movsd_reg_reg(jit->ip, a1, a2); 
-	__sse_change_sign(jit, a1);
 }
 
 static inline void __sse_round(struct jit * jit, long a1, long a2)
@@ -645,13 +522,6 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 	// returns values back
 	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
-}
-
-static inline void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
-{
-	x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
-	op->patch_addr = __PATCH_ADDR(jit);
-	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -1010,6 +880,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 
 	a->fp_reg = X86_EBP;
 	a->ret_reg = X86_EAX;
+	a->fpret_reg = -1; // unused
 
 #ifndef JIT_REGISTER_TEST
 	a->fp_reg_cnt = 8;

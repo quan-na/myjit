@@ -26,8 +26,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-/* these three macros are obsolete and will be removed */
-
 #define FR_IMM	(-1)
 #define R_FP	(0)
 #define R_OUT	(1)
@@ -76,6 +74,7 @@ struct jit_reg_allocator {
 	int fp_reg_cnt;				// number of floating-point registers
 	int fp_reg; 				// frame pointer; register used to access the local variables
 	int ret_reg; 				// register used to return value
+	int fpret_reg; 				// register used to return FP value
 	int gp_arg_reg_cnt;			// number of GP registers used to pass arguments
 	int fp_arg_reg_cnt;			// number of FP registers used to pass arguments
 
