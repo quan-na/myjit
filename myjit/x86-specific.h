@@ -315,28 +315,6 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	JIT_FREE(jit->prepared_args.args);
 
 	__pop_caller_saved_regs(jit, op);
-
-	/* pops caller saved registers */
-/*
-	int reg;
-	struct __hw_reg * hreg;
-
-	static int fp_regs[] = { X86_XMM0, X86_XMM1, X86_XMM2, X86_XMM3,
-				 X86_XMM4, X86_XMM5, X86_XMM6, X86_XMM7 };
-	for (int i = 7; i >= 0; i--) {
-		hreg = rmap_is_associated(op->regmap, fp_regs[i], 1, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) {
-			x86_movlpd_xreg_membase(jit->ip, fp_regs[i], X86_ESP, 0);
-			x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
-		}
-	}
-
-	static int regs[] = { X86_ECX, X86_EDX };
-	for (int i = 1; i >= 0; i--) {
-		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
-	}
-	*/
 }
 
 static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)

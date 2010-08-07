@@ -686,6 +686,7 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 static inline void __declare_arg(struct jit * jit, enum jit_inp_type type, int size)
 {
 	int p = jit->input_args.pos;
+	printf("%i:%i\n", type, size);
 	jit->input_args.args[p].type = type;
 	jit->input_args.args[p].size = size;
 	jit_init_arg_params(jit, p);
