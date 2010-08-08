@@ -134,7 +134,10 @@ static inline int node_min(rb_node * x)
 
 static inline rb_node * delete_min(rb_node * h)
 { 
-	if (h->left == NULL) return NULL;
+	if (h->left == NULL) {
+		JIT_FREE(h);
+		return NULL;
+	}
 
 	//if ((!is_red(h->left)) && (!is_red(h->left->left)))
 	if ((!is_red(h->left)) && (h->left) && (!is_red(h->left->left)))
@@ -160,6 +163,7 @@ static inline rb_node * delete_node(rb_node * h, key_t key, int * found)
 	} else {
 		if (is_red(h->left)) h = rotate_right(h);
 		if ((key == h->key) && (h->right == NULL)) {
+			JIT_FREE(h);
 			if (found) *found = 1;
 			return NULL;
 		}

@@ -143,6 +143,8 @@ static void __clone_wo_regs(struct jit_reg_allocator * al, rmap_t * target, rb_n
 
 static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
 {
+	rmap_free(op->regmap);
+
 	rmap_t * res = rmap_init();
 	__clone_wo_regs(jit->reg_al, res, prev_rmap->map, op);
 	op->regmap = res;
@@ -187,8 +189,9 @@ static inline void rmap_make_older(rmap_t * regmap)
 	__make_older(regmap->map);
 }
 
-static inline void rmap_free(rmap_t * regmap)
+void rmap_free(rmap_t * regmap)
 {
+	if (!regmap) return;
 	rb_free(regmap->map);
 	rb_free(regmap->revmap);
 	JIT_FREE(regmap);

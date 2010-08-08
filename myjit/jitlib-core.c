@@ -220,7 +220,13 @@ static void __free_ops(struct jit_op * op)
 
 	if (op->live_in) jitset_free(op->live_in);
 	if (op->live_out) jitset_free(op->live_out);
-	JIT_FREE(op->regmap);
+	rmap_free(op->regmap);
+
+	if (GET_OP(op) == JIT_PROLOG) {
+		struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
+		JIT_FREE(info->args);
+		JIT_FREE(info);
+	}
 
 	JIT_FREE(op);
 }
@@ -235,7 +241,7 @@ static void __free_labels(jit_label * lab)
 void jit_free(struct jit * jit)
 {
 	jit_reg_allocator_free(jit->reg_al);
-	__free_ops(jit->ops);
+	__free_ops(jit_op_first(jit->ops));
 	__free_labels(jit->labels);
 	JIT_FREE(jit->buf);
 	JIT_FREE(jit);

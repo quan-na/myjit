@@ -338,6 +338,7 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a)
 {
 	jit_regpool_free(a->gp_regpool);
 	jit_regpool_free(a->fp_regpool);
+	if (a->fp_regs) JIT_FREE(a->fp_regs);
 	JIT_FREE(a->gp_regs);
 	JIT_FREE(a);
 }

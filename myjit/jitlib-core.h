@@ -196,6 +196,7 @@ char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg, int fp);
 struct jit_regpool * jit_regpool_init(int size);
 void jit_regpool_free(struct jit_regpool * p);
+void rmap_free(rmap_t * regmap);
 
 #define JIT_CODESTART	(0x00 << 3)
 #define JIT_UREG	(0x01 << 3)
@@ -546,6 +547,10 @@ static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, 
 	r->arg[0] = arg1;
 	r->arg[1] = arg2;
 	r->arg[2] = arg3;
+
+	r->r_arg[0] = -1;
+	r->r_arg[1] = -1;
+	r->r_arg[2] = -1;
 
 	r->assigned = 0;
 	r->arg_size = arg_size;
