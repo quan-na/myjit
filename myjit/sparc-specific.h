@@ -28,13 +28,13 @@ static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
 	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
-	jit->allocai_mem += real_size;	
-	return (jit->allocai_mem);
+	jit_current_func_info(jit)->allocai_mem += real_size;	
+	return (jit_current_func_info(jit)->allocai_mem);
 }
 
 static inline void jit_init_arg_params(struct jit * jit, int p)
 {
-	struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
 	if (p < 6) {
 		a->passed_by_reg = 1;
 		switch (p) {
@@ -197,7 +197,7 @@ void __get_arg(struct jit * jit, jit_op * op)
 	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is R_IMM
 	int dreg = op->r_arg[0];
 
-	struct jit_inp_arg * arg = &(jit->input_args.args[arg_id]);
+	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[arg_id]);
 	int read_from_stack = 0;
 	int stack_pos;
 
@@ -213,7 +213,7 @@ void __get_arg(struct jit * jit, jit_op * op)
 	}
 
 	if (read_from_stack) sparc_ld_imm(jit->ip, sparc_fp, stack_pos, dreg);
-	sparc_mov_reg_reg(jit->ip, arg->location.reg, dreg);
+	else sparc_mov_reg_reg(jit->ip, arg->location.reg, dreg);
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -466,11 +466,13 @@ op_complete:
 		case JIT_PROLOG:
 			__initialize_reg_counts(jit, op);
 			*(void **)(a1) = jit->ip;
-			sparc_save_imm(jit->ip, sparc_sp, -96 - jit->allocai_mem, sparc_sp);
+			sparc_save_imm(jit->ip, sparc_sp, -96 - jit_current_func_info(jit)->allocai_mem, sparc_sp);
 			break;
 		case JIT_RETVAL: 
 			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
 			break;
+
+		case JIT_DECL_ARG: __declare_arg(jit, a1, a2); break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 
