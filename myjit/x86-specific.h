@@ -21,8 +21,8 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE) - (jit)->allocai_mem)
-#define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit, jit->reg_count) - (abs(r)) * sizeof(double))
+#define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit, jit_current_func_info(jit)->gp_reg_count) - (abs(r)) * sizeof(double))
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 #include "x86-common-stuff.c"
@@ -31,19 +31,20 @@ static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 3) & 0xfffffffc; // 4-bytes aligned
 	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
-	jit->allocai_mem += real_size;	
-	return -(jit->allocai_mem);
+	jit_current_func_info(jit)->allocai_mem += real_size;	
+	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
 static inline void jit_init_arg_params(struct jit * jit, int p)
 {
-	struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	//struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
 	a->passed_by_reg = 0;
 
 	if (p == 0) a->location.stack_pos = 8;
 	//else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
 	else {
-		struct jit_inp_arg * prev_a = &(jit->input_args.args[p - 1]);
+		struct jit_inp_arg * prev_a = &(jit_current_func_info(jit)->args[p - 1]);
 		int stack_shift = (prev_a->size + 3) & 0xfffffffc; // 4-bytes aligned
 		a->location.stack_pos = prev_a->location.stack_pos + stack_shift;
 	}
@@ -601,7 +602,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_GETARG:
 			do {
-				struct jit_inp_arg * arg = &(jit->input_args.args[a2]);
+				struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[a2]);
 				int stack_pos = arg->location.stack_pos;
 				if (arg->type != JIT_FLOAT_NUM) {
 					if (arg->size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, stack_pos, REG_SIZE); 
@@ -647,15 +648,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PROLOG:
 			do {
 				__initialize_reg_counts(jit, op);
-
-				jit->input_args.pos = 0;
-				jit->input_args.general_arg_cnt = 0;
-				jit->input_args.float_arg_cnt = 0;
+				struct jit_func_info * info = jit_current_func_info(jit);
 
 				op->patch_addr = __PATCH_ADDR(jit);
 				x86_push_reg(jit->ip, X86_EBP);
 				x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
-				int stack_mem = jit->allocai_mem + jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
+				int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
 				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
 				__push_callee_saved_regs(jit, op);
 			} while(0);

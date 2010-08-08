@@ -37,7 +37,6 @@ struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char 
 	struct jit_op * r = __new_op(code, spec, arg1, arg2, arg3, arg_size);
 	jit_op_append(jit->last_op, r);
 	jit->last_op = r;
-	if (code == JIT_PROLOG) jit->current_func = r;
 
 	return r;
 }
