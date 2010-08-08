@@ -110,15 +110,6 @@ static inline void __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	__generic_pop_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
 	__generic_pop_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
-	/*
-	int reg;
-	struct __hw_reg * hreg;
-
-	static int regs[] = { X86_ECX, X86_EDX };
-	for (int i = 1; i >= 0; i--) {
-		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) x86_pop_reg(jit->ip, regs[i]);
-	}*/
 }
 
 //

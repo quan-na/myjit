@@ -31,8 +31,8 @@ static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
 	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
-	jit->allocai_mem += real_size;	
-	return -(jit->allocai_mem);
+	jit_current_func_info(jit)->allocai_mem += real_size;
+	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
 static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
@@ -55,9 +55,10 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 
 static inline void jit_init_arg_params(struct jit * jit, int p)
 {
-	struct jit_inp_arg * a = &(jit->input_args.args[p]);
+	struct jit_func_info * info = jit_current_func_info(jit);
+	struct jit_inp_arg * a = &(info->args[p]);
 	if (a->type != JIT_FLOAT_NUM) { // normal argument
-		int pos = jit->input_args.general_arg_cnt;
+		int pos = info->general_arg_cnt;
 		if (pos < 6) {
 			a->passed_by_reg = 1;
 			switch (pos) {
@@ -76,9 +77,9 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 		}
 		return;
 	} // FP argument
-	if (jit->input_args.float_arg_cnt < 6) {
+	if (info->float_arg_cnt < 8) {
 		a->passed_by_reg = 1;
-		switch (jit->input_args.float_arg_cnt) {
+		switch (info->float_arg_cnt) {
 			case 0: a->location.reg = AMD64_XMM0; break;
 			case 1: a->location.reg = AMD64_XMM1; break;
 			case 2: a->location.reg = AMD64_XMM2; break;
@@ -333,22 +334,11 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); // 4: magic constant
 	}
 
-	if (jit->prepared_args.stack_size) {
+	if (jit->prepared_args.stack_size)
 		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, jit->prepared_args.stack_size);
-		JIT_FREE(jit->prepared_args.args);
-	}
+	JIT_FREE(jit->prepared_args.args);
 
 	__pop_caller_saved_regs(jit, op);
-	/* pops caller saved registers */
-	/*
-	static int regs[] = { AMD64_RCX, AMD64_RDX, AMD64_RSI, AMD64_RDI, AMD64_R8, AMD64_R9, AMD64_R10, AMD64_R11 };
-	for (int i = 7; i >= 0; i--) {
-		int reg;
-		struct __hw_reg * hreg;
-		hreg = rmap_is_associated(op->regmap, regs[i], 0, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) amd64_pop_reg(jit->ip, regs[i]);
-	}
-	*/
 }
 
 static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
@@ -545,7 +535,7 @@ void __get_arg(struct jit * jit, jit_op * op)
 	int arg_id = op->r_arg[1];
 	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
 
-	struct jit_inp_arg * arg = &(jit->input_args.args[arg_id]);
+	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[arg_id]);
 	int read_from_stack = 0;
 	int stack_pos;
 
@@ -714,15 +704,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PROLOG:
 			  do {
 				  __initialize_reg_counts(jit, op);
-
-				  jit->input_args.pos = 0;
-				  jit->input_args.general_arg_cnt = 0;
-				  jit->input_args.float_arg_cnt = 0;
+				  struct jit_func_info * info = jit_current_func_info(jit);
 
 				  *(void **)(a1) = jit->ip;
 				  amd64_push_reg(jit->ip, AMD64_RBP);
 				  amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
-				  int stack_mem = jit->allocai_mem + jit->reg_count * REG_SIZE + jit->fp_reg_count * sizeof(double);
+				  int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
 				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
 				  __push_callee_saved_regs(jit, op);
 			  } while (0);
@@ -876,8 +863,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->ret_reg = AMD64_RAX;
 
 	a->fp_reg_cnt = 4;
-	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
-	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
 
 	int reg = 0;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
