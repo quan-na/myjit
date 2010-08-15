@@ -46,12 +46,10 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 	if (GET_OP(op) == JIT_PROLOG) {
 		
 		func_info = (struct jit_func_info *)op->arg[1];
-		//int argcount = jit->argpos;
-		//if (argcount > 6) argcount = 6;
-		int argcount = func_info->general_arg_cnt + func_info->float_arg_cnt;
+		int argcount = func_info->general_arg_cnt;
+		if (argcount > 6) argcount = 6;
 		for (int j = 0; j < argcount; j++) {
-			//jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 0); 
-			jitset_set(op->live_in, op->arg[1] + func_info->gp_reg_count + func_info->fp_reg_count, 0); 
+			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, op->arg[1]), 0); 
 		}
 	}
 #endif
@@ -64,9 +62,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (GET_OP(op) == JIT_GETARG) {
 		if ((op->arg[1] >= 0) && (op->arg[1] <= 5)) {
-			//REMOVEME: the first real register is used to set immediate values
-			//jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 1); 
-			jitset_set(op->live_in, op->arg[1] + func_info->gp_reg_count + func_info->fp_reg_count, 1); 
+			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, op->arg[1]), 1); 
 		}
 	}
 #endif

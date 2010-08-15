@@ -37,9 +37,22 @@
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __REG(x) ((x) - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT + 1)
-#define __GET_REG_POS(jit, r) ((- (__REG(r)) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
-#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (arg + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+//#define __GET_REG_POS(jit, r) ((- (__REG(r)) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+
+#define __GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
+
+#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (JIT_REG(arg).id + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+
+//#define __GET_REG_POS(jit,r) __GET_GPREG_POS(jit,r)
+static inline int __GET_REG_POS(struct jit * jit, int r)
+{
+	if (JIT_REG(r).spec == JIT_RTYPE_REG) {
+		if (JIT_REG(r). type == JIT_RTYPE_INT) return __GET_GPREG_POS(jit, r);
+		else return __GET_FPREG_POS(jit, r);
+	} else return __GET_ARG_SPILL_POS(jit, jit_current_func_info(jit), r);
+}
+
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
 #include "x86-common-stuff.c"
@@ -87,7 +100,7 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 				case 5: a->location.reg = AMD64_R9; break;
 			}
 			a->spill_pos = __GET_ARG_SPILL_POS(jit, info, pos);
-			printf("AAA:%i\n", a->spill_pos);
+//			printf("AAA:%i\n", a->spill_pos);
 		} else {
 			a->passed_by_reg = 0;
 			a->location.stack_pos = 8 + (pos - 5) * 8;
@@ -550,11 +563,15 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 
 void __get_arg(struct jit * jit, jit_op * op)
 {
+
+	struct jit_func_info * info = jit_current_func_info(jit);
+
 	int dreg = op->r_arg[0];
 	int arg_id = op->r_arg[1];
-	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is JIT_IMMREG
+	//int reg_id = arg_id + info->gp_reg_count + info->fp_reg_count;
+	int reg_id = __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 
-	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[arg_id]);
+	struct jit_inp_arg * arg = &(info->args[arg_id]);
 	int read_from_stack = 0;
 	int stack_pos;
 
@@ -728,8 +745,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  *(void **)(a1) = jit->ip;
 				  amd64_push_reg(jit->ip, AMD64_RBP);
 				  amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
-				  printf("XXX:%i:%i:%i\n", info->allocai_mem, info->gp_reg_count, info->fp_reg_count);
-				  int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
+//				  printf("XXX:%i:%i:%i\n", info->allocai_mem, info->gp_reg_count, info->fp_reg_count);
+				  int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(jit_float) + info->general_arg_cnt * REG_SIZE + info->float_arg_cnt * sizeof(jit_float);
+
+				  stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
+
 				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
 				  __push_callee_saved_regs(jit, op);
 			  } while (0);
@@ -834,8 +854,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       amd64_ret(jit->ip);
 				       break;
 
-		case (JIT_UREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE); break;
-		case (JIT_LREG): amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE); break;
+		case (JIT_UREG): 
+				       //if (JIT_REG(a1).spec == JIT_RTYPE_ARG) assert(0);
+				       amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE); break;
+		case (JIT_LREG): 
+				       if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
+				       amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE); break;
 		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);  break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;

@@ -153,8 +153,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 		struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
 		for (int i = 0; i < al->gp_arg_reg_cnt; i++)
-			//rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->gp_arg_regs[i]));
-			rmap_assoc(op->regmap, info->gp_reg_count + info->fp_reg_count + i, __get_reg(al, al->gp_arg_regs[i]));
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[i]));
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
@@ -225,14 +224,10 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
 			jit_reg virt_reg = JIT_REG(op->arg[i]);
 			if (virt_reg.spec == JIT_RTYPE_ALIAS) {
-				if (op->arg[i] == R_OUT) {
-					op->r_arg[i] = al->ret_reg;
-					continue;
-				}
-				if (op->arg[i] == R_FP) {
-					op->r_arg[i] = al->fp_reg;
-					continue;
-				}
+				if ((int)op->arg[i] == (int)R_OUT) op->r_arg[i] = al->ret_reg;
+				else if ((int)op->arg[i] == (int)R_FP) op->r_arg[i] = al->fp_reg;
+				else assert(0);
+				continue;
 			}
 
 			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
