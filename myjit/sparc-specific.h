@@ -21,6 +21,7 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		((((long)jit->buf + (long)((jit_label *)(imm))->pos - (long)jit->ip)) / 4))
+//#define __GET_REG_POS(jit, r) (+(jit)->allocai_mem + (- (r) * REG_SIZE) - REG_SIZE)
 #define __GET_REG_POS(jit, r) (+(jit)->allocai_mem + (- (r) * REG_SIZE) - REG_SIZE)
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
@@ -45,7 +46,8 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 			case 4: a->location.reg = sparc_i4; break;
 			case 5: a->location.reg = sparc_i5; break;
 		}
-		a->spill_pos = -(p + JIT_FIRST_REG + 1) * 4;
+		//a->spill_pos = -(p + JIT_FIRST_REG + 1) * 4;
+		a->spill_pos = -(p + 1) * 4;
 	} else {
 		a->passed_by_reg = 0;
 		a->location.stack_pos = 92 + (p - 6) * 4;
@@ -194,7 +196,8 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 void __get_arg(struct jit * jit, jit_op * op)
 {
 	int arg_id = op->r_arg[1];
-	int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is R_IMM
+	//int reg_id = arg_id + JIT_FIRST_REG + 1; // 1 -- is R_IMM
+	int reg_id = __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 	int dreg = op->r_arg[0];
 
 	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[arg_id]);
