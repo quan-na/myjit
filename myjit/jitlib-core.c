@@ -131,7 +131,7 @@ static inline void jit_correct_float_imms(struct jit * jit)
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
 
-		jit_op * newop = __new_op(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), FR_IMM, 0, 0, 0);
+		jit_op * newop = __new_op(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), (jit_value) FR_IMM, 0, 0, 0);
 		newop->fp = 1;
 		newop->flt_imm = op->flt_imm;
 		jit_op_prepend(op, newop);

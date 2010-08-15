@@ -43,7 +43,7 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 {
 	rp->pool[++rp->pos] = hreg;
 	
-	// reorder registers according to their priority
+	// reorders registers according to their priority
 #ifdef JIT_ARCH_SPARC
 	int i = rp->pos;
 	while (i > 0) {
@@ -68,7 +68,7 @@ static inline struct __hw_reg * jit_regpool_get(struct jit_regpool * rp)
 }
 
 /**
- * Loads all registers which are not used to pass the arguments into the registers
+ * Adds all registers which are not used to pass the arguments into the register pool
  */
 static inline void jit_regpool_prepare(struct jit_regpool * rp, struct __hw_reg * regs, int regcnt, int * arg_registers, int arg_registers_cnt)
 {
@@ -223,19 +223,22 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 	for (i = 0; i < 3; i++) {
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			if (op->arg[i] == R_OUT) {
-				op->r_arg[i] = al->ret_reg;
-				continue;
-			}
-			if (op->arg[i] == R_FP) {
-				op->r_arg[i] = al->fp_reg;
-				continue;
+			jit_reg virt_reg = JIT_REG(op->arg[i]);
+			if (virt_reg.spec == JIT_RTYPE_ALIAS) {
+				if (op->arg[i] == R_OUT) {
+					op->r_arg[i] = al->ret_reg;
+					continue;
+				}
+				if (op->arg[i] == R_FP) {
+					op->r_arg[i] = al->fp_reg;
+					continue;
+				}
 			}
 
 			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
 			if (reg) op->r_arg[i] = reg->id;
 			else {
-				if (IS_GP_REG(op->arg[i])) {
+				if (virt_reg.type == JIT_RTYPE_INT) {
 					reg = jit_regpool_get(al->gp_regpool);
 					if (reg == NULL) reg = make_free_reg(op, 0);
 				} else {

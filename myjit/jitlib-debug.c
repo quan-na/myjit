@@ -164,8 +164,8 @@ void jit_get_reg_name(char * r, int reg, jit_op * op)
 	else if (reg == R_OUT) strcpy(r, "out");
 	else if (reg == R_IMM) strcpy(r, "imm");
 	else if (reg == FR_IMM) strcpy(r, "fimm");
-	else if (reg >= 0) sprintf(r, "r%i", reg - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT);
-	else sprintf(r, "f%i", (-reg) - 2);
+	else if (JIT_REG(reg).type == JIT_RTYPE_INT) sprintf(r, "r%i", JIT_REG(reg).id);
+	else sprintf(r, "f%i", JIT_REG(reg).id);
 }
 
 //static inline int jitset_get(jitset * s, unsigned int bit);

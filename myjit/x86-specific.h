@@ -21,8 +21,8 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
-#define __GET_FPREG_POS(jit, r) (__GET_REG_POS(jit, jit_current_func_info(jit)->gp_reg_count) - (abs(r)) * sizeof(double))
+#define __GET_REG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 #include "x86-common-stuff.c"
@@ -712,15 +712,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | REG): x86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
 		case (JIT_UREG):
-			if (IS_FP_REG(a1)) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
+			if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
 			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
 			break;
 		case (JIT_LREG): 
-			if (IS_FP_REG(a2)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
+			if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
 			else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(jit, a2), REG_SIZE);
 			break;
 		case (JIT_SYNCREG):
-			if (IS_FP_REG(a1)) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
+			if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
 			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
 			break;
 

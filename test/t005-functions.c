@@ -398,8 +398,6 @@ void test8()
 
 int main() 
 {
-	test4(); 
-	/*
 	test1();
 	test2(); 
 	test3();
@@ -408,5 +406,4 @@ int main()
 	test6(); // XXX
 	test7(); // XXX
 	test8(); 
-	*/
 }

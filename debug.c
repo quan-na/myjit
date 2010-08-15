@@ -85,7 +85,7 @@ int main()
 
 	jit_generate_code(p);
 
-	jit_dump_code(p, 0);
+	jit_dump_ops(p, 0);
 
 //	foo(1.2, 2.5);
 //	for (int i = 0; i < 4; i++)

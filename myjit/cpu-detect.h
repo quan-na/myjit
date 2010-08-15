@@ -44,12 +44,6 @@
  */
 #ifdef JIT_ARCH_I386
 
-// number of register aliases
-#define JIT_ALIAS_CNT           (2)     /* R_OUT + R_FP */
-
-// number of special purpose registers
-#define JIT_SPP_REGS_CNT        (1 + 6) /* immediate + register for input arguments */
-
 // maximum size of value (in bits) that can be used as an immediate value without the ``sign bit''
 // (i386 does not need to transform large immediates values)
 #define JIT_IMM_BITS	(-1)
@@ -95,12 +89,8 @@
  * Common macros
  */
 
-// id of the first register
-#define JIT_FIRST_REG   (JIT_ALIAS_CNT)
-
-//#define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
-#define R(x)    ((x) + JIT_ALIAS_CNT + JIT_SPP_REGS_CNT)
-#define FR(x)    (-(x) - 2)
+#define R(x) (__mkreg(JIT_RTYPE_INT, JIT_RTYPE_REG, (x)))
+#define FR(x) (__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_REG, (x)))
 
 #ifndef JIT_MALLOC
 #define JIT_MALLOC(x)	(malloc(x))

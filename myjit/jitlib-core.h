@@ -26,19 +26,18 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define FR_IMM	(-1)
-#define R_FP	(0)
-#define R_OUT	(1)
-#define R_IMM	(2) /* used by amd64 and sparc*/
+#define FR_IMM	(__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_IMM, 0))
+#define R_IMM	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_IMM, 0)) // used by amd64 and sparc
 
-#define JIT_FORWARD	(NULL)
+#define R_FP	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 0))
+#define R_OUT	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 1))
+
+#define JIT_FORWARD    (NULL)
 
 #define GET_OP(op) (op->code & 0xfff8)
 #define GET_OP_SUFFIX(op) (op->code & 0x0007)
 #define IS_IMM(op) (op->code & IMM)
 #define IS_SIGNED(op) (!(op->code & UNSIGNED))
-#define IS_GP_REG(r) ((r) >= 0)
-#define IS_FP_REG(r) ((r) < 0)
 
 
 #define NO  0x00
@@ -53,6 +52,35 @@
 #define SIGN_MASK (0x04)
 
 struct jitset;
+
+typedef long jit_value;
+typedef long jit_int;
+typedef double jit_float;
+
+typedef struct {
+	unsigned type: 1; /* INT / FP */
+	unsigned spec: 2; /* register, alias, immediate, argument's shadow space */
+	unsigned id : 29;
+} jit_reg;
+
+#define JIT_RTYPE_REG	(0)
+#define JIT_RTYPE_IMM	(1)
+#define JIT_RTYPE_ALIAS	(2)
+#define JIT_RTYPE_ARG	(3)
+
+#define JIT_RTYPE_INT	(0)
+#define JIT_RTYPE_FLOAT	(1)
+
+static inline jit_value __mkreg(int type, int spec, int id)
+{
+	jit_reg r;
+	r.type = type;
+	r.spec = spec;
+	r.id = id;
+	return *(jit_value *) &r;
+}
+
+#define JIT_REG(r)	(*(jit_reg *) &(r))
 
 struct __hw_reg {
 	int id;
@@ -70,11 +98,11 @@ struct jit_regpool
 };
 
 struct jit_reg_allocator {
-	int gp_reg_cnt;				// number of general purpose registers
-	int fp_reg_cnt;				// number of floating-point registers
+	int gp_reg_cnt;				// number of general purpose registers 
+	int fp_reg_cnt;				// number of floating-point registers 
 	int fp_reg; 				// frame pointer; register used to access the local variables
-	int ret_reg; 				// register used to return value
-	int fpret_reg; 				// register used to return FP value
+	int ret_reg; 				// register used to return value (processor's ID)
+	int fpret_reg; 				// register used to return FP value (processor's ID)
 	int gp_arg_reg_cnt;			// number of GP registers used to pass arguments
 	int fp_arg_reg_cnt;			// number of FP registers used to pass arguments
 
@@ -98,8 +126,8 @@ typedef struct jit_op {
 	unsigned char assigned;
 	unsigned char fp;	/* FP if it's an floating-point operation */	
 	double flt_imm;
-	long arg[3];
-	long r_arg[3];
+	jit_value arg[3];
+	jit_value r_arg[3];
 	long patch_addr;
 	struct jit_op * jmp_addr;
 	struct jit_op * next;
@@ -671,7 +699,7 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 {
 	int declared_args = 0;
 	int last_gp = -1;
-	int last_fp = 0;
+	int last_fp = -1;
 
 	struct jit_func_info * info = jit_current_func_info(jit);
 
@@ -680,18 +708,17 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 		if (GET_OP(op) == JIT_PROLOG) break;
 		for (int i = 0; i < 3; i++)
 			if ((ARG_TYPE(op, i + 1) == TREG) || (ARG_TYPE(op, i + 1) == REG)) {
-				int r = op->arg[i];
-				if ((r >= 0) && (r > last_gp)) last_gp = r;
-				if ((r < 0) && (r < last_fp)) last_fp = r;
+				jit_reg r = JIT_REG(op->arg[i]);
+				if ((r.type == JIT_RTYPE_INT) && (r.id > last_gp)) last_gp = r.id;
+				if ((r.type == JIT_RTYPE_FLOAT) && (r.id > last_fp)) last_fp = r.id;
 			}
 				
 		if (GET_OP(op) == JIT_DECL_ARG) declared_args++;
 		op = op->next;
 	}
 
-	info->gp_reg_count = last_gp + 1 - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT;
-	info->fp_reg_count = abs(last_fp) - 1;
-	if (info->fp_reg_count < 0) info->fp_reg_count = 0;
+	info->gp_reg_count = last_gp + 1;
+	info->fp_reg_count = last_fp + 1;
 
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	while ((info->gp_reg_count + info->fp_reg_count) % 2) info->gp_reg_count ++; // stack has to be aligned to 16 bytes
