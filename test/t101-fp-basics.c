@@ -49,6 +49,7 @@ void test3()
 	jit_fsubr(p, FR(2), FR(1), FR(0));
 	jit_fretr(p, FR(2));
 	jit_generate_code(p);
+	jit_dump_code(p, 0);
 
 	r = f1();
 	if (equal(r, -50, 0.001)) SUCCESS(3);

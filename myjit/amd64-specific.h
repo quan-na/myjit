@@ -509,7 +509,8 @@ static inline void __sse_round(struct jit * jit, long a1, long a2)
 	static const double x05 = 0.5;
 
 	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+	//x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 
 	amd64_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
 	
@@ -530,7 +531,7 @@ static inline void __sse_round(struct jit * jit, long a1, long a2)
 	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
 
 	// returns values back
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 }
 
 static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
@@ -538,9 +539,9 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
 
 	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 	// TODO: test if the register is in use or not
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 0);
+	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 0);
 
 	// truncates the value in a2 and stores it into the a1 and tmp_reg
 	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
@@ -557,8 +558,8 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 	}
 
 	// returns values back
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
+	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
 }
 
 void __get_arg(struct jit * jit, jit_op * op)
@@ -912,10 +913,10 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
 	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
 
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 1 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 2 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 3 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 4 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 1 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 2 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 3 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 4 };
 	/*
 #ifndef JIT_REGISTER_TEST
 	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM4, 0, "xmm4", 0, 1, 5 };
@@ -928,7 +929,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_arg_reg_cnt = 6;
 	a->gp_arg_regs = __arg_regs;
 
-	a->fp_arg_reg_cnt = 8;
+	a->fp_arg_reg_cnt = 0;
 	a->fp_arg_regs = __fp_arg_regs;
 	return a;
 }

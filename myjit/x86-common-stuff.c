@@ -118,17 +118,27 @@ static inline void __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 //
 //
 
+#ifdef JIT_ARCH_AMD64
+#define sse_alu_sd_reg_reg(ip,op,r1,r2) amd64_sse_alu_sd_reg_reg(ip,op,r1,r2)
+#define sse_alu_pd_reg_reg(ip,op,r1,r2) amd64_sse_alu_pd_reg_reg(ip,op,r1,r2)
+#define sse_movsd_reg_reg(ip,r1,r2) amd64_sse_movsd_reg_reg(ip,r1,r2)
+#else
+#define sse_alu_sd_reg_reg(ip,op,r1,r2) x86_sse_alu_sd_reg_reg(ip,op,r1,r2)
+#define sse_movsd_reg_reg(ip,r1,r2) x86_movsd_reg_reg(ip,r1,r2)
+#define sse_alu_pd_reg_reg(ip,op,r1,r2) x86_sse_alu_pd_reg_reg(ip,op,r1,r2)
+#endif
+
 static inline void __sse_change_sign(struct jit * jit, long reg);
 
 static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 {
 	if (op->r_arg[0] == op->r_arg[1]) {
-		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
+		sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
 	} else if (op->r_arg[0] == op->r_arg[2]) {
-		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[1]);
+		sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[1]);
 	} else {
-		x86_movsd_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1]);
-		x86_sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
+		sse_movsd_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1]);
+		sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
 	}
 }
 
@@ -148,45 +158,45 @@ static inline unsigned char * __sse_get_sign_mask()
 static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
 	} else if (a1 == a3) {
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
+		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
 		__sse_change_sign(jit, a1);
 	} else {
-		x86_movsd_reg_reg(jit->ip, a1, a2);
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
+		sse_movsd_reg_reg(jit->ip, a1, a2);
+		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
 	}
 }
 
 static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
+		sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
 	} else if (a1 == a3) {
 		// creates a copy of the a2 into high bits of a2
 		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 
 		// divides a2 by a3 and moves to the results
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a2, a3);
-		x86_movsd_reg_reg(jit->ip, a1, a2); 
+		sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a2, a3);
+		sse_movsd_reg_reg(jit->ip, a1, a2); 
 
 		// returns the the value of a2
 		x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 	} else {
-		x86_movsd_reg_reg(jit->ip, a1, a2); 
-		x86_sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
+		sse_movsd_reg_reg(jit->ip, a1, a2); 
+		sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
 	}
 }
 
 static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
 {
-	if (a1 != a2) x86_movsd_reg_reg(jit->ip, a1, a2); 
+	if (a1 != a2) sse_movsd_reg_reg(jit->ip, a1, a2); 
 	__sse_change_sign(jit, a1);
 }
 
 static inline void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
 {
-        x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
+        sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
         op->patch_addr = __PATCH_ADDR(jit);
         x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
