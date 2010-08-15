@@ -62,6 +62,7 @@ void test2()
 	jit_patch(p, end);	
 	jit_retr(p, R(2));
 	jit_generate_code(p);
+	jit_dump_code(p, 0);
 
 
 	r = f1(3, 4);
@@ -150,7 +151,8 @@ void test4()
 	jit_generate_code(p);
 
 //	jit_dump_ops(p, 0); return;
-//	jit_dump_code(p, 0); return;
+	jit_dump_code(p, 0); return;
+
 
 	r = f1(30);
 	printf("::%i\n", r);
@@ -396,6 +398,8 @@ void test8()
 
 int main() 
 {
+	test4(); 
+	/*
 	test1();
 	test2(); 
 	test3();
@@ -404,4 +408,5 @@ int main()
 	test6(); // XXX
 	test7(); // XXX
 	test8(); 
+	*/
 }

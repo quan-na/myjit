@@ -19,10 +19,27 @@
 
 #include "amd64-codegen.h"
 
+/* Stack frame organization:
+ *
+ * RBP      +--------------+
+ *          | allocai mem  |
+ * RBP - n  +--------------+
+ *          | GP registers |
+ * RPB - m  +--------------+
+ *          | FP registers |
+ * RPB - k  +--------------+
+ *          | shadow space |
+ *          | for arg.regs |
+ * RPB - l  +--------------+
+ */
+
+
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
 		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(jit, r) ((- (r) * REG_SIZE))
+#define __REG(x) ((x) - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT + 1)
+#define __GET_REG_POS(jit, r) ((- (__REG(r)) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (arg + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
 #include "x86-common-stuff.c"
@@ -69,14 +86,17 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 				case 4: a->location.reg = AMD64_R8; break;
 				case 5: a->location.reg = AMD64_R9; break;
 			}
-			a->spill_pos = __GET_REG_POS(jit, pos + JIT_FIRST_REG + 1);
+			a->spill_pos = __GET_ARG_SPILL_POS(jit, info, pos);
+			printf("AAA:%i\n", a->spill_pos);
 		} else {
 			a->passed_by_reg = 0;
 			a->location.stack_pos = 8 + (pos - 5) * 8;
 			a->spill_pos = 8 + (pos - 5) * 8;
 		}
 		return;
-	} // FP argument
+	}
+	assert(0);// FP argument
+	/*
 	if (info->float_arg_cnt < 8) {
 		a->passed_by_reg = 1;
 		switch (info->float_arg_cnt) {
@@ -91,13 +111,12 @@ static inline void jit_init_arg_params(struct jit * jit, int p)
 		}
 // FIXME:		a->spill_pos = __GET_REG_POS(jit, p + JIT_FIRST_REG + 1);
 	} else {
-		/*
 		a->passed_by_reg = 0;
 		a->location.stack_pos = 8 + (p - 5) * 8;
 		a->spill_pos = 8 + (p - 5) * 8;
-		*/
 		assert(0);
 	}
+	*/
 }
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
@@ -319,7 +338,7 @@ static inline void __configure_args(struct jit * jit)
 		}
 	}
 
-	/* al is used to pass number of floating point arguments */
+	/* al is used to pass the number of floating point arguments */
 	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
 }
 
@@ -709,6 +728,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  *(void **)(a1) = jit->ip;
 				  amd64_push_reg(jit->ip, AMD64_RBP);
 				  amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
+				  printf("XXX:%i:%i:%i\n", info->allocai_mem, info->gp_reg_count, info->fp_reg_count);
 				  int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
 				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
 				  __push_callee_saved_regs(jit, op);
@@ -837,8 +857,9 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
 	a->gp_reg_cnt = 14;
+
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
-	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->gp_reg_cnt + 1));
+	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->gp_reg_cnt);
 
 	a->gp_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0, 0, 14 };
 	a->gp_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1, 0, 1 };
@@ -855,7 +876,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 0, 4 };
 	a->gp_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 0, 5 };
 
-	a->gp_regs[14] = (struct __hw_reg) { AMD64_RBP, 0, "rbp", 0, 100 };
 
 	a->gp_arg_reg_cnt = 6;
 

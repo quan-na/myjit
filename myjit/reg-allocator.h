@@ -151,8 +151,10 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, al->gp_arg_reg_cnt);
 		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, al->fp_arg_reg_cnt);
 
+		struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
 		for (int i = 0; i < al->gp_arg_reg_cnt; i++)
-			rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->gp_arg_regs[i]));
+			//rmap_assoc(op->regmap, JIT_FIRST_REG + 1 + i, __get_reg(al, al->gp_arg_regs[i]));
+			rmap_assoc(op->regmap, info->gp_reg_count + info->fp_reg_count + i, __get_reg(al, al->gp_arg_regs[i]));
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
@@ -182,7 +184,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			}
 		}
 
-		// unloads registers which are used to pass the arguments
+		// spills registers which are used to pass the arguments
 		// FIXME: FP reg support
 		int reg;
 		int args = op->arg[0];

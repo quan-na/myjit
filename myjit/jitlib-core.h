@@ -689,11 +689,12 @@ static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
 		op = op->next;
 	}
 
-	info->gp_reg_count = last_gp + 1;
-	info->fp_reg_count = abs(last_fp);
+	info->gp_reg_count = last_gp + 1 - JIT_ALIAS_CNT - JIT_SPP_REGS_CNT;
+	info->fp_reg_count = abs(last_fp) - 1;
+	if (info->fp_reg_count < 0) info->fp_reg_count = 0;
 
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
-	while ((info->gp_reg_count + info->fp_reg_count) % 4) info->gp_reg_count ++; // stack has to be aligned to 16 bytes
+	while ((info->gp_reg_count + info->fp_reg_count) % 2) info->gp_reg_count ++; // stack has to be aligned to 16 bytes
 #endif
 	info->args = JIT_MALLOC(sizeof(struct jit_inp_arg) * declared_args);
 }

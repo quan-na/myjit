@@ -28,7 +28,7 @@ static inline void jit_flw_initialize(struct jit * jit)
 	}
 }
 
-static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
+static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_info * func_info)
 {
 	int result;
 	jitset * in1 = jitset_clone(op->live_in);
@@ -45,11 +45,13 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 	// marks registers which are used to pass arguments
 	if (GET_OP(op) == JIT_PROLOG) {
 		
-		int argcount = jit->argpos;
-		if (argcount > 6) argcount = 6;
+		func_info = (struct jit_func_info *)op->arg[1];
+		//int argcount = jit->argpos;
+		//if (argcount > 6) argcount = 6;
+		int argcount = func_info->general_arg_cnt + func_info->float_arg_cnt;
 		for (int j = 0; j < argcount; j++) {
-			// the first real register is used to set immediate values
-			jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 0); 
+			//jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 0); 
+			jitset_set(op->live_in, op->arg[1] + func_info->gp_reg_count + func_info->fp_reg_count, 0); 
 		}
 	}
 #endif
@@ -62,8 +64,9 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op)
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (GET_OP(op) == JIT_GETARG) {
 		if ((op->arg[1] >= 0) && (op->arg[1] <= 5)) {
-			// the first real register is used to set immediate values
-			jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 1); 
+			//REMOVEME: the first real register is used to set immediate values
+			//jitset_set(op->live_in, op->arg[1] + JIT_FIRST_REG + 1, 1); 
+			jitset_set(op->live_in, op->arg[1] + func_info->gp_reg_count + func_info->fp_reg_count, 1); 
 		}
 	}
 #endif
@@ -96,11 +99,15 @@ static inline void jit_flw_analysis(struct jit * jit)
 {
 	jit_flw_initialize(jit);
 	int changed;
+	struct jit_func_info * func_info = NULL;
 	do {
 		changed = 0;
 		jit_op * op = jit_op_first(jit->ops);
 		while (op) {
-			changed |= __flw_analyze_op(jit, op);
+			if (GET_OP(op) == JIT_PROLOG)
+				func_info = (struct jit_func_info *)op->arg[1];
+
+			changed |= __flw_analyze_op(jit, op, func_info);
 			op = op->next;
 		}
 	} while (changed);
