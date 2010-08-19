@@ -35,7 +35,7 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
-static inline void jit_init_arg_params(struct jit * jit, int p)
+void jit_init_arg_params(struct jit * jit, int p)
 {
 	//struct jit_inp_arg * a = &(jit->input_args.args[p]);
 	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
@@ -610,10 +610,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
 				} else {
 					if (arg->size == sizeof(double)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
-					else if (arg->size == sizeof(float)) {
-						x86_movss_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
-						x86_cvtss2sd(jit->ip, a1, a1);
-					} else assert(0);
+					else if (arg->size == sizeof(float))
+						x86_cvtss2sd_reg_membase(jit->ip, a1, X86_EBP, stack_pos);
+					else assert(0);
 				}
 
 			} while (0);
@@ -748,61 +747,63 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
 		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
 
-		case (JIT_FST | IMM): 	if (op->arg_size == 4) {
-						// TODO: test if a2 is live_out and if not,
-						// then remove this shuffling
-						x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-						x86_cvtsd2ss(jit->ip, a2, a2);
-						x86_movss_mem_xreg(jit->ip, a2, a1);
-						x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-					} else x86_movlpd_mem_xreg(jit->ip, a2, a1);
-					break;		 
+		case (JIT_FST | IMM):
+			if (op->arg_size == 4) {
+				int live = jitset_get(op->live_out, op->arg[1]);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+				x86_cvtsd2ss(jit->ip, a2, a2);
+				x86_movss_mem_xreg(jit->ip, a2, a1);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+			} else x86_movlpd_mem_xreg(jit->ip, a2, a1);
+			break;		 
 
-		case (JIT_FST | REG): if (op->arg_size == 4) {
-					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-					      x86_cvtsd2ss(jit->ip, a2, a2);
-					      x86_movss_membase_xreg(jit->ip, a2, a1, 0);
-					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-				      } else x86_movlpd_membase_xreg(jit->ip, a2, a1, 0);
+		case (JIT_FST | REG):
+			if (op->arg_size == 4) {
+				int live = jitset_get(op->live_out, op->arg[1]);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+				x86_cvtsd2ss(jit->ip, a2, a2);
+				x86_movss_membase_xreg(jit->ip, a2, a1, 0);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+			} else x86_movlpd_membase_xreg(jit->ip, a2, a1, 0);
+			break;
+
+		case (JIT_FSTX | IMM):
+			if (op->arg_size == 4) {
+				int live = jitset_get(op->live_out, op->arg[2]);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+				x86_cvtsd2ss(jit->ip, a3, a3);
+				x86_movss_membase_xreg(jit->ip, a3, a2, a1);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+			} else x86_movlpd_membase_xreg(jit->ip, a3, a2, a1);
+			break;
+
+		case (JIT_FSTX | REG):
+			if (op->arg_size == 4) {
+				int live = jitset_get(op->live_out, op->arg[2]);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+				x86_cvtsd2ss(jit->ip, a3, a3);
+				x86_movss_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
+				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+			} else x86_movlpd_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
+			break;
+
+		case (JIT_FLD | IMM): if (op->arg_size == 4) x86_cvtss2sd_reg_mem(jit->ip, a1, a2);
+				      else x86_movlpd_xreg_mem(jit->ip, a1, a2);
 				      break;
 
-		case (JIT_FSTX | IMM): if (op->arg_size == 4) {
-					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
-					      x86_cvtsd2ss(jit->ip, a3, a3);
-					      x86_movss_membase_xreg(jit->ip, a3, a2, a1);
-					      x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
-				       } else x86_movlpd_membase_xreg(jit->ip, a3, a2, a1);
-				       break;
-
-		case (JIT_FSTX | REG): if (op->arg_size == 4) {
-					       x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
-					       x86_cvtsd2ss(jit->ip, a3, a3);
-					       x86_movss_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
-					       x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
-				       } else x86_movlpd_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
-				       break;
-
-		case (JIT_FLD | IMM): if (op->arg_size == 4)  { 
-					      x86_movss_xreg_mem(jit->ip, a1, a2);
-					      x86_cvtss2sd(jit->ip, a1, a1);
-				      } else x86_movlpd_xreg_mem(jit->ip, a1, a2);
+		case (JIT_FLD | REG): if (op->arg_size == 4) x86_cvtss2sd_reg_membase(jit->ip, a1, a2, 0);
+				      else x86_movlpd_xreg_membase(jit->ip, a1, a2, 0);
 				      break;
 
-		case (JIT_FLD | REG): if (op->arg_size == 4)  { 
-					      x86_movss_xreg_membase(jit->ip, a1, a2, 0);
-					      x86_cvtss2sd(jit->ip, a1, a1);
-				      } else x86_movlpd_xreg_membase(jit->ip, a1, a2, 0);
-				      break;
-
-		case (JIT_FLDX | IMM): if (op->arg_size == 4)  { 
-					      x86_movss_xreg_membase(jit->ip, a1, a2, a3);
-					      x86_cvtss2sd(jit->ip, a1, a1);
-				      } else x86_movlpd_xreg_membase(jit->ip, a1, a2, a3);
-				      break;
+		case (JIT_FLDX | IMM): 	if (op->arg_size == 4) x86_cvtss2sd_reg_membase(jit->ip, a1, a2, a3);
+				 	else x86_movlpd_xreg_membase(jit->ip, a1, a2, a3);
+				      	break;
 
 		case (JIT_FLDX | REG): if (op->arg_size == 4)  { 
-					      x86_movss_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
-					      x86_cvtss2sd(jit->ip, a1, a1);
+					      //x86_movss_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
+					      //x86_cvtss2sd(jit->ip, a1, a1);
+
+					      x86_cvtss2sd_reg_memindex(jit->ip, a1, a2, 0, a3, 0);
 				      } else x86_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
 				      break;
 

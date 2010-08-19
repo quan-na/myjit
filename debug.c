@@ -143,10 +143,10 @@ int main()
 	
 	jit_movi(p, R(0), h);
 	jit_movi(p, R(1), 8);
-//	jit_fldi(p, FR(0), h, sizeof(float));
-	jit_fmovi(p, FR(0), 666.6);
-	jit_fmovi(p, FR(1), 777.7);
-	jit_fstxr(p, R(0), R(1), FR(0), sizeof(float));
+	jit_fldxr(p, FR(0), R(0), R(1), sizeof(float));
+//	jit_fmovi(p, FR(0), 666.6);
+//	jit_fmovi(p, FR(1), 777.7);
+//	jit_fsti(p, h, FR(1), sizeof(float));
 	jit_fretr(p, FR(0));
 
 	jit_generate_code(p);

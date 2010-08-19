@@ -1929,6 +1929,31 @@ typedef enum {
 		x86_reg_emit ((inst), (dreg), (reg));	\
 	} while (0)
 
+#define x86_cvtss2sd_reg_membase(inst,reg,basereg,disp)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x5a;	\
+		x86_membase_emit ((inst), (reg), (basereg), (disp));	\
+	} while (0)
+
+#define x86_cvtss2sd_reg_memindex(inst,reg,basereg,disp,indexreg,shift)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x5a;	\
+		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));	\
+	} while (0)
+
+#define x86_cvtss2sd_reg_mem(inst,reg,mem)	\
+	do {	\
+		*(inst)++ = (unsigned char)0xf3;	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		*(inst)++ = (unsigned char)0x5a;	\
+		x86_mem_emit ((inst), (reg), (mem));	\
+	} while (0)
+
+
 #define x86_cvttsd2si(inst,dreg,reg)	\
 	do {	\
 		*(inst)++ = (unsigned char)0xf2;	\

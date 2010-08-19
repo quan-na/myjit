@@ -152,9 +152,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
 
 		op->regmap = rmap_init();
-		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, info->general_arg_cnt);
+		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt, al->gp_arg_reg_cnt));
 
-		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, info->float_arg_cnt);
+		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
 
 		int argcnt = MIN(info->general_arg_cnt, al->gp_arg_reg_cnt);
 		for (int i = 0; i < argcnt; i++)
