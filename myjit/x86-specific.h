@@ -799,12 +799,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				 	else x86_movlpd_xreg_membase(jit->ip, a1, a2, a3);
 				      	break;
 
-		case (JIT_FLDX | REG): if (op->arg_size == 4)  { 
-					      //x86_movss_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
-					      //x86_cvtss2sd(jit->ip, a1, a1);
-
-					      x86_cvtss2sd_reg_memindex(jit->ip, a1, a2, 0, a3, 0);
-				      } else x86_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
+		case (JIT_FLDX | REG): if (op->arg_size == 4) x86_cvtss2sd_reg_memindex(jit->ip, a1, a2, 0, a3, 0);
+				      else x86_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
 				      break;
 
 		case (JIT_FRET | REG): x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, -8); // pushes the value beyond the top of the stack

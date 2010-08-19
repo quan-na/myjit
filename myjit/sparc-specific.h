@@ -33,7 +33,7 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return (jit_current_func_info(jit)->allocai_mem);
 }
 
-static inline void jit_init_arg_params(struct jit * jit, int p)
+void jit_init_arg_params(struct jit * jit, int p)
 {
 	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
 	if (p < 6) {
