@@ -142,7 +142,7 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_regpool * rp
 
 static inline void assign_regs(struct jit * jit, struct jit_op * op)
 {
-	int i, r;
+	int i, r, reg;
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
@@ -169,7 +169,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 
 	if (GET_OP(op) == JIT_PREPARE) {
-		// FIXME: FP reg support
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 		if (hreg) {
 			// checks whether there is a free callee-saved register
@@ -192,15 +191,22 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			}
 		}
 
+		// synchronizes register which can be used to return the value
+		hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
+		if (hreg) {
+			jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
+			o->r_arg[0] = o->arg[0];
+			o->r_arg[1] = o->arg[1];
+
+			jit_op_prepend(op, o);
+		}
+
 		// spills registers which are used to pass the arguments
 		// FIXME: FP reg support
-		int reg;
-		int args = op->arg[0];
-		if (args > al->gp_arg_reg_cnt) args = al->gp_arg_reg_cnt;
+		int args = MIN(op->arg[0], al->gp_arg_reg_cnt);
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
 			if (hreg) {
-				printf("args:%i\n", JIT_REG(reg).spec);
 				unload_reg(op, hreg, reg);
 				jit_regpool_put(al->gp_regpool, hreg);
 				rmap_unassoc(op->regmap, reg, 0);

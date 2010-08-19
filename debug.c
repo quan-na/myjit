@@ -24,10 +24,17 @@ int main()
 	static char * str = "Hello, World! Number of the day is %f!!!\n";
 
 	static double g[4];
-	g[0] = 1.2;
-	g[1] = 2.3;
-	g[2] = 3.4;
-	g[3] = 4.5;
+	g[0] = 11.2;
+	g[1] = 12.3;
+	g[2] = 13.4;
+	g[3] = 14.5;
+
+	static float h[4];
+	h[0] = 21.2f;
+	h[1] = 22.3f;
+	h[2] = 23.4f;
+	h[3] = 24.5f;
+
 
 	printf("rRR:%i\n", R(0));
 
@@ -133,7 +140,14 @@ int main()
 //	jit_getarg(p, FR(0), 1);
 //	jit_faddr(p, FR(2), FR(0), FR(1));
 	
-	jit_fretr(p, FR(11));
+	
+	jit_movi(p, R(0), h);
+	jit_movi(p, R(1), 8);
+//	jit_fldi(p, FR(0), h, sizeof(float));
+	jit_fmovi(p, FR(0), 666.6);
+	jit_fmovi(p, FR(1), 777.7);
+	jit_fstxr(p, R(0), R(1), FR(0), sizeof(float));
+	jit_fretr(p, FR(0));
 
 	jit_generate_code(p);
 
@@ -148,6 +162,9 @@ int main()
 	// check
 	//printf("Check #1: %f\n", foo(1, 1.2, 2, 2.5));
 	printf("Check #1: %f\n", foo(1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2));
+
+	for (int i = 0; i < 4; i++)
+		printf("%f\t%f\n", g[i], (double)h[i]);
 	//printf("Check #2: %li\n", foo(100));
 	//printf("Check #3: %li\n", foo(255));
 

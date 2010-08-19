@@ -396,7 +396,6 @@ typedef union {
        x86_imm_emit32 ((inst), (mem)); \
     } while (0)
 
-///XXXXXXXXXXXXXXXX
 #define amd64_sse_alu_pd_reg_mem(inst,op,reg,mem) \
 do {     \
 		*(inst)++ = (unsigned char)0x66;        \
@@ -598,6 +597,89 @@ do {     \
 		x86_address_byte ((inst), 0, (reg), 4); \
 		x86_address_byte ((inst), 0, 4, 5); \
 		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+#define amd64_movss_reg_mem(inst,reg,mem)  \
+	do {    \
+		*(inst)++ = (unsigned char)0xf3;        \
+		amd64_emit_rex(inst, 0, (reg), 0, 0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x10;        \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+#define amd64_movss_mem_reg(inst,mem,reg)  \
+	do {    \
+		*(inst)++ = (unsigned char)0xf3;        \
+		amd64_emit_rex(inst, 0, (reg), 0, 0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x11;        \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+#define amd64_movlpd_mem_reg(inst,mem,reg)  \
+	do {    \
+		*(inst)++ = (unsigned char)0x66;        \
+		amd64_emit_rex(inst, 0, (reg), 0, 0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x13;        \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+
+
+#define amd64_sse_cvtss2sd_reg_mem(inst,reg,mem)  \
+	do {    \
+		*(inst)++ = (unsigned char)0xf3;        \
+		amd64_emit_rex(inst, 0, (reg), 0, 0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x5a;        \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+
+#define amd64_sse_cvtss2sd_reg_memindex(inst,reg,basereg,disp,indexreg,shift)  \
+	do {    \
+		*(inst)++ = (unsigned char)0xf3;        \
+		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x5a;        \
+		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));      \
+	} while (0)
+
+#define amd64_sse_movlpd_xreg_memindex(inst,reg,basereg,disp,indexreg,shift)  \
+	do {    \
+		*(inst)++ = (unsigned char)0x66;        \
+		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x12;        \
+		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));      \
+	} while (0)
+
+#define amd64_sse_movlpd_memindex_xreg(inst,basereg,disp,indexreg,shift,reg)  \
+	do {    \
+		*(inst)++ = (unsigned char)0x66;        \
+		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x13;        \
+		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));      \
+	} while (0)
+
+#define amd64_sse_movss_memindex_xreg(inst,basereg,disp,indexreg,shift,reg)  \
+	do {    \
+		*(inst)++ = (unsigned char)0xf3;        \
+		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\
+		*(inst)++ = (unsigned char)0x0f;        \
+		*(inst)++ = (unsigned char)0x11;        \
+		x86_memindex_emit ((inst), (reg), (basereg), (disp), (indexreg), (shift));      \
 	} while (0)
 
 #define amd64_sse_xorpd_reg_mem(inst,reg,mem)  \
@@ -1109,6 +1191,7 @@ do {     \
 #define amd64_movd_reg_xreg_size(inst,dreg,sreg,size) emit_sse_reg_reg_size((inst), (sreg), (dreg), 0x66, 0x0f, 0x7e, (size))
 
 #define amd64_movd_xreg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase((inst), (dreg), (basereg), (disp), 0x66, 0x0f, 0x6e)
+#define amd64_sse_cvtss2sd_reg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase((inst), (dreg), (basereg), (disp), 0xf3, 0x0f, 0x5a)
 
 
 #define amd64_movlhps_reg_reg(inst,dreg,sreg) emit_sse_reg_reg_op2((inst), (dreg), (sreg), 0x0f, 0x16)

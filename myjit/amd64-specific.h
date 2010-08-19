@@ -584,9 +584,15 @@ void __get_arg(struct jit * jit, jit_op * op)
 				amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, arg->size);
 			}
 		} else {
-			if (arg->passed_by_reg) amd64_sse_movsd_reg_reg(jit->ip, dreg, arg->location.reg); 
-			else amd64_sse_movlpd_xreg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
-			if (arg->size == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, dreg, dreg);
+			if (arg->passed_by_reg) {
+				if (arg->size == sizeof(float))
+					amd64_sse_cvtss2sd_reg_reg(jit->ip, dreg, arg->location.reg);
+				else amd64_sse_movsd_reg_reg(jit->ip, dreg, arg->location.reg); 
+			} else {
+				if (arg->size == sizeof(float))
+					amd64_sse_cvtss2sd_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
+				else amd64_sse_movlpd_xreg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
+			}
 		}
 		return;
 	} 
@@ -859,6 +865,66 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
 				       amd64_pop_reg(jit->ip, AMD64_RBP);
 				       amd64_ret(jit->ip);
+				       break;
+		case (JIT_FST | IMM): 
+			if (op->arg_size == sizeof(float)) {
+				int live = jitset_get(op->live_out, op->arg[1]);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, a2, a2);
+				amd64_movss_mem_reg(jit->ip, a1, a2);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+			} else amd64_movlpd_mem_reg(jit->ip, a1, a2);
+			break;
+
+		case (JIT_FST | REG): 
+			if (op->arg_size == sizeof(float)) {
+				int live = jitset_get(op->live_out, op->arg[1]);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, a2, a2);
+				amd64_sse_movss_membase_reg(jit->ip, a1, 0, a2);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+			} else amd64_sse_movlpd_membase_xreg(jit->ip, a2, a1, 0);
+			break;
+
+		case (JIT_FSTX | IMM): 
+			if (op->arg_size == sizeof(float)) {
+				int live = jitset_get(op->live_out, op->arg[2]);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, a3, a3);
+				amd64_sse_movss_membase_reg(jit->ip, a2, a1, a3);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+			} else amd64_sse_movlpd_membase_xreg(jit->ip, a3, a2, a1);
+			break;
+
+		case (JIT_FSTX | REG): 
+			if (op->arg_size == sizeof(float)) {
+				int live = jitset_get(op->live_out, op->arg[2]);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, a3, a3);
+				amd64_sse_movss_memindex_xreg(jit->ip, a1, 0, a2, 0, a3);
+				if (live) amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+			} else amd64_sse_movlpd_memindex_xreg(jit->ip, a1, 0, a2, 0, a3);
+			break;
+
+
+		case (JIT_FLD | IMM): if (op->arg_size == sizeof(float))
+					      amd64_sse_cvtss2sd_reg_mem(jit->ip, a1, a2);
+				      else amd64_movsd_reg_mem(jit->ip, a1, a2);
+				      break;
+
+		case (JIT_FLD | REG): if (op->arg_size == sizeof(float))
+					      amd64_sse_cvtss2sd_reg_membase(jit->ip, a1, a2, 0);
+				      else amd64_sse_movlpd_xreg_membase(jit->ip, a1, a2, 0);
+				      break;
+
+		case (JIT_FLDX | IMM): if (op->arg_size == sizeof(float))
+					       amd64_sse_cvtss2sd_reg_membase(jit->ip, a1, a2, a3);
+				       else amd64_sse_movlpd_xreg_membase(jit->ip, a1, a2, a3);
+				       break;
+
+		case (JIT_FLDX | REG): if (op->arg_size == sizeof(float))
+					       amd64_sse_cvtss2sd_reg_memindex(jit->ip, a1, a2, 0, a3, 0);
+				       else amd64_sse_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
 				       break;
 
 		case (JIT_UREG): __ureg(jit, a1, a2); break;
