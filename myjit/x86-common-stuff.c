@@ -35,8 +35,8 @@ static inline int __uses_hw_reg(struct jit_op * op, long reg, int fp)
 {
 	for (int i = 0; i < 3; i++)
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			if (fp && (op->arg[i] >= 0)) continue;
-			if (!fp && (op->arg[i] < 0)) continue;
+			if (fp && (JIT_REG(op->arg[i]).type == JIT_RTYPE_INT)) continue;
+			if (!fp && (JIT_REG(op->arg[i]).type == JIT_RTYPE_FLOAT)) continue;
 			if (op->r_arg[i] == reg) return 1;
 		}
 	return 0;

@@ -42,7 +42,8 @@
 #define __GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 #define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
 
-#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (JIT_REG(arg).id + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+//#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (JIT_REG(arg).id + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (arg + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 
 //#define __GET_REG_POS(jit,r) __GET_GPREG_POS(jit,r)
 static inline int __GET_REG_POS(struct jit * jit, int r)
@@ -50,7 +51,7 @@ static inline int __GET_REG_POS(struct jit * jit, int r)
 	if (JIT_REG(r).spec == JIT_RTYPE_REG) {
 		if (JIT_REG(r). type == JIT_RTYPE_INT) return __GET_GPREG_POS(jit, r);
 		else return __GET_FPREG_POS(jit, r);
-	} else return __GET_ARG_SPILL_POS(jit, jit_current_func_info(jit), r);
+	} else return __GET_ARG_SPILL_POS(jit, jit_current_func_info(jit), JIT_REG(r).id);
 }
 
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
@@ -70,7 +71,7 @@ static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
 	if (!r->fp) amd64_push_reg(jit->ip, r->id);
 	else {
 		amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8);
-		x86_movlpd_membase_xreg(jit->ip, r->id, AMD64_RSP, 0);
+		amd64_sse_movlpd_membase_xreg(jit->ip, r->id, AMD64_RSP, 0);
 	}
 }
 
@@ -78,58 +79,45 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 {
 	if (!r->fp) amd64_pop_reg(jit->ip, r->id);
 	else {
-		x86_movlpd_xreg_membase(jit->ip, r->id, AMD64_RSP, 0);
+		amd64_sse_movlpd_xreg_membase(jit->ip, r->id, AMD64_RSP, 0);
 		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
 	}
 }
 
-static inline void jit_init_arg_params(struct jit * jit, int p)
+void jit_init_arg_params(struct jit * jit, int p)
 {
 	struct jit_func_info * info = jit_current_func_info(jit);
 	struct jit_inp_arg * a = &(info->args[p]);
 	if (a->type != JIT_FLOAT_NUM) { // normal argument
-		int pos = info->general_arg_cnt;
-		if (pos < 6) {
+		int pos = a->gp_pos;
+		if (pos < jit->reg_al->gp_arg_reg_cnt) {
 			a->passed_by_reg = 1;
-			switch (pos) {
-				case 0: a->location.reg = AMD64_RDI; break;
-				case 1: a->location.reg = AMD64_RSI; break;
-				case 2: a->location.reg = AMD64_RDX; break;
-				case 3: a->location.reg = AMD64_RCX; break;
-				case 4: a->location.reg = AMD64_R8; break;
-				case 5: a->location.reg = AMD64_R9; break;
-			}
-			a->spill_pos = __GET_ARG_SPILL_POS(jit, info, pos);
-//			printf("AAA:%i\n", a->spill_pos);
+			a->location.reg = jit->reg_al->gp_arg_regs[pos];
+			a->spill_pos = __GET_ARG_SPILL_POS(jit, info, p);
 		} else {
+			int stack_pos = (pos - jit->reg_al->gp_arg_reg_cnt) + MAX(0, (a->fp_pos - jit->reg_al->fp_arg_reg_cnt));
+
+			a->location.stack_pos = 16 + stack_pos * 8;
+			a->spill_pos = 16 + stack_pos * 8;
 			a->passed_by_reg = 0;
-			a->location.stack_pos = 8 + (pos - 5) * 8;
-			a->spill_pos = 8 + (pos - 5) * 8;
 		}
 		return;
 	}
-	assert(0);// FP argument
-	/*
-	if (info->float_arg_cnt < 8) {
+
+	// FP argument
+	int pos = a->fp_pos;
+	if (pos < jit->reg_al->fp_arg_reg_cnt) {
 		a->passed_by_reg = 1;
-		switch (info->float_arg_cnt) {
-			case 0: a->location.reg = AMD64_XMM0; break;
-			case 1: a->location.reg = AMD64_XMM1; break;
-			case 2: a->location.reg = AMD64_XMM2; break;
-			case 3: a->location.reg = AMD64_XMM3; break;
-			case 4: a->location.reg = AMD64_XMM4; break;
-			case 5: a->location.reg = AMD64_XMM5; break;
-			case 6: a->location.reg = AMD64_XMM6; break;
-			case 7: a->location.reg = AMD64_XMM7; break;
-		}
-// FIXME:		a->spill_pos = __GET_REG_POS(jit, p + JIT_FIRST_REG + 1);
+		a->location.reg = jit->reg_al->fp_arg_regs[pos];
+		a->spill_pos = __GET_ARG_SPILL_POS(jit, info, p);
 	} else {
+
+		int stack_pos = (pos - jit->reg_al->fp_arg_reg_cnt) + MAX(0, (a->gp_pos - jit->reg_al->gp_arg_reg_cnt));
+
+		a->location.stack_pos = 16 + stack_pos * 8;
+		a->spill_pos = 16 + stack_pos * 8;
 		a->passed_by_reg = 0;
-		a->location.stack_pos = 8 + (p - 5) * 8;
-		a->spill_pos = 8 + (p - 5) * 8;
-		assert(0);
 	}
-	*/
 }
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
@@ -564,7 +552,6 @@ static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 
 void __get_arg(struct jit * jit, jit_op * op)
 {
-
 	struct jit_func_info * info = jit_current_func_info(jit);
 
 	int dreg = op->r_arg[0];
@@ -596,7 +583,11 @@ void __get_arg(struct jit * jit, jit_op * op)
 				amd64_alu_reg_reg(jit->ip, X86_XOR, dreg, dreg); // register cleanup
 				amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, arg->size);
 			}
-		} else assert(0);
+		} else {
+			if (arg->passed_by_reg) amd64_sse_movsd_reg_reg(jit->ip, dreg, arg->location.reg); 
+			else amd64_sse_movlpd_xreg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
+			if (arg->size == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, dreg, dreg);
+		}
 		return;
 	} 
 
@@ -606,7 +597,23 @@ void __get_arg(struct jit * jit, jit_op * op)
 		else if (arg->type == JIT_SIGNED_NUM) amd64_movsx_reg_reg(jit->ip, dreg, reg, arg->size);
 		else amd64_movzx_reg_reg(jit->ip, dreg, reg, arg->size);
 	} else {
-		amd64_sse_movsd_reg_reg(jit->ip, dreg, reg);
+		if (arg->size == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, dreg, reg);
+		else amd64_sse_movsd_reg_reg(jit->ip, dreg, reg);
+	}
+}
+
+static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
+{
+	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
+
+		struct jit_func_info * info = jit_current_func_info(jit);
+		int pos =  __GET_ARG_SPILL_POS(jit, info, JIT_REG(vreg).id);
+
+		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, pos);
+		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, pos, hreg_id, REG_SIZE);
+	} else {
+		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, __GET_FPREG_POS(jit, vreg));
+		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, vreg), hreg_id, REG_SIZE);
 	}
 }
 
@@ -740,13 +747,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_PROLOG:
 			  do {
-				  __initialize_reg_counts(jit, op);
 				  struct jit_func_info * info = jit_current_func_info(jit);
 
 				  *(void **)(a1) = jit->ip;
 				  amd64_push_reg(jit->ip, AMD64_RBP);
 				  amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
-//				  printf("XXX:%i:%i:%i\n", info->allocai_mem, info->gp_reg_count, info->fp_reg_count);
+
 				  int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(jit_float) + info->general_arg_cnt * REG_SIZE + info->float_arg_cnt * sizeof(jit_float);
 
 				  stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
@@ -756,7 +762,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			  } while (0);
 			break;
 		
-		case JIT_DECL_ARG: __declare_arg(jit, a1, a2); break;
+		case JIT_DECL_ARG: break;
 
 		case JIT_RETVAL: 
 			if (a1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, a1, AMD64_RAX, REG_SIZE);
@@ -855,13 +861,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       amd64_ret(jit->ip);
 				       break;
 
-		case (JIT_UREG): 
-				       //if (JIT_REG(a1).spec == JIT_RTYPE_ARG) assert(0);
-				       amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE); break;
+		case (JIT_UREG): __ureg(jit, a1, a2); break;
+
 		case (JIT_LREG): 
-				       if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
-				       amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE); break;
-		case (JIT_SYNCREG): amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);  break;
+			if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
+			if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_xreg_membase(jit->ip, a1, AMD64_RBP, __GET_FPREG_POS(jit, a2));
+			else amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE);
+			break;
+
+		case (JIT_SYNCREG):  __ureg(jit, a1, a2); break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 
@@ -907,7 +915,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_reg = AMD64_RBP;
 	a->ret_reg = AMD64_RAX;
 
-	a->fp_reg_cnt = 4;
+	a->fp_reg_cnt = 10;
 
 	int reg = 0;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
@@ -915,8 +923,16 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 
 	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 1 };
 	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 2 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 3 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 4 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM0, 0, "xmm0", 0, 1, 99 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM1, 0, "xmm1", 0, 1, 98 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM2, 0, "xmm2", 0, 1, 97 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM3, 0, "xmm3", 0, 1, 96 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM4, 0, "xmm4", 0, 1, 95 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM5, 0, "xmm5", 0, 1, 94 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM6, 0, "xmm6", 0, 1, 93 };
+	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM7, 0, "xmm7", 0, 1, 92 };
+	//a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 3 };
+	//a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 4 };
 	/*
 #ifndef JIT_REGISTER_TEST
 	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM4, 0, "xmm4", 0, 1, 5 };
@@ -929,7 +945,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_arg_reg_cnt = 6;
 	a->gp_arg_regs = __arg_regs;
 
-	a->fp_arg_reg_cnt = 0;
+	a->fp_arg_reg_cnt = 8;
 	a->fp_arg_regs = __fp_arg_regs;
 	return a;
 }

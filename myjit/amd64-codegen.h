@@ -785,6 +785,7 @@ do {     \
 #define amd64_sse_movsd_reg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0xf2, 0x0f, 0x10)
 
 #define amd64_sse_movlpd_membase_xreg(inst,dreg,basereg,disp) emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0x66, 0x0f, 0x13)
+#define amd64_sse_movlpd_xreg_membase(inst,dreg,basereg,disp) emit_sse_membase_reg ((inst), (basereg), (disp), (dreg), 0x66, 0x0f, 0x12)
 
 #define amd64_sse_movsd_membase_reg(inst,basereg,disp,reg) emit_sse_membase_reg ((inst), (basereg), (disp), (reg), 0xf2, 0x0f, 0x11)
 

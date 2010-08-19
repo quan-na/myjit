@@ -44,13 +44,17 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	// marks registers which are used to pass arguments
 	if (GET_OP(op) == JIT_PROLOG) {
-		
 		func_info = (struct jit_func_info *)op->arg[1];
 		int argcount = func_info->general_arg_cnt;
 		if (argcount > 6) argcount = 6;
-		for (int j = 0; j < argcount; j++) {
-			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, op->arg[1]), 0); 
-		}
+		for (int j = 0; j < argcount; j++)
+			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0); 
+
+		argcount = func_info->float_arg_cnt;
+		if (argcount > 8) argcount = 8;
+		for (int j = 0; j < argcount; j++)
+			jitset_set(op->live_in, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0); 
+
 	}
 #endif
 
@@ -61,8 +65,11 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 // FIXME: should be generic for all architectures
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (GET_OP(op) == JIT_GETARG) {
-		if ((op->arg[1] >= 0) && (op->arg[1] <= 5)) {
-			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, op->arg[1]), 1); 
+		int arg_id = op->arg[1];
+		if (func_info->args[arg_id].type != JIT_FLOAT_NUM) {
+			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id), 1); 
+		} else {
+			jitset_set(op->live_in, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
 		}
 	}
 #endif

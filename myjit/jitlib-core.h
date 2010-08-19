@@ -51,6 +51,9 @@
 #define SIGNED 0x00 
 #define SIGN_MASK (0x04)
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
 struct jitset;
 
 typedef long jit_value;
@@ -169,8 +172,8 @@ enum jit_inp_type {
 struct jit_func_info {			// collection of information related to one function
 	int general_arg_cnt;		// number of non-FP arguments
 	int float_arg_cnt;		// number of FP arguments
-	int argpos;			// last declared argument
 	long allocai_mem;		// size of the locally allocated memory
+	int arg_capacity;		// size of the `args' array
 	struct jit_inp_arg { 
 		enum jit_inp_type type; // type of the argument
 		int size;		// its size
@@ -180,6 +183,8 @@ struct jit_func_info {			// collection of information related to one function
 			int stack_pos;
 		} location;		// location of the value
 		int spill_pos;		// location of the argument on the stack, if the value was spilled off
+		int gp_pos;		// position of the argument in the list of GP/FP
+		int fp_pos;		// position of the argument in the list of GP/FP
 	} * args;			// collection of all arguments
 
 	int gp_reg_count;		// total number of GP registers used in the processed function
@@ -213,7 +218,7 @@ void jit_dump_ops(struct jit * jit, int verbosity);
 void jit_get_reg_name(char * r, int reg, jit_op * op);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);
-static inline void jit_init_arg_params(struct jit * jit, int p);
+void jit_init_arg_params(struct jit * jit, int argpos);
 
 /* FIXME: presunout do generic-reg-allocator.h */
 void jit_assign_regs(struct jit * jit);
@@ -648,7 +653,6 @@ static inline void jit_prolog(struct jit * jit, void * func)
 	jit->current_func = op;
 
 	info->allocai_mem = 0;
-	info->argpos = 0;
 	info->general_arg_cnt = 0;
 	info->float_arg_cnt = 0;
 }
@@ -694,48 +698,4 @@ static inline void __fput_arg(struct jit * jit, jit_op * op)
 	if (jit->prepared_args.ready >= jit->reg_al->fp_arg_reg_cnt)
 		jit->prepared_args.stack_size += op->arg_size;
 }
-
-static inline void __initialize_reg_counts(struct jit * jit, jit_op * op)
-{
-	int declared_args = 0;
-	int last_gp = -1;
-	int last_fp = -1;
-
-	struct jit_func_info * info = jit_current_func_info(jit);
-
-	op = op->next;
-	while (op) {
-		if (GET_OP(op) == JIT_PROLOG) break;
-		for (int i = 0; i < 3; i++)
-			if ((ARG_TYPE(op, i + 1) == TREG) || (ARG_TYPE(op, i + 1) == REG)) {
-				jit_reg r = JIT_REG(op->arg[i]);
-				if ((r.type == JIT_RTYPE_INT) && (r.id > last_gp)) last_gp = r.id;
-				if ((r.type == JIT_RTYPE_FLOAT) && (r.id > last_fp)) last_fp = r.id;
-			}
-				
-		if (GET_OP(op) == JIT_DECL_ARG) declared_args++;
-		op = op->next;
-	}
-
-	info->gp_reg_count = last_gp + 1;
-	info->fp_reg_count = last_fp + 1;
-
-#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
-	while ((info->gp_reg_count + info->fp_reg_count) % 2) info->gp_reg_count ++; // stack has to be aligned to 16 bytes
-#endif
-	info->args = JIT_MALLOC(sizeof(struct jit_inp_arg) * declared_args);
-}
-
-static inline void __declare_arg(struct jit * jit, enum jit_inp_type type, int size)
-{
-	struct jit_func_info * info = jit_current_func_info(jit);
-	int p = info->argpos;
-	info->args[p].type = type;
-	info->args[p].size = size;
-	jit_init_arg_params(jit, p);
-	info->argpos++;
-	if (type == JIT_FLOAT_NUM) info->float_arg_cnt++;
-	else info->general_arg_cnt++;
-}
-
 #endif

@@ -647,7 +647,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  break;
 		case JIT_PROLOG:
 			do {
-				__initialize_reg_counts(jit, op);
 				struct jit_func_info * info = jit_current_func_info(jit);
 
 				op->patch_addr = __PATCH_ADDR(jit);
@@ -659,7 +658,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			} while(0);
 			break;
 
-		case JIT_DECL_ARG: __declare_arg(jit, a1, a2); break;
+		case JIT_DECL_ARG: break;
 
 		case JIT_RETVAL: 
 			if (a1 != X86_EAX) x86_mov_reg_reg(jit->ip, a1, X86_EAX, REG_SIZE);

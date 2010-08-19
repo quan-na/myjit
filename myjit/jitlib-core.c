@@ -161,6 +161,91 @@ static inline void __expand_patches_and_labels(struct jit * jit)
 	}
 }
 
+static inline void __initialize_reg_counts(struct jit * jit)
+{
+	int declared_args = 0;
+	int last_gp = -1;
+	int last_fp = -1;
+	int gp_args = 0;
+	int fp_args = 0;
+	struct jit_func_info * info = NULL;
+	jit_op * op = jit_op_first(jit->ops);
+
+	while (1) {
+		if (!op || (GET_OP(op) == JIT_PROLOG)) {
+			if (info) {
+				info->gp_reg_count = last_gp + 1;
+				info->fp_reg_count = last_fp + 1;
+				info->general_arg_cnt = gp_args;
+				info->float_arg_cnt = fp_args;
+
+#if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
+				// stack has to be aligned to 16 bytes
+				while ((info->gp_reg_count + info->fp_reg_count) % 2) info->gp_reg_count ++; 
+#endif
+				info->args = JIT_MALLOC(sizeof(struct jit_inp_arg) * declared_args);
+			}
+			if (op) {
+				declared_args = 0;
+				last_gp = -1;
+				last_fp = -1;
+				gp_args = 0;
+				fp_args = 0;
+				info = (struct jit_func_info *)op->arg[1];
+			}
+			if (!op) break;
+		}
+	
+		for (int i = 0; i < 3; i++)
+			if ((ARG_TYPE(op, i + 1) == TREG) || (ARG_TYPE(op, i + 1) == REG)) {
+				jit_reg r = JIT_REG(op->arg[i]);
+				if ((r.type == JIT_RTYPE_INT) && (r.id > last_gp)) last_gp = r.id;
+				if ((r.type == JIT_RTYPE_FLOAT) && (r.id > last_fp)) last_fp = r.id;
+			}
+				
+		if (GET_OP(op) == JIT_DECL_ARG) {
+			declared_args++;
+			if (op->arg[0] == JIT_FLOAT_NUM) fp_args++;
+			else gp_args++;
+		}
+		op = op->next;
+	}
+
+}
+
+static inline void __initialize_arguments(struct jit * jit)
+{
+	jit_op * op = jit_op_first(jit->ops);
+	struct jit_func_info * info = NULL;
+	int gp_arg_pos = 0;
+	int fp_arg_pos = 0;
+	int argpos = 0;
+
+	while (op) {
+		if (GET_OP(op) == JIT_PROLOG) {
+			info = (struct jit_func_info *)op->arg[1];
+			gp_arg_pos = 0;
+			fp_arg_pos = 0;
+			argpos = 0;
+		}
+		if (GET_OP(op) == JIT_DECL_ARG) {
+			info->args[argpos].type = op->arg[0];
+			info->args[argpos].size = op->arg[1];
+			if (op->arg[0] == JIT_FLOAT_NUM) {
+				info->args[argpos].gp_pos = gp_arg_pos;
+				info->args[argpos].fp_pos = fp_arg_pos++;
+			} else {
+				info->args[argpos].gp_pos = gp_arg_pos++;
+				info->args[argpos].fp_pos = fp_arg_pos;
+			}
+			jit_init_arg_params(jit, argpos);
+			argpos++;
+		}
+		op = op->next;
+	}
+
+}
+
 static inline void __buf_expand(struct jit * jit)
 {
 	long pos = jit->ip - jit->buf;
@@ -176,6 +261,8 @@ void jit_generate_code(struct jit * jit)
 	jit_correct_long_imms(jit);
 #endif
 	jit_correct_float_imms(jit);
+	__initialize_reg_counts(jit);
+	__initialize_arguments(jit);
 	jit_flw_analysis(jit);
 
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)

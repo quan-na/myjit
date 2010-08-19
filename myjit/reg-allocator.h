@@ -53,11 +53,6 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 		rp->pool[i - 1] = x;
 		i--;
 	}
-	/*
-	for (int i = 0; i <= al->hwreg_pool_pos; i++)
-		printf("%s:%i\n", al->hwreg_pool[i]->name, al->hwreg_pool[i]->priority);
-	printf("------------------\n");
-	*/
 #endif
 }
 
@@ -91,6 +86,13 @@ static inline struct __hw_reg * __get_reg(struct jit_reg_allocator * al, int reg
 {
 	for (int i = 0; i < al->gp_reg_cnt; i++)
 		if (al->gp_regs[i].id == reg_id) return &(al->gp_regs[i]);
+	return NULL;
+}
+
+static inline struct __hw_reg * __get_fp_reg(struct jit_reg_allocator * al, int reg_id)
+{
+	for (int i = 0; i < al->fp_reg_cnt; i++)
+		if (al->fp_regs[i].id == reg_id) return &(al->fp_regs[i]);
 	return NULL;
 }
 
@@ -147,13 +149,20 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	// PROLOG needs some special care
 	if (GET_OP(op) == JIT_PROLOG) {
 		
-		op->regmap = rmap_init();
-		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, al->gp_arg_reg_cnt);
-		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, al->fp_arg_reg_cnt);
+		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
 
-		struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
-		for (int i = 0; i < al->gp_arg_reg_cnt; i++)
+		op->regmap = rmap_init();
+		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, info->general_arg_cnt);
+
+		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, info->float_arg_cnt);
+
+		int argcnt = MIN(info->general_arg_cnt, al->gp_arg_reg_cnt);
+		for (int i = 0; i < argcnt; i++)
 			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[i]));
+
+		argcnt = MIN(info->float_arg_cnt, al->fp_arg_reg_cnt);
+		for (int i = 0; i < argcnt; i++)
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_fp_reg(al, al->fp_arg_regs[i]));
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
@@ -191,6 +200,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
 			if (hreg) {
+				printf("args:%i\n", JIT_REG(reg).spec);
 				unload_reg(op, hreg, reg);
 				jit_regpool_put(al->gp_regpool, hreg);
 				rmap_unassoc(op->regmap, reg, 0);

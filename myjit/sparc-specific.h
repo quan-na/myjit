@@ -467,7 +467,6 @@ op_complete:
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
 		case JIT_PREPARE: __prepare_call(jit, op, a1); break;
 		case JIT_PROLOG:
-			__initialize_reg_counts(jit, op);
 			*(void **)(a1) = jit->ip;
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit_current_func_info(jit)->allocai_mem, sparc_sp);
 			break;
@@ -475,7 +474,7 @@ op_complete:
 			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
 			break;
 
-		case JIT_DECL_ARG: __declare_arg(jit, a1, a2); break;
+		case JIT_DECL_ARG: break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 

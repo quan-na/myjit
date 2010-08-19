@@ -28,7 +28,7 @@ void test1()
 	jit_fretr(p, FR(0));
 	jit_generate_code(p);
 
-//	jit_dump_code(p, 0);
+	jit_dump_code(p, 0);
 
 	r = f1(20, 20, -10);
 	printf("DD:%f\n", r);

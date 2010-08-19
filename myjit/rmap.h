@@ -93,8 +93,8 @@ static inline int rmap_equal(rmap_t * r1, rmap_t * r2)
 }
 
 /**
- * Syncronizes two register mappings
- * if (mode == LOAD): 	then it loads registers which are not in current mapping, 
+ * Synchronizes two register mappings
+ * if (mode == LOAD): 	then it loads registers which are not present in the current mapping, 
  * 			however, are in the target mapping
  * if (mode == UNLOAD): then it unloads registers which are in the current mapping,
  * 			however, which are not in the target mapping

@@ -28,10 +28,13 @@ ROADMAP
 		* arithmetics
 		* branches
 		* conversions
-		+ ureg/lreg/sreg
+		* ureg/lreg/sreg
+		* argument reading
 		+ load/store
-		+ argument reading
 		+ argument passing
+	+ amd64 -> should not use macros starting with x86_
+	+ test-cases involving large numbers of arguments
+
 + release 0.4.2
 	+ BUG: stack corruption
 	+ SPARC
