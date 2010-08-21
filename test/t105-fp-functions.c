@@ -62,8 +62,10 @@ void test2()
 	jit_patch(p, end);	
 	jit_fretr(p, FR(2));
 	jit_generate_code(p);
+	jit_dump_code(p, 0);
 
 	r = f1(3, 4);
+	printf("LL:%f\n", r);
 	if (equal(r, 81, 0.001)) SUCCESS(21);
 	else FAIL(21);
 	

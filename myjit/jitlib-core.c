@@ -208,6 +208,16 @@ static inline void __initialize_reg_counts(struct jit * jit)
 			if (op->arg[0] == JIT_FLOAT_NUM) fp_args++;
 			else gp_args++;
 		}
+
+		if (GET_OP(op) == JIT_PREPARE) {
+			jit_op * xop = op;
+			while (1) {
+				if (GET_OP(op->next) == JIT_PUTARG) xop->arg[0]++;
+				else if (GET_OP(op->next) == JIT_FPUTARG) xop->arg[1]++;
+				else break;
+				op = op->next;
+			}
+		}
 		op = op->next;
 	}
 

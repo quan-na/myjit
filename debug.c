@@ -13,9 +13,19 @@ double foofn(float a, int b, float c)
 	return a + b + c;
 }
 
-void foobar()
+#include <stdarg.h>
+int eee(double a, double b, double c)
 {
-	printf("foo-bar\n");
+	return a * b * c;
+}
+
+float foobar(float x)
+{
+//	double r = 123.4;
+	printf("foo-bar:%f\n", x);
+	return 88.99;
+//	return eee(x, x + 1, x + 2);
+	//return (int)(x * r);
 }
 
 int main()
@@ -140,13 +150,17 @@ int main()
 //	jit_getarg(p, FR(0), 1);
 //	jit_faddr(p, FR(2), FR(0), FR(1));
 	
+
+	jit_movi(p, R(0), 222);
+	jit_fmovi(p, FR(1), 3.14);
+	jit_fmovi(p, FR(2), 2);
+	jit_fmovi(p, FR(3), -1);
+	jit_prepare(p, 1);
+	jit_fputargi(p, 567, sizeof(float));
+	jit_call(p, foobar);
+	jit_fretval(p, FR(0), sizeof(float));
+//	jit_extr(p, FR(0), R(1));
 	
-	jit_movi(p, R(0), h);
-	jit_movi(p, R(1), 8);
-	jit_fldxr(p, FR(0), R(0), R(1), sizeof(float));
-//	jit_fmovi(p, FR(0), 666.6);
-//	jit_fmovi(p, FR(1), 777.7);
-//	jit_fsti(p, h, FR(1), sizeof(float));
 	jit_fretr(p, FR(0));
 
 	jit_generate_code(p);
@@ -163,8 +177,8 @@ int main()
 	//printf("Check #1: %f\n", foo(1, 1.2, 2, 2.5));
 	printf("Check #1: %f\n", foo(1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2));
 
-	for (int i = 0; i < 4; i++)
-		printf("%f\t%f\n", g[i], (double)h[i]);
+//	for (int i = 0; i < 4; i++)
+//		printf("%f\t%f\n", g[i], (double)h[i]);
 	//printf("Check #2: %li\n", foo(100));
 	//printf("Check #3: %li\n", foo(255));
 

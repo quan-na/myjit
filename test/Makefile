@@ -74,6 +74,7 @@ clean:
 	rm -f t010
 	rm -f t101
 	rm -f t102
+	rm -f t103
 	rm -f t104
 	rm -f t105
 	rm -f t107

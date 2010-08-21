@@ -202,7 +202,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		}
 
 		// spills registers which are used to pass the arguments
-		// FIXME: FP reg support
+		// FIXME: duplicities
 		int args = MIN(op->arg[0], al->gp_arg_reg_cnt);
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
@@ -212,16 +212,30 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				rmap_unassoc(op->regmap, reg, 0);
 			}
 		}
+		args = MIN(op->arg[1], al->fp_arg_reg_cnt);
+		for (int q = 0; q < args; q++) {
+			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 0, &reg);
+			if (hreg) {
+				unload_reg(op, hreg, reg);
+				jit_regpool_put(al->fp_regpool, hreg);
+				rmap_unassoc(op->regmap, reg, 0);
+			}
+		}
+
 	}
 
 	// PUTARG have to take care of the register allocation by itself
 	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
-	// FIXME: FP reg support
 	if (GET_OP(op) == JIT_CALL) {
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 		if (hreg) {
 			jit_regpool_put(al->gp_regpool, hreg);
+			rmap_unassoc(op->regmap, r, hreg->fp);
+		}
+		hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
+		if (hreg) {
+			jit_regpool_put(al->fp_regpool, hreg);
 			rmap_unassoc(op->regmap, r, hreg->fp);
 		}
 	}
@@ -307,6 +321,13 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 			case JIT_BNE: op->code = JIT_BEQ | (op->code & 0x7); break;
 			case JIT_BLT: op->code = JIT_BGE | (op->code & 0x7); break;
 			case JIT_BLE: op->code = JIT_BGT | (op->code & 0x7); break;
+
+			case JIT_FBEQ: op->code = JIT_FBNE | (op->code & 0x7); break;
+			case JIT_FBGT: op->code = JIT_FBLE | (op->code & 0x7); break;
+			case JIT_FBGE: op->code = JIT_FBLT | (op->code & 0x7); break;
+			case JIT_FBNE: op->code = JIT_FBEQ | (op->code & 0x7); break;
+			case JIT_FBLT: op->code = JIT_FBGE | (op->code & 0x7); break;
+			case JIT_FBLE: op->code = JIT_FBGT | (op->code & 0x7); break;
 		}
 	
 		jit_op * o = __new_op(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		

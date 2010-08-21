@@ -286,61 +286,97 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
 	int args = prepare_op->arg[0];
+	int fp_args = prepare_op->arg[1];
 	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
-	if ((!hreg)
-	|| ((hreg->id == AMD64_RDI) && (args > 0))
-	|| ((hreg->id == AMD64_RSI) && (args > 1))
-	|| ((hreg->id == AMD64_RDX) && (args > 2))
-	|| ((hreg->id == AMD64_RCX) && (args > 3))
-	|| ((hreg->id == AMD64_R8) && (args > 4))
-	|| ((hreg->id == AMD64_R9) && (args > 5)))
-		return 1;
 
-	*reg = hreg->id;
-	return 0;
+	if (hreg) {
+		*reg = hreg->id;
+		return 0;
+	} else return 1;
 }
 
-static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg, int reg)
+/**
+ * Assigns integer value to register which is used to pass the argument
+ */
+static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg)
 {
 	int sreg;
+	int reg = jit->reg_al->gp_arg_regs[arg->argpos];
 	long value = arg->value.generic;
 	if (arg->isreg) {
 		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 			amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit, value), REG_SIZE);
 		} else {
-			amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
+			if (reg != sreg) amd64_mov_reg_reg(jit->ip, reg, sreg, REG_SIZE);
 		}
 	} else amd64_mov_reg_imm_size(jit->ip, reg, value, 8);
-
 }
-static inline void __configure_args(struct jit * jit)
+
+/**
+ * Assigns FP value to register which is used to pass the argument
+ */
+static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg)
 {
-	int sreg, x;
-	struct jit_out_arg * args = jit->prepared_args.args;
-	int argcnt = jit->prepared_args.count;
-
-	if (argcnt > 0) __set_arg(jit, &(args[0]), AMD64_RDI);
-	if (argcnt > 1) __set_arg(jit, &(args[1]), AMD64_RSI);
-	if (argcnt > 2) __set_arg(jit, &(args[2]), AMD64_RDX);
-	if (argcnt > 3) __set_arg(jit, &(args[3]), AMD64_RCX);
-	if (argcnt > 4) __set_arg(jit, &(args[4]), AMD64_R8);
-	if (argcnt > 5) __set_arg(jit, &(args[5]), AMD64_R9);
-
-	for (x = jit->prepared_args.count - 1; x >= 6; x --) {
-		if (args[x].isreg) {
-			if (__is_spilled(args[x].value.generic, jit->prepared_args.op, &sreg)) {
-				amd64_push_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, args[x].value.generic));
-			} else {
-				amd64_push_reg(jit->ip, sreg);
-			}
+	int sreg;
+	int reg = jit->reg_al->fp_arg_regs[arg->argpos];
+	long value = arg->value.generic;
+	if (arg->isreg) {
+		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+			int pos = __GET_REG_POS(jit, value);
+			if (arg->size == sizeof(float)) 
+				amd64_sse_cvtsd2ss_reg_membase(jit->ip, reg, AMD64_RBP, pos);
+			else amd64_sse_movlpd_xreg_membase(jit->ip, reg, AMD64_RBP, pos);
 		} else {
-			amd64_mov_reg_reg(jit->ip, AMD64_RAX, args[x].value.generic, REG_SIZE);
-			amd64_push_reg(jit->ip, AMD64_RAX);
+			if (arg->size == sizeof(float))
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, reg, sreg);
+			else if (reg != sreg) amd64_sse_movsd_reg_reg(jit->ip, reg, sreg);
+		}
+	} else { // immediate value
+		if (arg->size == sizeof(float)) {
+			float val = (float)arg->value.fp;
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned int *)&val, 4);
+			amd64_movd_xreg_reg_size(jit->ip, reg, AMD64_RAX, 4);
+		} else {
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, value, 8);
+			amd64_movd_xreg_reg_size(jit->ip, reg, AMD64_RAX, 8);
 		}
 	}
+}
 
-	/* al is used to pass the number of floating point arguments */
-	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
+/**
+ * Pushes integer value on stack
+ */
+static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg)
+{
+	int sreg;
+	if (arg->isreg) {
+		if (__is_spilled(arg->value.generic, jit->prepared_args.op, &sreg))
+			amd64_push_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, arg->value.generic));
+		else amd64_push_reg(jit->ip, sreg);
+	} else {
+		amd64_mov_reg_reg(jit->ip, AMD64_RAX, arg->value.generic, REG_SIZE);
+		amd64_push_reg(jit->ip, AMD64_RAX);
+	}
+}
+
+static inline void __configure_args(struct jit * jit)
+{
+	int sreg;
+	struct jit_out_arg * args = jit->prepared_args.args;
+
+	for (int x = jit->prepared_args.count - 1; x >= 0; x --) {
+		struct jit_out_arg * arg = &(args[x]);
+		if (!arg->isfp) {
+			if (arg->argpos < jit->reg_al->gp_arg_reg_cnt) __set_arg(jit, arg);
+			else __push_arg(jit, arg);
+		} else {
+			if (arg->argpos < jit->reg_al->fp_arg_reg_cnt) __set_fparg(jit, arg);
+			// FIXME:
+			else assert(0);
+		}
+	}
+	/* AL is used to pass the number of floating point arguments passed through the XMM0-XMM7 registers */
+	amd64_mov_reg_imm(jit->ip, AMD64_RAX, MIN(jit->prepared_args.fp_args, jit->reg_al->fp_arg_reg_cnt)); 
 }
 
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
@@ -713,6 +749,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
+		case JIT_FPUTARG: __fput_arg(jit, op); break;
 		case JIT_GETARG: __get_arg(jit, op); break;
 		case JIT_MSG: do {
 				      struct jit_reg_allocator * al = jit->reg_al;
@@ -747,7 +784,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else amd64_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
-		case JIT_PREPARE: __prepare_call(jit, op, a1);
+		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2);
 				  __push_caller_saved_regs(jit, op);
 				  break;
 
@@ -763,7 +800,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 				  stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
 
-				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
+				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem + 8);
 				  __push_callee_saved_regs(jit, op);
 			  } while (0);
 			break;
@@ -856,16 +893,26 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
                 case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
 		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
 
-		case (JIT_FRET | REG): amd64_sse_movlpd_membase_xreg(jit->ip, a1, AMD64_RSP, -8); // pushes the value beyond the top of the stack
-				       amd64_mov_reg_membase(jit->ip, AMD64_RAX, AMD64_RSP, -8, 8);            // transfers the value from the stack to RAX
-				       amd64_sse_movsd_reg_membase(jit->ip, AMD64_XMM0, AMD64_RSP, -8);
+		case (JIT_FRET | REG):
+			// FIXME: optimize this, support for single precision values
+			// pushes the value beyond the top of the stack
+			amd64_sse_movlpd_membase_xreg(jit->ip, a1, AMD64_RSP, -8); 
+			amd64_mov_reg_membase(jit->ip, AMD64_RAX, AMD64_RSP, -8, 8);
+			// transfers the value from the stack to RAX
+			amd64_sse_movsd_reg_membase(jit->ip, AMD64_XMM0, AMD64_RSP, -8);
 
-				       // common epilogue
-				       __pop_callee_saved_regs(jit);
-				       amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
-				       amd64_pop_reg(jit->ip, AMD64_RBP);
-				       amd64_ret(jit->ip);
-				       break;
+			// common epilogue
+			__pop_callee_saved_regs(jit);
+			amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
+			amd64_pop_reg(jit->ip, AMD64_RBP);
+			amd64_ret(jit->ip);
+			break;
+
+		case JIT_FRETVAL:
+			if (a2 == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, a1, AMD64_XMM0);
+			else if (a1 != AMD64_XMM0) amd64_sse_movsd_reg_reg(jit->ip, a1, AMD64_XMM0);
+			break;
+
 		case (JIT_FST | IMM): 
 			if (op->arg_size == sizeof(float)) {
 				int live = jitset_get(op->live_out, op->arg[1]);

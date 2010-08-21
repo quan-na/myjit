@@ -149,6 +149,8 @@ typedef struct jit_label {
 typedef struct jit_prepared_args {
 	int count;	// number of arguments to prepare
 	int ready;	// number of arguments that have been prapared
+	int gp_args;	// number of prepared GP arguments
+	int fp_args;	// number od prepared FP arguments
 	int stack_size; // size of stack occupied by passed arguments
 	jit_op * op;	// corresponding ``PREPARE'' operation
 	struct jit_out_arg {// array of arguments
@@ -156,7 +158,8 @@ typedef struct jit_prepared_args {
 			long generic;
 			double fp;
 		} value;
-		char isreg;
+		int argpos; // position in the list of GP or FP arguments
+		char isreg; // argument is given by value of the register (if zero, the immediate value is used)
 		char isfp;
 		char size;
 	} * args;
@@ -347,7 +350,9 @@ void rmap_free(rmap_t * regmap);
 #define jit_jmpi(jit, a) jit_add_op(jit, JIT_JMP | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_patch(jit, a) jit_add_op(jit, JIT_PATCH | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 
-#define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
+//#define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
+// FIXME: should not accept any arguments
+#define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, IMM, NO), 0, 0, 0, 0)
 #define jit_putargr(jit, a) jit_add_op(jit, JIT_PUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 #define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
@@ -568,7 +573,7 @@ void rmap_free(rmap_t * regmap);
 #define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
 #define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)
 
-#define jit_fretval(jit, a) jit_add_fop(jit, JIT_FRETVAL, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
+#define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, IMM, NO), a, b, 0, 0, 0)
 
 static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
@@ -669,6 +674,8 @@ static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 	jit->prepared_args.ready = 0;
 	jit->prepared_args.stack_size = 0;
 	jit->prepared_args.op = op;
+	jit->prepared_args.gp_args = 0;
+	jit->prepared_args.fp_args = 0;
 }
 
 static inline void __put_arg(struct jit * jit, jit_op * op)
@@ -678,6 +685,7 @@ static inline void __put_arg(struct jit * jit, jit_op * op)
 	arg->isreg = !IS_IMM(op);
 	arg->isfp = 0;
 	arg->value.generic = op->arg[0];
+	arg->argpos = jit->prepared_args.gp_args++;
 	jit->prepared_args.ready++;
 
 	if (jit->prepared_args.ready >= jit->reg_al->gp_arg_reg_cnt)
@@ -691,6 +699,7 @@ static inline void __fput_arg(struct jit * jit, jit_op * op)
 	arg->isreg = !IS_IMM(op);
 	arg->isfp = 1;
 	arg->size = op->arg_size;
+	arg->argpos = jit->prepared_args.fp_args++;
 	if (IS_IMM(op)) arg->value.fp = op->flt_imm;
 	else arg->value.generic = op->arg[0];
 	jit->prepared_args.ready++;

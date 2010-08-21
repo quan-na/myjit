@@ -869,6 +869,8 @@ do {     \
 #define amd64_sse_movlpd_membase_xreg(inst,dreg,basereg,disp) emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0x66, 0x0f, 0x13)
 #define amd64_sse_movlpd_xreg_membase(inst,dreg,basereg,disp) emit_sse_membase_reg ((inst), (basereg), (disp), (dreg), 0x66, 0x0f, 0x12)
 
+
+
 #define amd64_sse_movsd_membase_reg(inst,basereg,disp,reg) emit_sse_membase_reg ((inst), (basereg), (disp), (reg), 0xf2, 0x0f, 0x11)
 
 #define amd64_sse_movss_membase_reg(inst,basereg,disp,reg) emit_sse_membase_reg ((inst), (basereg), (disp), (reg), 0xf3, 0x0f, 0x11)
@@ -1192,6 +1194,7 @@ do {     \
 
 #define amd64_movd_xreg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase((inst), (dreg), (basereg), (disp), 0x66, 0x0f, 0x6e)
 #define amd64_sse_cvtss2sd_reg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase((inst), (dreg), (basereg), (disp), 0xf3, 0x0f, 0x5a)
+#define amd64_sse_cvtsd2ss_reg_membase(inst,dreg,basereg,disp) emit_sse_reg_membase((inst), (dreg), (basereg), (disp), 0xf2, 0x0f, 0x5a)
 
 
 #define amd64_movlhps_reg_reg(inst,dreg,sreg) emit_sse_reg_reg_op2((inst), (dreg), (sreg), 0x0f, 0x16)
