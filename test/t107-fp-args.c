@@ -60,7 +60,7 @@ int test1()
 
 	jit_faddr(p, FR(0), FR(0), FR(18));
 
-	jit_fretr(p, FR(0));
+	jit_fretr(p, FR(0), sizeof(double));
 
 	jit_generate_code(p);
 
@@ -131,7 +131,7 @@ int test2()
 
 	jit_faddr(p, FR(0), FR(0), FR(18));
 
-	jit_fretr(p, FR(0));
+	jit_fretr(p, FR(0), sizeof(double));
 
 	jit_generate_code(p);
 

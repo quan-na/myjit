@@ -8,7 +8,7 @@ void test1()
 	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
-	jit_freti(p, 123);
+	jit_freti(p, 123, sizeof(double));
 	jit_generate_code(p);
 
 	r = f1();
@@ -27,7 +27,7 @@ void test2()
 	jit_fmovi(p, FR(0), 100);
 	jit_faddi(p, FR(0), FR(0), 200);
 	jit_faddi(p, FR(1), FR(0), 200);
-	jit_fretr(p, FR(1));
+	jit_fretr(p, FR(1), sizeof(double));
 	jit_generate_code(p);
 
 	r = f1();
@@ -47,7 +47,7 @@ void test3()
 	jit_faddr(p, FR(0), FR(0), FR(0));
 	jit_fsubi(p, FR(1), FR(0), 50);
 	jit_fsubr(p, FR(2), FR(1), FR(0));
-	jit_fretr(p, FR(2));
+	jit_fretr(p, FR(2), sizeof(double));
 	jit_generate_code(p);
 	jit_dump_code(p, 0);
 
@@ -73,7 +73,7 @@ void test4()
 	jit_faddr(p, FR(0), FR(0), FR(0));
 	jit_fsubr(p, FR(1), FR(0), FR(1));
 	jit_fsubr(p, FR(2), FR(1), FR(0));
-	jit_fretr(p, FR(2));
+	jit_fretr(p, FR(2), sizeof(double));
 	jit_generate_code(p);
 	jit_dump_code(p, 0);
 

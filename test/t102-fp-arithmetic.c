@@ -12,7 +12,7 @@ void __name() \
 	jit_prolog(p, &f1); \
 	jit_fmovi(p, FR(0), __arg1); \
 	__op(p, FR(0), FR(0), __arg2); \
-	jit_fretr(p, FR(0)); \
+	jit_fretr(p, FR(0), sizeof(double)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -30,7 +30,7 @@ void __name() \
 	jit_prolog(p, &f1); \
 	jit_fmovi(p, FR(0), __arg1); \
 	__op(p, FR(1), FR(0), __arg2); \
-	jit_fretr(p, FR(1)); \
+	jit_fretr(p, FR(1), sizeof(double)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -49,7 +49,7 @@ void __name() \
 	jit_fmovi(p, FR(0), __arg1); \
 	jit_fmovi(p, FR(1), __arg2); \
 	__op(p, FR(1), FR(0), FR(1)); \
-	jit_fretr(p, FR(1)); \
+	jit_fretr(p, FR(1), sizeof(double)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -68,7 +68,7 @@ void __name() \
 	jit_fmovi(p, FR(0), __arg1); \
 	jit_fmovi(p, FR(1), __arg2); \
 	__op(p, FR(2), FR(0), FR(1)); \
-	jit_fretr(p, FR(2)); \
+	jit_fretr(p, FR(2), sizeof(double)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -86,7 +86,7 @@ void __name() \
 	jit_prolog(p, &f1); \
 	jit_fmovi(p, FR(0), __arg1); \
 	__op(p, FR(2), FR(0)); \
-	jit_fretr(p, FR(2)); \
+	jit_fretr(p, FR(2), sizeof(double)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \
@@ -104,7 +104,7 @@ void __name() \
 	jit_prolog(p, &f1); \
 	jit_fmovi(p, FR(0), __arg1); \
 	__op(p, FR(0), FR(0)); \
-	jit_fretr(p, FR(0)); \
+	jit_fretr(p, FR(0), sizeof(double)); \
 	jit_generate_code(p); \
 \
 	r = f1(); \

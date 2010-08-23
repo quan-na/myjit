@@ -42,8 +42,9 @@ static inline int __uses_hw_reg(struct jit_op * op, long reg, int fp)
 	return 0;
 }
 
-static inline void __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
+static inline int __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
 {
+	int count = 0;
 	for (int i = 0; i < jit->reg_al->gp_reg_cnt; i++) {
 		struct __hw_reg * r = &(jit->reg_al->gp_regs[i]);
 		if (r->callee_saved) 
@@ -51,14 +52,17 @@ static inline void __push_callee_saved_regs(struct jit * jit, struct jit_op * op
 				if (GET_OP(o) == JIT_PROLOG) break;
 				if (__uses_hw_reg(o, r->id, 0)) {
 					__push_reg(jit, r);
+					count++;
 					break;
 				}
 			}
 	}
+	return count;
 }
 
-static inline void __pop_callee_saved_regs(struct jit * jit)
+static inline int __pop_callee_saved_regs(struct jit * jit)
 {
+	int count = 0;
 	struct jit_op * op = jit->current_func;
 
 	for (int i = jit->reg_al->gp_reg_cnt - 1; i >= 0; i--) {
@@ -68,48 +72,56 @@ static inline void __pop_callee_saved_regs(struct jit * jit)
 				if (GET_OP(o) == JIT_PROLOG) break;
 				if (__uses_hw_reg(o, r->id, 0)) {
 					__pop_reg(jit, r);
+					count++;
 					break;
 				}
 			}
 	}
+	return count;
 }
 
-static inline void __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static inline int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    struct __hw_reg * regs, int fp, int skip_reg)
 {
 	int reg;
+	int count = 0;
 	for (int i = 0; i < reg_count; i++) {
 		if ((regs[i].id == skip_reg) || (regs[i].callee_saved)) continue;
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) __push_reg(jit, hreg);
+		if (hreg && jitset_get(op->live_in, reg)) __push_reg(jit, hreg), count++;
 	}
+	return count;
 }
 
-static inline void __push_caller_saved_regs(struct jit * jit, jit_op * op)
+static inline int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	while (op) {
 		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
-	__generic_push_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
-	__generic_push_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
+	int count = __generic_push_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
+	count += __generic_push_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
+	return count;
 }
 
-static inline void __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static inline int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    struct __hw_reg * regs, int fp, int skip_reg)
 {
 	int reg;
+	int count = 0;
 	for (int i = reg_count - 1; i >= 0; i--) {
 		if ((regs[i].id == skip_reg) || (regs[i].callee_saved)) continue;
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) __pop_reg(jit, hreg);
+		if (hreg && jitset_get(op->live_in, reg)) __pop_reg(jit, hreg), count++;
 	}
+	return count;
 }
 
-static inline void __pop_caller_saved_regs(struct jit * jit, jit_op * op)
+static inline int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 {
-	__generic_pop_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
-	__generic_pop_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
+	int count = __generic_pop_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
+	count += __generic_pop_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
+	return count;
 }
 
 //

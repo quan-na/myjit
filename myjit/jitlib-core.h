@@ -217,6 +217,7 @@ struct jit {
 	struct jit_op * current_func;	// pointer to the PROLOG operation of the currently processed function
 	jit_label * labels;		// list of labels used in the c
 	jit_prepared_args prepared_args; // list of arguments passed between PREPARE-CALL
+	int push_count;			// number of values pushed on the stack; used by AMD64
 };
 
 struct jit * jit_init();

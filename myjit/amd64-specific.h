@@ -359,16 +359,17 @@ static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg)
 	}
 }
 
-static inline void __configure_args(struct jit * jit)
+static inline int __configure_args(struct jit * jit)
 {
 	int sreg;
+	int pushed_args = 0;
 	struct jit_out_arg * args = jit->prepared_args.args;
 
 	for (int x = jit->prepared_args.count - 1; x >= 0; x --) {
 		struct jit_out_arg * arg = &(args[x]);
 		if (!arg->isfp) {
 			if (arg->argpos < jit->reg_al->gp_arg_reg_cnt) __set_arg(jit, arg);
-			else __push_arg(jit, arg);
+			else __push_arg(jit, arg), pushed_args++;
 		} else {
 			if (arg->argpos < jit->reg_al->fp_arg_reg_cnt) __set_fparg(jit, arg);
 			// FIXME:
@@ -381,8 +382,11 @@ static inline void __configure_args(struct jit * jit)
 
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
-	__configure_args(jit);
+	int arg_push_count = __configure_args(jit);
+	int stack_correction = ((jit->push_count + arg_push_count) % 2) * 8;
 
+	// stack has to be aligned to 16 bytes
+	if (stack_correction) amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8); 
 	if (!imm) {
 		amd64_call_reg(jit->ip, op->r_arg[0]);
 	} else {
@@ -390,11 +394,12 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); // 4: magic constant
 	}
 
-	if (jit->prepared_args.stack_size)
-		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, jit->prepared_args.stack_size);
+	stack_correction += jit->prepared_args.stack_size;
+	if (stack_correction)
+		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, stack_correction);
 	JIT_FREE(jit->prepared_args.args);
 
-	__pop_caller_saved_regs(jit, op);
+	jit->push_count -= __pop_caller_saved_regs(jit, op);
 }
 
 static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
@@ -785,7 +790,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2);
-				  __push_caller_saved_regs(jit, op);
+				  jit->push_count += __push_caller_saved_regs(jit, op);
 				  break;
 
 		case JIT_PROLOG:
@@ -800,8 +805,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 				  stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
 
-				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem + 8);
-				  __push_callee_saved_regs(jit, op);
+				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
+				  jit->push_count = __push_callee_saved_regs(jit, op);
 			  } while (0);
 			break;
 		
@@ -904,7 +909,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			amd64_sse_movsd_reg_membase(jit->ip, AMD64_XMM0, AMD64_RSP, -8);
 
 			// common epilogue
-			__pop_callee_saved_regs(jit);
+			jit->push_count -= __pop_callee_saved_regs(jit);
 			amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
 			amd64_pop_reg(jit->ip, AMD64_RBP);
 			amd64_ret(jit->ip);

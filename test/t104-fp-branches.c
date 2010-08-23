@@ -27,7 +27,7 @@ void testname(int id, int eql, int negative, int greater)\
 	jit_patch(p, br); \
 	jit_fmovi(p, FR(3), 10); \
 	jit_patch(p, e); \
-	jit_fretr(p, FR(3)); \
+	jit_fretr(p, FR(3), sizeof(double)); \
 \
 	jit_generate_code(p);\
 	r = f1();\
@@ -63,7 +63,7 @@ void testname(int id, int eql, int negative, int greater)\
 	jit_patch(p, br); \
 	jit_fmovi(p, FR(3), 10); \
 	jit_patch(p, e); \
-	jit_fretr(p, FR(3)); \
+	jit_fretr(p, FR(3), sizeof(double)); \
 \
 	jit_generate_code(p);\
 	r = f1();\
