@@ -194,6 +194,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		// synchronizes register which can be used to return the value
 		hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
 		if (hreg) {
+			// FIXME:
 			jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
 			o->r_arg[0] = o->arg[0];
 			o->r_arg[1] = o->arg[1];
@@ -387,12 +388,3 @@ int jit_reg_in_use(jit_op * op, int reg, int fp)
 {
 	return rmap_is_associated(op->regmap, reg, fp, NULL) != NULL;
 }
-
-// FIXME: obsolete???
-char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg)
-{
-	for (int i = 0; i < al->gp_reg_cnt; i++)
-		if (al->gp_regs[i].id == reg) return al->gp_regs[i].name;
-	return NULL;
-}
-

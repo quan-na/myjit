@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "llrb.c"
 
@@ -80,6 +81,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_GETARG:	return "getarg";
 		case JIT_RETVAL:	return "retval";
 		case JIT_ALLOCA:	return "alloca";
+		case JIT_DECL_ARG:	return "declarg";
 
 		case JIT_ADD:	return "add";
 		case JIT_ADDC:	return "addc";
@@ -158,24 +160,47 @@ char * jit_get_op_name(struct jit_op * op)
 	}
 }
 
-void jit_get_reg_name(char * r, int reg, jit_op * op)
+void jit_get_reg_name(char * r, int reg)
 {
 	if (reg == R_FP) strcpy(r, "fp");
 	else if (reg == R_OUT) strcpy(r, "out");
 	else if (reg == R_IMM) strcpy(r, "imm");
 	else if (reg == FR_IMM) strcpy(r, "fimm");
-	else if (JIT_REG(reg).type == JIT_RTYPE_INT) sprintf(r, "r%i", JIT_REG(reg).id);
-	else sprintf(r, "f%i", JIT_REG(reg).id);
+	else {
+		if (JIT_REG(reg).spec == JIT_RTYPE_REG) {
+			if (JIT_REG(reg).type == JIT_RTYPE_INT) sprintf(r, "r%i", JIT_REG(reg).id);
+			else sprintf(r, "f%i", JIT_REG(reg).id);
+		}
+		else if (JIT_REG(reg).spec == JIT_RTYPE_ARG) {
+			if (JIT_REG(reg).type == JIT_RTYPE_INT) sprintf(r, "arg-r%i", JIT_REG(reg).id);
+			else sprintf(r, "arg-f%i", JIT_REG(reg).id);
+		} else sprintf(r, "(unknown)");
+	} 
 }
 
-//static inline int jitset_get(jitset * s, unsigned int bit);
-static inline void print_reg_liveness(struct jitset * s)
-{/*
-	if (!s) return;
-	for (int i = 0; i < s->size; i++)
-		printf("%i", (jitset_get(s, i) > 0));
-	printf("FIXME: broken\n");
-		*/
+static void print_rmap(rb_node * n)
+{
+	char buf[256];
+	if (!n) return;
+	print_rmap(n->left);
+
+	jit_get_reg_name(buf, n->key);
+	printf("%s=%s ", buf, ((struct __hw_reg *)n->value)->name);
+
+	print_rmap(n->right);
+}
+
+static void print_reg_liveness(rb_node * n)
+{
+	char buf[256];
+	if (!n) return;
+
+	print_reg_liveness(n->left);
+
+	jit_get_reg_name(buf, n->key);
+	printf("%s ", buf);
+
+	print_reg_liveness(n->right);
 }
 
 static inline int __is_cflow(jit_op * op)
@@ -283,7 +308,7 @@ static inline void print_arg(char * buf, struct jit_op * op, int arg)
 	char value[256];
 	a = op->arg[arg - 1];
 	if (ARG_TYPE(op, arg) == IMM) sprintf(value, "0x%lx", a);
-	if ((ARG_TYPE(op, arg) == REG) || (ARG_TYPE(op, arg) == TREG)) jit_get_reg_name(value, a, op);
+	if ((ARG_TYPE(op, arg) == REG) || (ARG_TYPE(op, arg) == TREG)) jit_get_reg_name(value, a);
 	strcat(buf, value);
 }
 
@@ -298,7 +323,7 @@ static inline void print_str(char * buf, char * str)
 		} else  {
 			char xbuf[16];
 			switch (str[i]) {
-				case 9: strcpy(xbuf, "\r"); break;
+				case 9: strcpy(xbuf, "\\t"); break;
 				case 10: strcpy(xbuf, "\\n"); break;
 				case 13: strcpy(xbuf, "\\r"); break;
 				default: sprintf(xbuf, "\\x%02x", str[i]);
@@ -309,7 +334,16 @@ static inline void print_str(char * buf, char * str)
 	strcat(buf, "\"");
 }
 
-void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
+static rb_node * __get_prev_rmap(jit_op * op)
+{
+	while (!op->regmap) op = op->prev;
+	char * op_name = jit_get_op_name(op);
+	printf("REEE:%s\n", op_name);
+	print_rmap(op->regmap->map);
+	return op->regmap->map;
+}
+
+void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels, int verbosity)
 {
 	rb_node * lab = rb_search(labels, (long)op);
 	if (lab) printf("L%li:\n", (long)lab->value);
@@ -317,25 +351,29 @@ void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
 
+	int op_code = GET_OP(op);
+	/*
+	if (verbosity & JIT_DEBUG_LOADS) {
+		char buf[256];
+		int is_load_op = 1;
+		struct __hw_reg * hreg;
+		switch (op_code) {
+			case JIT_SYNCREG: 
+				jit_get_reg_name(buf, op->arg[0]);
+				hreg = (struct __hw_reg *) rb_search(__get_prev_rmap(op), op->arg[0]);
+				printf("\t.syncreg    %s <- %s", buf, hreg->name);
+				break;
+			default: is_load_op = 0;
+		}
+		if (is_load_op) goto print;
+	}
+*/
 	char * op_name = jit_get_op_name(op);
 	if (op_name[0] != '.')  strcat(linebuf, "\t");
 	else return;
 	strcat(linebuf, op_name);
 
-	/*
-	if (op->code == JIT_LREG) {
-		char rname[20];
-		jit_get_reg_name(rname, op->arg[1], op);
-		printf(" %s, %s\n", jit_reg_allocator_get_hwreg_name(jit->reg_al, op->arg[0]), rname);
-		return;
-	}
-	if (op->code == JIT_UREG) {
-		char rname[20];
-		jit_get_reg_name(rname, op->arg[0], op);
-		printf(" %s, %s\n", rname, jit_reg_allocator_get_hwreg_name(jit->reg_al, op->arg[1]));
-		return;
-	}
-*/
+
 	if (GET_OP_SUFFIX(op) & IMM) strcat(linebuf, "i");
 	if (GET_OP_SUFFIX(op) & REG) strcat(linebuf, "r");
 	if (GET_OP_SUFFIX(op) & UNSIGNED) strcat(linebuf, " uns.");
@@ -353,6 +391,19 @@ void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 		goto print;
 	}
 
+	if (GET_OP(op) == JIT_DECL_ARG) {
+		switch (op->arg[0]) {
+			case JIT_SIGNED_NUM: strcat(linebuf, "integer"); break;
+			case JIT_UNSIGNED_NUM: strcat(linebuf, "uns. integer"); break;
+			case JIT_FLOAT_NUM: strcat(linebuf, "float"); break;
+			case JIT_PTR: strcat(linebuf, "ptr"); break;
+			default: assert(0);
+		};
+		strcat(linebuf, ", ");
+		print_arg(linebuf, op, 2);
+		goto print;
+	}
+
 	if (ARG_TYPE(op, 1) != NO) {
 		strcat(linebuf, " ");
 		if (__is_cflow(op)) print_addr(linebuf, jit, labels, op); 
@@ -363,13 +414,22 @@ void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels)
 print:
 	printf("%s", linebuf);
 
+	if (verbosity) {
+		for (int i = 35 - strlen(linebuf); i >= 0; i--)
+			printf(" ");
 
-	printf("\t");
-	printf("\t");
-	print_reg_liveness(op->live_in);
-	printf(" ");
-	print_reg_liveness(op->live_out);
+		if ((verbosity & JIT_DEBUG_LIVENESS) && (op->live_in) && (op->live_out)) {
+			printf("In: ");
+			print_reg_liveness(op->live_in->root);
+			printf("\tOut: ");
+			print_reg_liveness(op->live_out->root);
+		}
 
+		if ((verbosity & JIT_DEBUG_ASSOC) && (op->regmap)) {
+			printf("\tAssoc: ");
+			print_rmap(op->regmap->map);
+		}
+	}
 	printf("\n");
 }
 
@@ -377,6 +437,6 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 {
 	rb_node * labels = prepare_labels(jit);
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
-		__print_op(jit, op, labels);
+		__print_op(jit, op, labels, verbosity);
 	rb_free(labels);
 }

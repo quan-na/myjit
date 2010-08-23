@@ -28,6 +28,11 @@ float foobar(float x)
 	//return (int)(x * r);
 }
 
+int aaa()
+{
+	return 4567;
+}
+
 int main()
 {
 	struct jit * p = jit_init();
@@ -92,6 +97,12 @@ int main()
 	jit_getarg(p, FR(1), 3);
 	*/
 
+	jit_addr(p, R(1), R(0), R(0));
+	jit_addr(p, R(2), R(1), R(0));
+	jit_addr(p, R(3), R(1), R(0));
+	jit_addr(p, R(0), R(2), R(3));
+	
+
 	//jit_fmovi(p, FR(0), 11.1);
 	//jit_fmovi(p, FR(1), 22.2);
 
@@ -155,18 +166,19 @@ int main()
 	jit_fmovi(p, FR(1), 3.14);
 	jit_fmovi(p, FR(2), 2);
 	jit_fmovi(p, FR(3), -1);
-	jit_prepare(p, 1);
-	jit_fputargi(p, 567, sizeof(float));
-	jit_call(p, foobar);
-	jit_fretval(p, FR(0), sizeof(float));
-//	jit_extr(p, FR(0), R(1));
+	jit_prepare(p, 0);
+	jit_call(p, aaa);
+	jit_retval(p, R(0));
+	jit_extr(p, FR(1), R(3));
+	jit_faddr(p, FR(1), FR(1), FR(0));
 	
 	jit_fretr(p, FR(0));
 
 	jit_generate_code(p);
 
-	//jit_dump_ops(p, 0);
-	jit_dump_code(p, 0);
+	jit_dump_code(p, 1);
+	jit_dump_ops(p, JIT_DEBUG_ASSOC | JIT_DEBUG_LIVENESS | JIT_DEBUG_LOADS);
+	//jit_dump_code(p, 0);
 
 //	foo(1.2, 2.5);
 //	for (int i = 0; i < 4; i++)

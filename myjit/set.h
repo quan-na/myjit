@@ -23,11 +23,6 @@
 #include <assert.h>
 
 #include "jitlib-core.h"
-#include "llrb.c"
-
-typedef struct jitset {
-	rb_node * root;
-} jitset;
 
 static inline jitset * jitset_new()
 {

@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include "llrb.c"
 
 #define FR_IMM	(__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_IMM, 0))
 #define R_IMM	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_IMM, 0)) // used by amd64 and sparc
@@ -73,6 +74,11 @@ typedef struct {
 
 #define JIT_RTYPE_INT	(0)
 #define JIT_RTYPE_FLOAT	(1)
+
+#define JIT_DEBUG_LOADS		(0x01)
+#define JIT_DEBUG_ASSOC		(0x02)
+#define JIT_DEBUG_LIVENESS	(0x04)
+
 
 static inline jit_value __mkreg(int type, int spec, int id)
 {
@@ -172,6 +178,10 @@ enum jit_inp_type {
 	JIT_PTR
 };
 
+typedef struct jitset {
+	rb_node * root;
+} jitset;
+
 struct jit_func_info {			// collection of information related to one function
 	int general_arg_cnt;		// number of non-FP arguments
 	int float_arg_cnt;		// number of FP arguments
@@ -218,7 +228,7 @@ void jit_free(struct jit * jit);
 void jit_dump_code(struct jit * jit, int verbosity);
 void jit_dump_ops(struct jit * jit, int verbosity);
 
-void jit_get_reg_name(char * r, int reg, jit_op * op);
+void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);
 void jit_init_arg_params(struct jit * jit, int argpos);

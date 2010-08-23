@@ -87,7 +87,7 @@ int main()
 
 	// if you are interested, you can dump the machine code
 	// this functionality is provided through the `gcc' and `objdump'
-	// jit_dump(p);
+	jit_dump_ops(p, 1);
 
 	// cleanup
 	jit_free(p);
