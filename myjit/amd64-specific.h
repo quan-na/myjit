@@ -894,7 +894,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
 
 		case (JIT_FRET | REG):
-			// FIXME: optimize this, support for single precision values
+			if (op->arg_size == sizeof(float)) 
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, a1, a1);
+
 			// pushes the value beyond the top of the stack
 			amd64_sse_movlpd_membase_xreg(jit->ip, a1, AMD64_RSP, -8); 
 			amd64_mov_reg_membase(jit->ip, AMD64_RAX, AMD64_RSP, -8, 8);

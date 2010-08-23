@@ -25,7 +25,7 @@ void test1()
 	jit_getarg(p, FR(1), 2);
 	jit_faddr(p, FR(0), FR(0), FR(1));
 	jit_fdivi(p, FR(0), FR(0), 3);
-	jit_fretr(p, FR(0));
+	jit_fretr(p, FR(0), sizeof(double));
 	jit_generate_code(p);
 
 	jit_dump_code(p, 0);
@@ -60,9 +60,8 @@ void test2()
 	jit_jmpi(p, loop);
 
 	jit_patch(p, end);	
-	jit_fretr(p, FR(2));
+	jit_fretr(p, FR(2), sizeof(float));
 	jit_generate_code(p);
-	jit_dump_code(p, 0);
 
 	r = f1(3, 4);
 	printf("LL:%f\n", r);
@@ -100,7 +99,7 @@ void test3()
 	jit_jmpi(p, loop);
 	jit_patch(p, end);
 
-	jit_fretr(p, FR(1));
+	jit_fretr(p, FR(1), sizeof(double));
 
 	jit_generate_code(p);
 
@@ -223,7 +222,7 @@ void test5()
 	jit_jmpi(p, loop);
 
 	jit_patch(p, end);
-	jit_fretr(p, FR(4));
+	jit_fretr(p, FR(4), sizeof(double));
 	jit_generate_code(p);
 
 //	jit_dump_ops(p, 0); return;
@@ -399,6 +398,8 @@ void test8()
 
 int main() 
 {
+  	test5(); // XXX
+	/*
 	test1();
 	test2(); 
 	test3();
@@ -407,4 +408,5 @@ int main()
 	test6(); // XXX
 	test7(); // XXX
 	test8(); 
+	*/
 }

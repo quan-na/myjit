@@ -172,8 +172,8 @@ void jit_get_reg_name(char * r, int reg)
 			else sprintf(r, "f%i", JIT_REG(reg).id);
 		}
 		else if (JIT_REG(reg).spec == JIT_RTYPE_ARG) {
-			if (JIT_REG(reg).type == JIT_RTYPE_INT) sprintf(r, "arg-r%i", JIT_REG(reg).id);
-			else sprintf(r, "arg-f%i", JIT_REG(reg).id);
+			if (JIT_REG(reg).type == JIT_RTYPE_INT) sprintf(r, "arg%i", JIT_REG(reg).id);
+			else sprintf(r, "farg%i", JIT_REG(reg).id);
 		} else sprintf(r, "(unknown)");
 	} 
 }
@@ -334,6 +334,7 @@ static inline void print_str(char * buf, char * str)
 	strcat(buf, "\"");
 }
 
+/*
 static rb_node * __get_prev_rmap(jit_op * op)
 {
 	while (!op->regmap) op = op->prev;
@@ -342,7 +343,7 @@ static rb_node * __get_prev_rmap(jit_op * op)
 	print_rmap(op->regmap->map);
 	return op->regmap->map;
 }
-
+*/
 void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels, int verbosity)
 {
 	rb_node * lab = rb_search(labels, (long)op);
@@ -351,8 +352,8 @@ void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels, int verb
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
 
-	int op_code = GET_OP(op);
 	/*
+	int op_code = GET_OP(op);
 	if (verbosity & JIT_DEBUG_LOADS) {
 		char buf[256];
 		int is_load_op = 1;

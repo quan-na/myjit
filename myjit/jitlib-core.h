@@ -580,8 +580,8 @@ void rmap_free(rmap_t * regmap);
 #define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), (a), 0, 0, 0, (b))
 #define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, (a), (b))
 
-#define jit_fretr(jit, a) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, 0)
-#define jit_freti(jit, a) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, 0)
+#define jit_fretr(jit, a, b) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, IMM, NO), a, 0, 0, 0, b)
+#define jit_freti(jit, a, b) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, IMM, NO), 0, 0, 0, a, b)
 
 #define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, IMM, NO), a, b, 0, 0, 0)
 
