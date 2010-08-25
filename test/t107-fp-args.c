@@ -140,8 +140,8 @@ int test2()
 	// check
 	double r = foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 	printf("Check #2: %f\n", r);
-	if (equal(r, 109, 0.001)) SUCCESS(1);
-	else FAIL(1);
+	if (equal(r, 109, 0.001)) SUCCESS(2);
+	else FAIL(2);
 
 
 	// cleanup
@@ -152,5 +152,6 @@ int test2()
 
 int main()
 {
+	test1();
 	test2();
 }

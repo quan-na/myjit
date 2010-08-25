@@ -37,12 +37,10 @@ static inline int jit_allocai(struct jit * jit, int size)
 
 void jit_init_arg_params(struct jit * jit, int p)
 {
-	//struct jit_inp_arg * a = &(jit->input_args.args[p]);
 	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
 	a->passed_by_reg = 0;
 
 	if (p == 0) a->location.stack_pos = 8;
-	//else a->location.stack_pos = jit->input_args.args[p - 1].location.stack_pos + REG_SIZE;
 	else {
 		struct jit_inp_arg * prev_a = &(jit_current_func_info(jit)->args[p - 1]);
 		int stack_shift = (prev_a->size + 3) & 0xfffffffc; // 4-bytes aligned

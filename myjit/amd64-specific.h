@@ -283,6 +283,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
  * if the register is associated with the hardware register
  * it is returned through the reg argument
  */
+// FIXME: reports as spilled also argument which contains appropriate value
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
 	int args = prepare_op->arg[0];
@@ -344,7 +345,7 @@ static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg)
 }
 
 /**
- * Pushes integer value on stack
+ * Pushes integer value on the stack
  */
 static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg)
 {
@@ -359,34 +360,80 @@ static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg)
 	}
 }
 
+/**
+ * Pushes float value on the stack
+ */
+static inline void __push_fparg(struct jit * jit, struct jit_out_arg * arg)
+{
+	int sreg;
+	if (arg->size == sizeof(double)) {
+		if (arg->isreg) {
+			if (__is_spilled(arg->value.generic, jit->prepared_args.op, &sreg)) {
+				int pos = __GET_FPREG_POS(jit, arg->value.generic);
+				amd64_push_membase(jit->ip, AMD64_RBP, pos);
+			} else {
+				// ``PUSH sreg'' for XMM regs
+				amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8);
+				amd64_sse_movlpd_membase_xreg(jit->ip, sreg, AMD64_RSP, 0);
+			}
+		} else {
+			double b = arg->value.fp;
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned long *)&b, 8);
+			amd64_push_reg(jit->ip, AMD64_RAX);
+		}
+
+	} else {
+		if (arg->isreg) {
+			if (__is_spilled(arg->value.generic, jit->prepared_args.op, &sreg)) {
+				amd64_sse_cvtsd2ss_reg_membase(jit->ip, AMD64_XMM0, AMD64_RBP, __GET_REG_POS(jit, arg->value.generic));
+			} else {
+				amd64_sse_cvtsd2ss_reg_reg(jit->ip, AMD64_XMM0, sreg);
+			}
+			amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8);
+			amd64_sse_movlpd_membase_xreg(jit->ip, AMD64_XMM0, AMD64_RSP, 0);
+		} else {
+			float b = arg->value.fp;
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned long *)&b, 8);
+			amd64_push_reg(jit->ip, AMD64_RAX);
+		}
+	}
+}
+
 static inline int __configure_args(struct jit * jit)
 {
 	int sreg;
-	int pushed_args = 0;
+	int stack_correction = 0;
 	struct jit_out_arg * args = jit->prepared_args.args;
+
+	int gp_pushed = MAX(jit->prepared_args.gp_args - jit->reg_al->gp_arg_reg_cnt, 0);
+	int fp_pushed = MAX(jit->prepared_args.fp_args - jit->reg_al->fp_arg_reg_cnt, 0);
+
+	if ((jit->push_count + gp_pushed + fp_pushed) % 2) {
+		amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8);
+		stack_correction = 8;
+	}
 
 	for (int x = jit->prepared_args.count - 1; x >= 0; x --) {
 		struct jit_out_arg * arg = &(args[x]);
 		if (!arg->isfp) {
 			if (arg->argpos < jit->reg_al->gp_arg_reg_cnt) __set_arg(jit, arg);
-			else __push_arg(jit, arg), pushed_args++;
+			else __push_arg(jit, arg);
 		} else {
 			if (arg->argpos < jit->reg_al->fp_arg_reg_cnt) __set_fparg(jit, arg);
-			// FIXME:
-			else assert(0);
+			else __push_fparg(jit, arg);
 		}
 	}
 	/* AL is used to pass the number of floating point arguments passed through the XMM0-XMM7 registers */
 	amd64_mov_reg_imm(jit->ip, AMD64_RAX, MIN(jit->prepared_args.fp_args, jit->reg_al->fp_arg_reg_cnt)); 
+	return stack_correction;
 }
 
 static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
-	int arg_push_count = __configure_args(jit);
-	int stack_correction = ((jit->push_count + arg_push_count) % 2) * 8;
+	// correctly aligns stack to 16 bytes
+	int stack_correction = __configure_args(jit);
 
 	// stack has to be aligned to 16 bytes
-	if (stack_correction) amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8); 
 	if (!imm) {
 		amd64_call_reg(jit->ip, op->r_arg[0]);
 	} else {

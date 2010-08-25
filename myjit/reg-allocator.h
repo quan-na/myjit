@@ -209,7 +209,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		// synchronizes register which can be used to return the value
 		hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
 		if (hreg) {
-			// FIXME:
 			jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
 			o->r_arg[0] = o->arg[0];
 			o->r_arg[1] = o->arg[1];
@@ -229,8 +228,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			}
 		}
 		args = MIN(op->arg[1], al->fp_arg_reg_cnt);
+		printf("aaa:%i\n", args);
 		for (int q = 0; q < args; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 0, &reg);
+			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 1, &reg);
 			if (hreg) {
 				unload_reg(op, hreg, reg);
 				jit_regpool_put(al->fp_regpool, hreg);
@@ -244,6 +244,9 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
 	if (GET_OP(op) == JIT_CALL) {
+
+
+		// spills register which are used to return value
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 		if (hreg) {
 			jit_regpool_put(al->gp_regpool, hreg);

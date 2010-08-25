@@ -23,20 +23,27 @@ ROADMAP
 		* single precision floats passing
 	* test-cases
 
-+ release 0.4.1
-	+ AMD64 (SSE2)
++ release 0.5.0
+	* AMD64 (SSE2)
 		* arithmetics
 		* branches
 		* conversions
 		* ureg/lreg/sreg
 		* argument reading
-		+ load/store
-		+ argument passing
-	+ amd64 -> should not use macros starting with x86_
-	+ test-cases involving large numbers of arguments
+		* load/store
+		* argument passing
+	* amd64 -> should not use macros starting with x86_
+	* test-cases involving large numbers of arguments
+	+ prepare -> without argument
 
-+ release 0.4.2
-	+ BUG: stack corruption
++ release 0.5.1
+	+ AMD64
+		+ BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
+		+ passing arguments via register reads values from the memory even if it is not necessary
+	+ SPARC
+		+ BUG: stack corruption
+
++ release 0.5.2
 	+ SPARC
 		+ arithmetics
 		+ conversions
@@ -46,7 +53,7 @@ ROADMAP
 		+ argument passing
 		+ branches
 
-+ release 0.5.0
++ release 0.6.0
 	+ BUG: long jumps in conditional jumps
 	+ BUG: it is impossible to generete two or more functions with one instance of the compiler (see jit_prolog)
 	+ i386 (emulated)
