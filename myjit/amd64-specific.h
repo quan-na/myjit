@@ -36,16 +36,12 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-		//(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-//#define __GET_REG_POS(jit, r) ((- (__REG(r)) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 
 #define __GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 #define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
 
-//#define __GET_ARG_SPILL_POS(jit, info, arg) ((- (JIT_REG(arg).id + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 #define __GET_ARG_SPILL_POS(jit, info, arg) ((- (arg + info->gp_reg_count + info->fp_reg_count) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 
-//#define __GET_REG_POS(jit,r) __GET_GPREG_POS(jit,r)
 static inline int __GET_REG_POS(struct jit * jit, int r)
 {
 	if (JIT_REG(r).spec == JIT_RTYPE_REG) {
@@ -286,8 +282,6 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 // FIXME: reports as spilled also argument which contains appropriate value
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
-	int args = prepare_op->arg[0];
-	int fp_args = prepare_op->arg[1];
 	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 
 	if (hreg) {
@@ -401,7 +395,6 @@ static inline void __push_fparg(struct jit * jit, struct jit_out_arg * arg)
 
 static inline int __configure_args(struct jit * jit)
 {
-	int sreg;
 	int stack_correction = 0;
 	struct jit_out_arg * args = jit->prepared_args.args;
 
@@ -433,7 +426,6 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	// correctly aligns stack to 16 bytes
 	int stack_correction = __configure_args(jit);
 
-	// stack has to be aligned to 16 bytes
 	if (!imm) {
 		amd64_call_reg(jit->ip, op->r_arg[0]);
 	} else {
@@ -573,10 +565,9 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 
 /////// SSE -specific
 
-static inline unsigned char * __sse_get_sign_mask();
-static inline void __sse_change_sign(struct jit * jit, long reg)
+static inline void __sse_change_sign(struct jit * jit, int reg)
 {
-	amd64_sse_xorpd_reg_mem(jit->ip, reg, __sse_get_sign_mask());
+	amd64_sse_xorpd_reg_mem(jit->ip, reg, (long)__sse_get_sign_mask());
 }
 
 static inline void __sse_round(struct jit * jit, long a1, long a2)
@@ -585,11 +576,9 @@ static inline void __sse_round(struct jit * jit, long a1, long a2)
 	static const double x05 = 0.5;
 
 	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	//x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 
 	amd64_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
-	
 
 	unsigned char * branch1 = jit->ip;
 	amd64_branch_disp(jit->ip, X86_CC_LT, 0, 0);
@@ -925,7 +914,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		// Floating-point operations;
 		//
 		case (JIT_FMOV | REG): amd64_sse_movsd_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_FMOV | IMM): amd64_movsd_reg_mem(jit->ip, a1, &op->flt_imm); break;
+		case (JIT_FMOV | IMM): amd64_movsd_reg_mem(jit->ip, a1, (long)&op->flt_imm); break;
 		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
 		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;

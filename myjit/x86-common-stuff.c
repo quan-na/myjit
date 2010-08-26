@@ -140,7 +140,7 @@ static inline int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 #define sse_alu_pd_reg_reg(ip,op,r1,r2) x86_sse_alu_pd_reg_reg(ip,op,r1,r2)
 #endif
 
-static inline void __sse_change_sign(struct jit * jit, long reg);
+static inline void __sse_change_sign(struct jit * jit, int reg);
 
 static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 {

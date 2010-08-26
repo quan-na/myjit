@@ -156,15 +156,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
 
-		/*
-		int argcnt = MIN(info->general_arg_cnt, al->gp_arg_reg_cnt);
-		for (int i = 0; i < argcnt; i++)
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[i]));
-
-		argcnt = MIN(info->float_arg_cnt, al->fp_arg_reg_cnt);
-		for (int i = 0; i < argcnt; i++)
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_fp_reg(al, al->fp_arg_regs[i]));
-		*/
 		int assoc_gp_regs = 0;
 		int assoc_fp_regs = 0;
 		for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
@@ -244,7 +235,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
 	if (GET_OP(op) == JIT_CALL) {
-
 
 		// spills register which are used to return value
 		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
