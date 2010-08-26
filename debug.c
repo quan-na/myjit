@@ -51,7 +51,7 @@ int main()
 	h[3] = 24.5f;
 
 
-	printf("rRR:%i\n", R(0));
+	printf("rRR:%i\n", (int)R(0));
 
 	pdfdd foo;
 	jit_prolog(p, &foo);
@@ -166,13 +166,13 @@ int main()
 	jit_fmovi(p, FR(1), 3.14);
 	jit_fmovi(p, FR(2), 2);
 	jit_fmovi(p, FR(3), -1);
-	jit_prepare(p, 0);
+	jit_prepare(p);
 	jit_call(p, aaa);
 	jit_retval(p, R(0));
 	jit_extr(p, FR(1), R(3));
 	jit_faddr(p, FR(1), FR(1), FR(0));
 	
-	jit_fretr(p, FR(0));
+	jit_fretr(p, FR(0), sizeof(double));
 
 	jit_generate_code(p);
 

@@ -1,3 +1,12 @@
+Version 0.5.0.0
+===============
++ AMD64: support for floating-point arithmetics
++ jit_prepare() no longer requires its argument
++ i386: optimized handling of single precision floating-point values 
++ new register numbering scheme
++ jit_print_ops() allows more verbose output
++ fixed memory leaks
+
 Version 0.4.0.0
 ===============
 + macros JIT_FP, JIT_RETREG, JIT_IMMREG have been removed

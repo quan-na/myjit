@@ -219,7 +219,6 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			}
 		}
 		args = MIN(op->arg[1], al->fp_arg_reg_cnt);
-		printf("aaa:%i\n", args);
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 1, &reg);
 			if (hreg) {

@@ -23,7 +23,7 @@ ROADMAP
 		* single precision floats passing
 	* test-cases
 
-+ release 0.5.0
+* release 0.5.0
 	* AMD64 (SSE2)
 		* arithmetics
 		* branches

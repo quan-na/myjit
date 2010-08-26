@@ -147,8 +147,8 @@ hr {
 </div>
 <div class="section" id="instruction-set">
 <h1>Instruction Set</h1>
-<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.</p>
-<p>All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and if you have 64-bit machine, MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to <tt class="docutils literal"><span class="pre">signed</span> <span class="pre">long</span></tt> type. In specific cases, e.g., if you need smaller values than <tt class="docutils literal"><span class="pre">long</span></tt> or if you need an <tt class="docutils literal"><span class="pre">unsigned</span></tt> value and if it is appropriate, you may specify the size or the type of the value. This topic is discussed in the sequel.</p>
+<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.</p>
+<p>All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and  on 64-bit machine MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to <tt class="docutils literal"><span class="pre">signed</span> <span class="pre">long</span></tt> type. In specific cases, e.g., if you need smaller values than <tt class="docutils literal"><span class="pre">long</span></tt> or if you need an <tt class="docutils literal"><span class="pre">unsigned</span></tt> value and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.</p>
 <p>Name of each instruction consist of three parts:</p>
 <ul class="simple">
 <li>name of the operation (<tt class="docutils literal"><span class="pre">add</span></tt> for addition, <tt class="docutils literal"><span class="pre">mul</span></tt> for multiplication, etc.)</li>
@@ -276,7 +276,7 @@ nei       O1 = (O2 != O3)
 </div>
 <div class="section" id="function-calls">
 <h1>Function calls</h1>
-<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">putarg</span></tt>. (The arguments are passed in the normal order not in reverse order as in case of GNU Lightning.) Afterwards, the function is called with the <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
+<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal"><span class="pre">prepare</span></tt> accepting no argument. In the second step, arguments are passed to a function using <tt class="docutils literal"><span class="pre">putarg</span></tt>. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the <tt class="docutils literal"><span class="pre">call</span></tt> operation. To retrieve the returned value you can use operation <tt class="docutils literal"><span class="pre">retval</span></tt> having one operand, the register to store the return value.</p>
 <p>Let us make few notes on function calls:</p>
 <ul class="simple">
 <li>If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.</li>
@@ -285,7 +285,7 @@ nei       O1 = (O2 != O3)
 </ul>
 <p>List of operations related to function calls:</p>
 <ul class="simple">
-<li><tt class="docutils literal"><span class="pre">prepare</span> <span class="pre">imm</span></tt> -- prepares a function call (generic)</li>
+<li><tt class="docutils literal"><span class="pre">prepare</span></tt> -- prepares a function call (generic)</li>
 <li><tt class="docutils literal"><span class="pre">putargr</span> <span class="pre">reg</span></tt> -- passes the argument to a function</li>
 <li><tt class="docutils literal"><span class="pre">putargi</span> <span class="pre">imm</span></tt> -- passes the argument to a function</li>
 <li><tt class="docutils literal"><span class="pre">call</span> <span class="pre">imm</span></tt> -- calls a function</li>
@@ -442,7 +442,7 @@ retr        r1
 <li>The primary use of this library is in our compiler of the Schemik programming language and the development of this library affected requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.</li>
 <li>MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.</li>
 <li>Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.</li>
-<li>At this moment, MyJIT has experimental support for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.</li>
+<li>At this moment, MyJIT has experimental support (requires SSE2) for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.</li>
 <li>The library is still in the early stage of development and the API may slightly change in the near future.</li>
 <li>If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.</li>
 <li>The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still under development. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (<a class="reference external" href="mailto:myjit-devel&#64;lists.sourceforge.net">myjit-devel&#64;lists.sourceforge.net</a>). If you  would like to participate on documentation improvements, please, let us know, we will really appreciate it.</li>
@@ -451,7 +451,7 @@ retr        r1
 </div>
 <div class="footer">
 <hr class="footer" />
-Generated on: 2010-08-03 20:18 UTC.
+Generated on: 2010-08-26 12:14 UTC.
 
 </div>
 </body>

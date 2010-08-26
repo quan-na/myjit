@@ -439,7 +439,7 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 
-static inline void __sse_change_sign(struct jit * jit, long reg)
+static inline void __sse_change_sign(struct jit * jit, int reg)
 {
 	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, __sse_get_sign_mask());
 }
@@ -639,7 +639,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else x86_mov_reg_imm(jit->ip, a1, a2); 
 			break;
 
-		case JIT_PREPARE: __prepare_call(jit, op, a1); 
+		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); 
 				  __push_caller_saved_regs(jit, op);
 				  break;
 		case JIT_PROLOG:

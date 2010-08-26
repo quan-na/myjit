@@ -22,9 +22,9 @@ You can also checkout the latest release from the Bazaar repository (bzr://myjit
 
 Instruction Set
 ---------------
-The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles the architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.
+The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.
 
-All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and if you have 64-bit machine, MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to ``signed long`` type. In specific cases, e.g., if you need smaller values than ``long`` or if you need an ``unsigned`` value and if it is appropriate, you may specify the size or the type of the value. This topic is discussed in the sequel.
+All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and  on 64-bit machine MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to ``signed long`` type. In specific cases, e.g., if you need smaller values than ``long`` or if you need an ``unsigned`` value and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
 
 
 Name of each instruction consist of three parts:
@@ -163,7 +163,7 @@ The following operations and auxiliary macros helps to create a function, read i
 Function calls
 --------------
 
-Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting one argument, an immediate value, which is the number of arguments passed to a called function. In the second step, arguments are passed to a function using ``putarg``. (The arguments are passed in the normal order not in reverse order as in case of GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
+Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting no argument. In the second step, arguments are passed to a function using ``putarg``. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
 
 Let us make few notes on function calls:
 
@@ -175,7 +175,7 @@ Let us make few notes on function calls:
 
 List of operations related to function calls:
 
-+ ``prepare imm`` -- prepares a function call (generic)
++ ``prepare`` -- prepares a function call (generic)
 + ``putargr reg`` -- passes the argument to a function
 + ``putargi imm`` -- passes the argument to a function
 + ``call imm`` -- calls a function
@@ -357,7 +357,7 @@ Notes on Development
 
 + Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.
 
-+ At this moment, MyJIT has experimental support for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
++ At this moment, MyJIT has experimental support (requires SSE2) for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
 
 + The library is still in the early stage of development and the API may slightly change in the near future.
 
