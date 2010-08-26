@@ -34,7 +34,7 @@ int main()
 	jit_movi(p, R(9), 256);
 	jit_movi(p, R(10), msg);
 
-	jit_prepare(p, 10);
+	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));
 	jit_putargr(p, R(2));

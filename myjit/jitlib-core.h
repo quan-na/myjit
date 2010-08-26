@@ -361,9 +361,7 @@ void rmap_free(rmap_t * regmap);
 #define jit_jmpi(jit, a) jit_add_op(jit, JIT_JMP | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_patch(jit, a) jit_add_op(jit, JIT_PATCH | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 
-//#define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
-// FIXME: should not accept any arguments
-#define jit_prepare(jit, a) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, IMM, NO), 0, 0, 0, 0)
+#define jit_prepare(jit) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, IMM, NO), 0, 0, 0, 0)
 #define jit_putargr(jit, a) jit_add_op(jit, JIT_PUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
 #define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)
 #define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (long)a, 0, 0, 0)

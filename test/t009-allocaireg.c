@@ -49,7 +49,7 @@ int main()
 	jit_movi(p, R(9), 256);
 	jit_movi(p, R(10), msg);
 
-	jit_prepare(p, 10);
+	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));
 	jit_putargr(p, R(2));
@@ -70,7 +70,7 @@ int main()
 	
 	jit_ldxr(p, R(2), R(1), R(0), 1);
 
-	jit_prepare(p, 2);
+	jit_prepare(p);
 	jit_putargi(p, msg2);
 	jit_putargr(p, R(2));
 	jit_call(p, printf);

@@ -251,7 +251,7 @@ void test6()
 
 	jit_movi(p, R(2), printf);
 
-	jit_prepare(p, 2);
+	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_fputargr(p, FR(1), sizeof(double));
 	jit_callr(p, R(2));
@@ -305,7 +305,7 @@ void test7()
 	//jit_addi(p, R(0), R(0), 2 * REG_SIZE);
 
 	jit_fldr(p, FR(1), R(0), sizeof(double));
-	jit_prepare(p, 2);
+	jit_prepare(p);
 	jit_putargi(p, formatstr);
 	jit_fputargr(p, FR(1), sizeof(double));
 	jit_call(p, printf);
@@ -379,7 +379,7 @@ void test8()
 	jit_fldi(p, FR(0), &s + offsetof(struct mystruct, avg), sizeof(double));
 	jit_fldi(p, FR(1), &s + offsetof(struct mystruct, sum), sizeof(float));
 
-	jit_prepare(p, 3);
+	jit_prepare(p);
 	jit_putargi(p, formatstr);
 	jit_fputargr(p, FR(0), sizeof(double));
 	jit_fputargr(p, FR(1), sizeof(double));

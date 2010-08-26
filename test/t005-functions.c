@@ -127,7 +127,7 @@ void test4()
 
 	jit_subi(p, R(0), R(0), 1);
 
-	jit_prepare(p, 1);
+	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_call(p, fib);
 
@@ -135,7 +135,7 @@ void test4()
 
 	jit_getarg(p, R(0), 0);
 	jit_subi(p, R(0), R(0), 2);
-	jit_prepare(p, 1);
+	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_call(p, fib);
 
@@ -244,7 +244,7 @@ void test6()
 
 	jit_movi(p, R(2), printf);
 
-	jit_prepare(p, 2);
+	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));
 	jit_callr(p, R(2));
@@ -304,7 +304,7 @@ void test7()
 	//jit_addi(p, R(0), R(0), 2 * REG_SIZE);
 
 	jit_ldr(p, R(1), R(0), REG_SIZE);
-	jit_prepare(p, 2);
+	jit_prepare(p);
 	jit_putargi(p, formatstr);
 	jit_putargr(p, R(1));
 	jit_call(p, printf);
@@ -377,7 +377,7 @@ void test8()
 	jit_ldi(p, R(0), &s + offsetof(struct mystruct, avg), sizeof(int));
 	jit_ldi(p, R(1), &s + offsetof(struct mystruct, sum), sizeof(short));
 
-	jit_prepare(p, 3);
+	jit_prepare(p);
 	jit_putargi(p, formatstr);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));

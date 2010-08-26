@@ -34,7 +34,7 @@ ROADMAP
 		* argument passing
 	* amd64 -> should not use macros starting with x86_
 	* test-cases involving large numbers of arguments
-	+ prepare -> without argument
+	* prepare -> without argument
 
 + release 0.5.1
 	+ AMD64

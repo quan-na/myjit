@@ -46,7 +46,7 @@ int main()
 	jit_fmovi(p, FR(8), 128);
 	jit_fmovi(p, FR(9), 256);
 
-	jit_prepare(p, 10);
+	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(double));
 	jit_fputargr(p, FR(1), sizeof(double));
 	jit_fputargr(p, FR(2), sizeof(double));
@@ -67,7 +67,7 @@ int main()
 	
 	jit_ldxr(p, R(2), R(1), R(0), 1);
 
-	jit_prepare(p, 2);
+	jit_prepare(p);
 	jit_putargi(p, msg2);
 	jit_putargr(p, R(2));
 	jit_call(p, printf);

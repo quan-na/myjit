@@ -394,10 +394,10 @@ void __print_op(struct jit * jit, struct jit_op * op, rb_node * labels, int verb
 
 	if (GET_OP(op) == JIT_DECL_ARG) {
 		switch (op->arg[0]) {
-			case JIT_SIGNED_NUM: strcat(linebuf, "integer"); break;
-			case JIT_UNSIGNED_NUM: strcat(linebuf, "uns. integer"); break;
-			case JIT_FLOAT_NUM: strcat(linebuf, "float"); break;
-			case JIT_PTR: strcat(linebuf, "ptr"); break;
+			case JIT_SIGNED_NUM: strcat(linebuf, " integer"); break;
+			case JIT_UNSIGNED_NUM: strcat(linebuf, " uns. integer"); break;
+			case JIT_FLOAT_NUM: strcat(linebuf, " float"); break;
+			case JIT_PTR: strcat(linebuf, " ptr"); break;
 			default: assert(0);
 		};
 		strcat(linebuf, ", ");

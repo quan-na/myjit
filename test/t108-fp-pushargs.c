@@ -43,7 +43,7 @@ int test1()
 	jit_fmovi(p, FR(9), 256);
 	jit_movi(p, R(10), 123);
 
-	jit_prepare(p, 11);
+	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(double));
 	jit_fputargr(p, FR(1), sizeof(double));
 	jit_fputargr(p, FR(2), sizeof(double));
@@ -92,7 +92,7 @@ int test2()
 	jit_fmovi(p, FR(9), 256);
 	jit_movi(p, R(10), 123);
 
-	jit_prepare(p, 11);
+	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(float));
 	jit_fputargr(p, FR(1), sizeof(float));
 	jit_fputargr(p, FR(2), sizeof(float));
