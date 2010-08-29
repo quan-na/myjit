@@ -114,7 +114,7 @@ static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg
 	jit_op_prepend(op, o);
 }
 
-static inline struct __hw_reg * make_free_reg(jit_op * op, int fp)
+static struct __hw_reg * make_free_reg(jit_op * op, int fp)
 {
 	int spill_candidate;
 	struct __hw_reg * hreg = rmap_spill_candidate(op, fp, &spill_candidate);

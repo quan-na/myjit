@@ -42,7 +42,7 @@ static inline int __uses_hw_reg(struct jit_op * op, long reg, int fp)
 	return 0;
 }
 
-static inline int __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
+static int __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
 {
 	int count = 0;
 	for (int i = 0; i < jit->reg_al->gp_reg_cnt; i++) {
@@ -60,7 +60,7 @@ static inline int __push_callee_saved_regs(struct jit * jit, struct jit_op * op)
 	return count;
 }
 
-static inline int __pop_callee_saved_regs(struct jit * jit)
+static int __pop_callee_saved_regs(struct jit * jit)
 {
 	int count = 0;
 	struct jit_op * op = jit->current_func;
@@ -80,7 +80,7 @@ static inline int __pop_callee_saved_regs(struct jit * jit)
 	return count;
 }
 
-static inline int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    struct __hw_reg * regs, int fp, int skip_reg)
 {
 	int reg;
@@ -93,7 +93,7 @@ static inline int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op
 	return count;
 }
 
-static inline int __push_caller_saved_regs(struct jit * jit, jit_op * op)
+static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	while (op) {
 		if (GET_OP(op) == JIT_CALL) break;
@@ -104,7 +104,7 @@ static inline int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 	return count;
 }
 
-static inline int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    struct __hw_reg * regs, int fp, int skip_reg)
 {
 	int reg;
@@ -117,7 +117,7 @@ static inline int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op,
 	return count;
 }
 
-static inline int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
+static int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count = __generic_pop_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
 	count += __generic_pop_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
@@ -140,9 +140,9 @@ static inline int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 #define sse_alu_pd_reg_reg(ip,op,r1,r2) x86_sse_alu_pd_reg_reg(ip,op,r1,r2)
 #endif
 
-static inline void __sse_change_sign(struct jit * jit, int reg);
+static void __sse_change_sign(struct jit * jit, int reg);
 
-static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
+static void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 {
 	if (op->r_arg[0] == op->r_arg[1]) {
 		sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
@@ -154,7 +154,7 @@ static inline void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 	}
 }
 
-static inline unsigned char * __sse_get_sign_mask()
+static unsigned char * __sse_get_sign_mask()
 {
 	// gets 16-bytes aligned value
 	static unsigned char bufx[32];
@@ -167,7 +167,7 @@ static inline unsigned char * __sse_get_sign_mask()
 	return buf;
 }
 
-static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
+static void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
@@ -180,7 +180,7 @@ static inline void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
 	}
 }
 
-static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
+static void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
@@ -200,13 +200,13 @@ static inline void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
 	}
 }
 
-static inline void __sse_neg_op(struct jit * jit, long a1, long a2)
+static void __sse_neg_op(struct jit * jit, long a1, long a2)
 {
 	if (a1 != a2) sse_movsd_reg_reg(jit->ip, a1, a2); 
 	__sse_change_sign(jit, a1);
 }
 
-static inline void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
+static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
 {
         sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
         op->patch_addr = __PATCH_ADDR(jit);

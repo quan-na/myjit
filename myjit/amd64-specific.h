@@ -952,7 +952,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_FRETVAL:
-			if (a2 == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, a1, AMD64_XMM0);
+			if (op->arg_size == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, a1, AMD64_XMM0);
 			else if (a1 != AMD64_XMM0) amd64_sse_movsd_reg_reg(jit->ip, a1, AMD64_XMM0);
 			break;
 

@@ -68,7 +68,7 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-static inline void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
+static void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] != op->r_arg[1]) x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
@@ -86,7 +86,7 @@ static inline void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, in
 	}
 }
 
-static inline void __sub_op(struct jit * jit, struct jit_op * op, int imm)
+static void __sub_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] != op->r_arg[1]) x86_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
@@ -105,7 +105,7 @@ static inline void __sub_op(struct jit * jit, struct jit_op * op, int imm)
 	}	
 }
 
-static inline void __subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
+static void __subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] != op->r_arg[1]) x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
@@ -126,7 +126,7 @@ static inline void __subx_op(struct jit * jit, struct jit_op * op, int x86_op, i
 	}	
 }
 
-static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
+static void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] == op->r_arg[1]) x86_alu_reg_imm(jit->ip, X86_ADD, op->r_arg[0], -op->r_arg[2]);
@@ -146,7 +146,7 @@ static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
 	}
 }
 
-static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
+static void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
 {
 	if (imm) { 
 		if (op->r_arg[0] != op->r_arg[1]) x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
@@ -182,7 +182,7 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 	}
 }
 
-static inline void __cond_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm, int sign)
+static void __cond_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm, int sign)
 {
 	if (imm) x86_cmp_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else x86_cmp_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -197,7 +197,7 @@ static inline void __cond_op(struct jit * jit, struct jit_op * op, int x86_cond,
 	}
 }
 
-static inline void __branch_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm, int sign)
+static void __branch_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm, int sign)
 {
 	if (imm) x86_cmp_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else x86_cmp_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -207,7 +207,7 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int x86_con
 	x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
-static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm)
+static void __branch_mask_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm)
 {
 	if (imm) x86_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else x86_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -217,7 +217,7 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x8
 	x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
-static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
+static void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
 {
 	if (imm) x86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 	else x86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
@@ -240,7 +240,7 @@ static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
 	} else return 1;
 }
 
-static inline void __configure_args(struct jit * jit)
+static void __configure_args(struct jit * jit)
 {
 	int sreg;
 	for (int i = jit->prepared_args.ready - 1; i >= 0; i--) {
@@ -298,7 +298,7 @@ static inline void __configure_args(struct jit * jit)
 	}
 }
 
-static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
+static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
 	__configure_args(jit);
 
@@ -316,7 +316,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	__pop_caller_saved_regs(jit, op);
 }
 
-static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
+static void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
 {
 	long dest = op->r_arg[0];
 	long factor1 = op->r_arg[1];
@@ -375,7 +375,7 @@ static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign
 	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 
-static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
+static void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
 	long dest = op->r_arg[0];
 	long dividend = op->r_arg[1];
@@ -439,12 +439,12 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 
-static inline void __sse_change_sign(struct jit * jit, int reg)
+static void __sse_change_sign(struct jit * jit, int reg)
 {
 	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, __sse_get_sign_mask());
 }
 
-static inline void __sse_round(struct jit * jit, long a1, long a2)
+static void __sse_round(struct jit * jit, long a1, long a2)
 {
 	static const double x0 = 0.0;
 	static const double x05 = 0.5;
@@ -473,7 +473,7 @@ static inline void __sse_round(struct jit * jit, long a1, long a2)
 	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 }
 
-static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
+static void __sse_floor(struct jit * jit, long a1, long a2, int floor)
 {
 	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
 

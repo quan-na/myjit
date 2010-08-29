@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <string.h>
 #include "llrb.c"
 
 #define FR_IMM	(__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_IMM, 0))
@@ -82,14 +83,21 @@ typedef struct {
 
 static inline jit_value __mkreg(int type, int spec, int id)
 {
+	jit_value v;
 	jit_reg r;
 	r.type = type;
 	r.spec = spec;
 	r.id = id;
-	return *(jit_value *) &r;
+	memcpy(&v, &r, sizeof(jit_value));
+	return v;
 }
 
-#define JIT_REG(r)	(*(jit_reg *) &(r))
+static inline jit_reg JIT_REG(jit_value r)
+{
+	jit_reg x;
+	memcpy(&x, &r, sizeof(jit_reg));
+	return x;
+}
 
 struct __hw_reg {
 	int id;
@@ -584,7 +592,7 @@ void rmap_free(rmap_t * regmap);
 
 #define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, b)
 
-static inline struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
+static struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
 	struct jit_op * r = JIT_MALLOC(sizeof(struct jit_op));
 	r->code = code;

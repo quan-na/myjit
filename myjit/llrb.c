@@ -77,7 +77,7 @@ static rb_node * node_insert(rb_node * h, key_t key, value_t value, int * found)
 	return h;
 }
 
-static inline rb_node * rb_insert(rb_node * root, key_t key, value_t value, int * found)
+static rb_node * rb_insert(rb_node * root, key_t key, value_t value, int * found)
 {
 	if (found) *found = 0;
 	root = node_insert(root, key, value, found);
@@ -86,7 +86,7 @@ static inline rb_node * rb_insert(rb_node * root, key_t key, value_t value, int 
 }
 
 
-static inline rb_node * rb_search(rb_node * h, key_t key)
+static rb_node * rb_search(rb_node * h, key_t key)
 {
 	if ((h == NULL) || (h->key == key)) return h;
 	if (h->key > key) return rb_search(h->left, key);
@@ -148,7 +148,7 @@ static inline rb_node * delete_min(rb_node * h)
 	return fixup(h);
 }
 
-static inline rb_node * delete_node(rb_node * h, key_t key, int * found)
+static rb_node * delete_node(rb_node * h, key_t key, int * found)
 {
 	if (h == NULL) {
 		if (found) *found = 0; 

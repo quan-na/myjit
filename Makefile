@@ -9,8 +9,8 @@ demo2: demo2.c jitlib-core.o
 	gcc -o demo2 -g -Wall -std=c99 -pedantic demo2.o jitlib-core.o
 
 demo3: demo3.c jitlib-core.o
-	gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 demo3.c
-	gcc -o demo3 -g -Wall -std=c99 -pedantic demo3.o jitlib-core.o
+	gcc -O2 -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 demo3.c
+	gcc -O2 -o demo3 -g -Wall -std=c99 -pedantic demo3.o jitlib-core.o
 
 debug: debug.c jitlib-core.o
 	gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 debug.c

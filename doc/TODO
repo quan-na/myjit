@@ -37,12 +37,13 @@ ROADMAP
 	* prepare -> without argument
 
 + relase 0.5.0.1
-	+ fixed reg. allocator bug
+	* fixed reg. allocator bug
 	+ i386
 		* fixed freti/fretr bug
 		* support for long jumps
 
 + release 0.5.1
+	+ smarter fretval register allocation
 	+ AMD64
 		+ BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
 		+ passing arguments via register reads values from the memory even if it is not necessary

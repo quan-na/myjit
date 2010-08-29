@@ -64,14 +64,14 @@ static inline struct __hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, in
 	return NULL;
 }
 
-static inline void rmap_assoc(rmap_t * rmap, int reg, struct __hw_reg * hreg)
+static void rmap_assoc(rmap_t * rmap, int reg, struct __hw_reg * hreg)
 {
 	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
 	if (!hreg->fp) rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(long)reg, NULL);
 	else rmap->revmap = rb_insert(rmap->revmap, - hreg->id - 1, (void *)(long)reg, NULL);
 }
 
-static inline void rmap_unassoc(rmap_t * rmap, int reg, int fp)
+static void rmap_unassoc(rmap_t * rmap, int reg, int fp)
 {
 	struct __hw_reg * hreg = (struct __hw_reg *)rb_search(rmap->map, reg);
 	rmap->map = rb_delete(rmap->map, reg, NULL);
@@ -79,7 +79,7 @@ static inline void rmap_unassoc(rmap_t * rmap, int reg, int fp)
 	rmap->revmap = rb_delete(rmap->revmap, - hreg->id - 1, NULL);
 }
 
-static inline rmap_t * rmap_clone(rmap_t * rmap)
+static rmap_t * rmap_clone(rmap_t * rmap)
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = rb_clone(rmap->map);
@@ -87,7 +87,7 @@ static inline rmap_t * rmap_clone(rmap_t * rmap)
 	return res;
 }
 
-static inline int rmap_equal(rmap_t * r1, rmap_t * r2)
+static int rmap_equal(rmap_t * r1, rmap_t * r2)
 {
 	return rb_equal(r1->map, r2->map);
 }
@@ -117,7 +117,7 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 	__sync(current->right, target, op, mode);
 }
 
-static inline void rmap_sync(jit_op * op, rmap_t * current, rmap_t * target, int mode)
+static void rmap_sync(jit_op * op, rmap_t * current, rmap_t * target, int mode)
 {
 	__sync(current->map, target->map, op, mode);
 }
@@ -141,7 +141,7 @@ static void __clone_wo_regs(struct jit_reg_allocator * al, rmap_t * target, rb_n
 
 }
 
-static inline rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
+static rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
 {
 	rmap_free(op->regmap);
 
@@ -168,7 +168,7 @@ static void __spill_candidate(rb_node * n, int fp, int * age, struct __hw_reg **
 	__spill_candidate(n->right, fp, age, cand_hreg, candidate);
 }
 
-static inline struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candidate)
+static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candidate)
 {
 	int age = -1;
 	struct __hw_reg * res;
