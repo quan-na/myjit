@@ -152,7 +152,7 @@ void test4()
 
 	jit_generate_code(p);
 
-//	jit_dump_ops(p, 0); return;
+//	jit_dump_ops(p, JIT_DEBUG_ASSOC | JIT_DEBUG_LIVENESS); return;
 //	jit_dump_code(p, 0); return;
 
 	r = f1(30);

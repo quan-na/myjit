@@ -1,3 +1,10 @@
+Version 0.5.0.1
+===============
++ fixed reg. allocator bug (all platforms)
++ i386: fixed fret/fretval bug
++ AMD64: fixed fp-argument passing bug 
++ i386+AMD64: allowed longer jumps
+
 Version 0.5.0.0
 ===============
 + AMD64: support for floating-point arithmetics

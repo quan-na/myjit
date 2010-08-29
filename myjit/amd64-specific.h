@@ -252,7 +252,7 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int amd64_c
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	amd64_branch_disp(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	amd64_branch_disp32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
 static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm)
@@ -262,7 +262,7 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int am
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	amd64_branch_disp(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	amd64_branch_disp32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
@@ -272,7 +272,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	amd64_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	amd64_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 /* determines whether the argument value was spilled out or not,
@@ -565,7 +565,7 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 
 /////// SSE -specific
 
-static inline void __sse_change_sign(struct jit * jit, int reg)
+static void __sse_change_sign(struct jit * jit, int reg)
 {
 	amd64_sse_xorpd_reg_mem(jit->ip, reg, (long)__sse_get_sign_mask());
 }
@@ -634,13 +634,15 @@ void __get_arg(struct jit * jit, jit_op * op)
 	int dreg = op->r_arg[0];
 	int arg_id = op->r_arg[1];
 	//int reg_id = arg_id + info->gp_reg_count + info->fp_reg_count;
-	int reg_id = __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 
 	struct jit_inp_arg * arg = &(info->args[arg_id]);
+	int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+
 	int read_from_stack = 0;
 	int stack_pos;
 
 	if (!arg->passed_by_reg) {
+		printf("aaaaaa\n");
 		read_from_stack = 1;
 		stack_pos = arg->location.stack_pos;
 	}
@@ -661,15 +663,9 @@ void __get_arg(struct jit * jit, jit_op * op)
 				amd64_mov_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos, arg->size);
 			}
 		} else {
-			if (arg->passed_by_reg) {
-				if (arg->size == sizeof(float))
-					amd64_sse_cvtss2sd_reg_reg(jit->ip, dreg, arg->location.reg);
-				else amd64_sse_movsd_reg_reg(jit->ip, dreg, arg->location.reg); 
-			} else {
-				if (arg->size == sizeof(float))
-					amd64_sse_cvtss2sd_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
-				else amd64_sse_movlpd_xreg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
-			}
+			if (arg->size == sizeof(float))
+				amd64_sse_cvtss2sd_reg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
+			else amd64_sse_movlpd_xreg_membase(jit->ip, dreg, AMD64_RBP, stack_pos);
 		}
 		return;
 	} 
@@ -778,7 +774,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_JMP:
 			op->patch_addr = __PATCH_ADDR(jit);
 			if (op->code & REG) amd64_jump_reg(jit->ip, a1);
-			else amd64_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
+			else amd64_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
 		case JIT_RET:
 			if (!IS_IMM(op) && (a1 != AMD64_RAX)) amd64_mov_reg_reg(jit->ip, AMD64_RAX, a1, 8);

@@ -36,12 +36,6 @@ ROADMAP
 	* test-cases involving large numbers of arguments
 	* prepare -> without argument
 
-+ relase 0.5.0.1
-	* fixed reg. allocator bug
-	+ i386
-		* fixed freti/fretr bug
-		* support for long jumps
-
 + release 0.5.1
 	+ smarter fretval register allocation
 	+ AMD64

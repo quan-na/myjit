@@ -83,20 +83,17 @@ typedef struct {
 
 static inline jit_value __mkreg(int type, int spec, int id)
 {
-	jit_value v;
 	jit_reg r;
 	r.type = type;
 	r.spec = spec;
 	r.id = id;
-	memcpy(&v, &r, sizeof(jit_value));
-	return v;
+	return (jit_value) *(int *)&(r);
 }
 
 static inline jit_reg JIT_REG(jit_value r)
 {
-	jit_reg x;
-	memcpy(&x, &r, sizeof(jit_reg));
-	return x;
+	int x = (int)r;
+	return *(jit_reg *)(&(x));
 }
 
 struct __hw_reg {

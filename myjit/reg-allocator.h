@@ -222,8 +222,10 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		for (int q = 0; q < args; q++) {
 			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 1, &reg);
 			if (hreg) {
-				unload_reg(op, hreg, reg);
-				jit_regpool_put(al->fp_regpool, hreg);
+				if (hreg->id != al->fpret_reg) {
+					unload_reg(op, hreg, reg);
+					jit_regpool_put(al->fp_regpool, hreg);
+				}
 				rmap_unassoc(op->regmap, reg, 0);
 			}
 		}

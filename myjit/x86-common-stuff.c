@@ -210,7 +210,7 @@ static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a
 {
         sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
         op->patch_addr = __PATCH_ADDR(jit);
-        x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
+        x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
 
 //
