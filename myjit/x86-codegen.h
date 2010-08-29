@@ -1516,6 +1516,13 @@ typedef union {
 		}	\
 	} while (0)
 
+#define x86_jump_disp32(inst,disp)	\
+	do {	\
+		int t = (disp) - 5;	\
+		x86_jump32 ((inst), t);	\
+	} while (0)
+
+
 #define x86_branch8(inst,cond,imm,is_signed)	\
 	do {	\
 		if ((is_signed))	\
@@ -1556,6 +1563,14 @@ typedef union {
 			x86_branch32 ((inst), (cond), offset, (is_signed));	\
 		}	\
 	} while (0)
+
+#define x86_branch_disp32(inst,cond,disp,is_signed)	\
+	do {	\
+		int offset = (disp) - 6;	\
+		x86_branch32 ((inst), (cond), offset, (is_signed));	\
+	} while (0)
+
+
 
 #define x86_set_reg(inst,cond,reg,is_signed)	\
 	do {	\

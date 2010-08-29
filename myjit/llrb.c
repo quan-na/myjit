@@ -225,9 +225,14 @@ static inline void rb_free(rb_node * h)
 	JIT_FREE(h);
 }
 
-static inline int rb_equal(rb_node * root, rb_node * n)
+static inline int rb_subset(rb_node * root, rb_node * n)
 {
 	if (n == NULL) return 1;
-	return rb_search(root, n->key) && rb_equal(root, n->left) && rb_equal(root, n->right);
+	return rb_search(root, n->key) && rb_subset(root, n->left) && rb_subset(root, n->right);
+}
+
+static inline int rb_equal(rb_node * r1, rb_node * r2)
+{
+	return rb_subset(r1, r2) && rb_subset(r2, r1);
 }
 #endif

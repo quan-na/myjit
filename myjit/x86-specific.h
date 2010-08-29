@@ -204,7 +204,7 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int x86_con
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
 static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm)
@@ -214,7 +214,7 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int x8
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	x86_branch_disp(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
@@ -224,7 +224,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 
 	op->patch_addr = __PATCH_ADDR(jit); 
 
-	x86_branch_disp(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	x86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 /* determines whether the argument value was spilled out or not,
@@ -582,8 +582,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_JMP:
 			op->patch_addr = __PATCH_ADDR(jit); 
 			if (op->code & REG) x86_jump_reg(jit->ip, a1);
-			//else x86_jump_code(jit->ip, __JIT_GET_ADDR(jit, a1));
-			else x86_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
+			//else x86_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
+			else x86_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
 
 		case JIT_RET:
@@ -810,7 +810,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       x86_pop_reg(jit->ip, X86_EBP);
 				       x86_ret(jit->ip);
 				       break;
-		case JIT_FRETVAL: x86_fst_membase(jit->ip, X86_ESP, -8, 1, 0);
+		case JIT_FRETVAL: x86_fst_membase(jit->ip, X86_ESP, -8, 1, 1);
 				  x86_movlpd_xreg_membase(jit->ip, a1, X86_ESP, -8);
 				  break;
 

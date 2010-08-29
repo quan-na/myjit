@@ -103,6 +103,7 @@ void test3()
 
 	jit_generate_code(p);
 
+	test1();
 	r = f1(5);
 	if (equal(r, 120, 0.001)) SUCCESS(31);
 	else FAIL(31);
@@ -113,7 +114,6 @@ void test3()
 // function which computes fibonacci's number
 void test4()
 {
-	/*
 	double r;
 	struct jit * p = jit_init();
 	pdfd f1;
@@ -124,51 +124,43 @@ void test4()
 
 	jit_getarg(p, FR(0), 0);
 
-	jit_op * br1 = jit_fblti(p, JIT_FORWARD, FR(0), 3);
-	jit_op * gr = jit_jmpi(p, JIT_FORWARD);
+	jit_op * br = jit_fblti(p, JIT_FORWARD, FR(0), 3);
 
-	jit_patch(p, br1);
-	jit_op * br = jit_jmpi(p, JIT_FORWARD);
-
-	jit_patch(p, gr);
 	jit_fsubi(p, FR(0), FR(0), 1);
 
-	jit_prepare(p, 1);
+	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(double));
 	jit_call(p, fib);
 
-	jit_fretval(p, FR(1));
-//	jit_fmovi(p, FR(1), 4);
+	jit_fretval(p, FR(1), sizeof(double));
 
 	jit_getarg(p, FR(0), 0);
 	jit_fsubi(p, FR(0), FR(0), 2);
-	jit_prepare(p, 1);
+	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(double));
 	jit_call(p, fib);
 
-	jit_fretval(p, FR(2));
+	jit_fretval(p, FR(2), sizeof(double));
 
 	jit_faddr(p, FR(0), FR(1), FR(2));
 
-	jit_fretr(p, FR(0));
+	jit_fretr(p, FR(0), sizeof(double));
 
 	jit_patch(p, br);
-	jit_freti(p, 1.2);
+
+	jit_freti(p, 1.0, sizeof(double));
 
 	jit_generate_code(p);
 
 //	jit_dump_ops(p, 0); return;
-	jit_dump_code(p, 0); return;
+//	jit_dump_code(p, 0); return;
 
-	r = f1(3);
+	r = f1(30);
 	printf("::%f\n", r);
 	if (r == 832040) SUCCESS(41);
 	else FAIL(41);
 
 	jit_free(p);
-	*/
-	// always fails, since it requires long conditional jumps
-	FAIL(41);
 }
 
 // function which converts string to number
