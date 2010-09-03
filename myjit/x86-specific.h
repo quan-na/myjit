@@ -657,8 +657,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_DECL_ARG: break;
 
-		case JIT_RETVAL: 
-			if (a1 != X86_EAX) x86_mov_reg_reg(jit->ip, a1, X86_EAX, REG_SIZE);
+		case JIT_RETVAL: // reg. allocator takes care of the proper register assignment 
+			//if (a1 != X86_EAX) x86_mov_reg_reg(jit->ip, a1, X86_EAX, REG_SIZE);
 			break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break;
@@ -719,6 +719,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
 			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
 			break;
+		case JIT_RENAMEREG: x86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
 
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;

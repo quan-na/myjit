@@ -5,7 +5,7 @@
 
 //typedef double (* pdfdd)(int, float, short, double);
 
-typedef double (* pdfdd)(float, float, float, float, float, float, float, float,float, float, float, float);
+typedef int (* pdfdd)(float, float, float, float, float, float, float, float,float, float, float, float);
 
 double foofn(float a, int b, float c)
 {
@@ -162,6 +162,7 @@ int main()
 //	jit_faddr(p, FR(2), FR(0), FR(1));
 	
 
+	/*
 	jit_movi(p, R(0), 222);
 	jit_fmovi(p, FR(1), 3.14);
 	jit_fmovi(p, FR(2), 2);
@@ -173,12 +174,19 @@ int main()
 	jit_faddr(p, FR(1), FR(1), FR(0));
 	
 	jit_fretr(p, FR(0), sizeof(double));
-
+*/
+	jit_movi(p, R(1), 1);
+	jit_movi(p, R(2), 2);
+	jit_addr(p, R(1), R(2), R(1));
+	jit_prepare(p);
+	jit_call(p, aaa);
+	jit_retval(p, R(0));
+	jit_addi(p, R(1), R(1), 3);
+	jit_retr(p, R(0));
 	jit_generate_code(p);
 
-	jit_dump_code(p, 1);
-	jit_dump_ops(p, JIT_DEBUG_ASSOC | JIT_DEBUG_LIVENESS | JIT_DEBUG_LOADS);
-	//jit_dump_code(p, 0);
+	//jit_dump_ops(p, JIT_DEBUG_ASSOC | JIT_DEBUG_LIVENESS);
+	jit_dump_code(p, 0);
 
 //	foo(1.2, 2.5);
 //	for (int i = 0; i < 4; i++)
@@ -187,7 +195,7 @@ int main()
 
 	// check
 	//printf("Check #1: %f\n", foo(1, 1.2, 2, 2.5));
-	printf("Check #1: %f\n", foo(1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2));
+	printf("Check #1: %i\n", foo(1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2));
 
 //	for (int i = 0; i < 4; i++)
 //		printf("%f\t%f\n", g[i], (double)h[i]);

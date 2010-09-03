@@ -82,7 +82,7 @@ int main()
 	// if you are interested, you can dump the machine code
 	// this functionality is provided through the `gcc' and `objdump'
 	jit_dump_code(p, 0);
-	jit_dump_ops(p, 1);
+	//jit_dump_ops(p, 1);
 
 	// check
 	printf("Check #1: fib(1) = %li\n", fib(1));

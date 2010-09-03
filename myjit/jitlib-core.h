@@ -254,6 +254,7 @@ void rmap_free(rmap_t * regmap);
 #define JIT_UREG	(0x01 << 3)
 #define JIT_LREG	(0x02 << 3)
 #define JIT_SYNCREG	(0x03 << 3)
+#define JIT_RENAMEREG	(0x0f << 3) 
 
 #define JIT_DECL_ARG	(0x04 << 3)
 #define JIT_ALLOCA	(0x05 << 3)
