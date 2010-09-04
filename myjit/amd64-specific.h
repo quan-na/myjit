@@ -844,8 +844,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		
 		case JIT_DECL_ARG: break;
 
-		case JIT_RETVAL: 
-			if (a1 != AMD64_RAX) amd64_mov_reg_reg(jit->ip, a1, AMD64_RAX, REG_SIZE);
+		case JIT_RETVAL: // reg. allocator takes care of the proper register assignment
 			break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
@@ -1022,6 +1021,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case (JIT_SYNCREG):  __ureg(jit, a1, a2); break;
+		case JIT_RENAMEREG: amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
+
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 
