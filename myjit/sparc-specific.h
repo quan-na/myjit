@@ -471,6 +471,8 @@ op_complete:
 			sparc_save_imm(jit->ip, sparc_sp, -96 - jit_current_func_info(jit)->allocai_mem, sparc_sp);
 			break;
 		case JIT_RETVAL: 
+			// o0 is not a port of the reg. pool and thus 
+			// reg. allocator can not take care of the proper register assignment
 			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
 			break;
 
@@ -577,6 +579,7 @@ op_complete:
 		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
 		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
 		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_fp, - a2 * 4, a1); break;
+		case JIT_RENAMEREG: sparc_mov_reg_reg(jit->ip, a2, a1); break;
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 		default: printf("sparc: unknown operation (opcode: 0x%x)\n", GET_OP(op) >> 3);

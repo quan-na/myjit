@@ -256,8 +256,11 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
 	if (GET_OP(op) == JIT_RETVAL) {
-		rmap_assoc(op->regmap, op->arg[0], jit_regpool_get_by_id(al->gp_regpool, al->ret_reg));
-		return;
+		struct __hw_reg * hreg = jit_regpool_get_by_id(al->gp_regpool, al->ret_reg);
+		if (hreg) {
+			rmap_assoc(op->regmap, op->arg[0], hreg);
+			return;
+		}
 	}
 
 	if (GET_OP(op) == JIT_CALL) {
