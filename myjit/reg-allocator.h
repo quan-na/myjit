@@ -67,7 +67,7 @@ static inline struct __hw_reg * jit_regpool_get_by_id(struct jit_regpool * rp, i
 	for (int i = 0; i <= rp->pos; i++) {
 		if (rp->pool[i]->id == id) {
 			struct __hw_reg * hreg = rp->pool[i];
-			for (int j = i; j < rp->pos - 1; j++)
+			for (int j = i; j < rp->pos; j++)
 				rp->pool[j] = rp->pool[j + 1];
 			rp->pos--;
 			return hreg;
@@ -202,9 +202,11 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				o->r_arg[1] = o->arg[1];
 
 				jit_op_prepend(op, o);
-				rmap_assoc(op->regmap, r, freereg);
 
 				jit_regpool_put(al->gp_regpool, hreg);
+				rmap_unassoc(op->regmap, r, 0);
+
+				rmap_assoc(op->regmap, r, freereg);
 			} else {
 				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
 				o->r_arg[0] = o->arg[0];
