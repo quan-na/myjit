@@ -110,6 +110,14 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	sparc_nop(jit->ip);
 }
 
+static inline void __fpbranch_op(struct jit * jit, struct jit_op * op, int cond, int arg1, int arg2)
+{
+	sparc_fcmpd(jit->ip, arg1, arg2);
+	op->patch_addr = __PATCH_ADDR(jit);
+	sparc_fbranch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	sparc_nop(jit->ip);
+}
+
 /* determines whether the argument value was spilled out or not,
  * if the register is associated with the hardware register
  * it is returned through the reg argument
@@ -468,7 +476,7 @@ op_complete:
 		case JIT_PREPARE: __prepare_call(jit, op, a1); break;
 		case JIT_PROLOG:
 			*(void **)(a1) = jit->ip;
-			sparc_save_imm(jit->ip, sparc_sp, -96 - jit_current_func_info(jit)->allocai_mem, sparc_sp);
+			sparc_save_imm(jit->ip, sparc_sp, -96 - jit_current_func_info(jit)->allocai_mem, sparc_sp - 8); // 8 -- additional bytes 
 			break;
 		case JIT_RETVAL: 
 			// o0 is not a port of the reg. pool and thus 
@@ -576,6 +584,53 @@ op_complete:
 				case 4: sparc_st_imm(jit->ip, a3, a2, a1); break;
 				default: abort();
 			} break;
+
+		//
+		// Floating-point operations;
+		//
+		case (JIT_FMOV | REG):
+			sparc_fmovs(jit->ip, a2, a1);
+			sparc_fmovs(jit->ip, a2 + 1, a1 + 1);
+			break;
+		case (JIT_FMOV | IMM):
+			sparc_set32(jit->ip, (long)&op->flt_imm, sparc_g1);
+			sparc_lddf(jit->ip, sparc_g1, 0, a1);
+			break;
+		case (JIT_FADD | REG): sparc_faddd(jit->ip, a2, a3, a1); break;
+		case (JIT_FSUB | REG): sparc_fsubd(jit->ip, a2, a3, a1); break;
+		case (JIT_FRSB | REG): sparc_fsubd(jit->ip, a3, a2, a1); break;
+		case (JIT_FMUL | REG): sparc_fmuld(jit->ip, a2, a3, a1); break;
+		case (JIT_FDIV | REG): sparc_fdivd(jit->ip, a2, a3, a1); break;
+		case (JIT_FNEG | REG): sparc_fnegs(jit->ip, a2, a1); break;
+
+		case (JIT_FBLT | REG): __fpbranch_op(jit, op, sparc_fbl, a2, a3); break;
+		case (JIT_FBGT | REG): __fpbranch_op(jit, op, sparc_fbg, a2, a3); break;
+		case (JIT_FBLE | REG): __fpbranch_op(jit, op, sparc_fble, a2, a3); break;
+		case (JIT_FBGE | REG): __fpbranch_op(jit, op, sparc_fbge, a2, a3); break;
+		case (JIT_FBEQ | REG): __fpbranch_op(jit, op, sparc_fbe, a2, a3); break;
+		case (JIT_FBNE | REG): __fpbranch_op(jit, op, sparc_fbne, a2, a3); break;
+		case (JIT_TRUNC | REG): 
+			// FIXME: synchronizace registru f30 a zkontrolovat jestli neco nekde neprepisuje
+			sparc_fdtoi(jit->ip, a2, sparc_f30);
+			sparc_stdf_imm(jit->ip, sparc_f30, sparc_fp, -8);
+			sparc_ld_imm(jit->ip, sparc_fp, -8, a1);
+			break;
+		case (JIT_EXT | REG):
+			// FIXME: synchronizace registru f30 a zkontrolovat jestli neco nekde neprepisuje
+			sparc_st_imm(jit->ip, a2, sparc_fp, -8); 
+			sparc_ldf_imm(jit->ip, sparc_fp, -8, sparc_f30);
+			sparc_fitod(jit->ip, sparc_f30, a1);
+			break;
+		case (JIT_FRET | REG):
+			if (op->arg_size == sizeof(float)) assert(0);
+			else {
+				sparc_fmovs(jit->ip, a1, sparc_f0);
+				sparc_fmovs(jit->ip, a1 + 1, sparc_f1);
+			}
+			sparc_ret(jit->ip);
+			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
+			break;
+
 		case (JIT_UREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
 		case (JIT_SYNCREG): sparc_st_imm(jit->ip, a2, sparc_fp, - a1 * 4); break;
 		case (JIT_LREG): sparc_ld_imm(jit->ip, sparc_fp, - a2 * 4, a1); break;
@@ -626,9 +681,15 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_reg = sparc_fp;
 	a->ret_reg = sparc_i7;
 
-	a->fp_reg_cnt = 0;
+	a->fp_reg_cnt = 4;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
 	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+
+	i = 0;
+	a->fp_regs[i++] = (struct __hw_reg) { sparc_f0, 0, "f0", 0, 1, 1 };
+	a->fp_regs[i++] = (struct __hw_reg) { sparc_f2, 0, "f2", 0, 1, 2 };
+	a->fp_regs[i++] = (struct __hw_reg) { sparc_f4, 0, "f4", 0, 1, 3 };
+	a->fp_regs[i++] = (struct __hw_reg) { sparc_f6, 0, "f6", 0, 1, 4 };
 
 	a->gp_arg_reg_cnt = 6;
 	a->gp_arg_regs = __arg_regs;

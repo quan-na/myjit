@@ -1,28 +1,6 @@
 ROADMAP
 =======
 
-+ release 0.4.0
-	* new putarg operation
-	* (generic) support for floating point arithmetics
-	* register allocator support for FP registers
-	* conversion of immediate values
-	* automatic reg_count and fp_reg_count initialization
-	* BUG: jit_prolog should reset the value of jit->allocai_mem
-	* rename jit_arg -> jit_out_arg
-	* prapared_args doesnot have to be a pointer
-	* rename jit_msgi -> jit_msg (documentation update)
-	* rename ftrunc, fround, etc. -> trunc, round
-	* i386 (SSE2)
-		* arithmetics
-		* branches
-		* conversions
-		* load/store
-		* argument passing
-		* fretval
-		* argument reading
-		* single precision floats passing
-	* test-cases
-
 * release 0.5.0
 	* AMD64 (SSE2)
 		* arithmetics
@@ -36,25 +14,24 @@ ROADMAP
 	* test-cases involving large numbers of arguments
 	* prepare -> without argument
 
-+ release 0.5.1
-	+ smarter fretval register allocation
-	+ AMD64
-		+ BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
-		+ passing arguments via register reads values from the memory even if it is not necessary
-	+ SPARC
-		+ BUG: stack corruption
-
 + release 0.5.2
+	+ BUG: stack corruption
 	+ SPARC
-		+ arithmetics
+		* arithmetics
+		* branches
 		+ conversions
 		+ load/store
 		+ ureg/lreg/sreg
 		+ argument reading
 		+ argument passing
-		+ branches
 
 + release 0.6.0
+	+ AMD64
+		+ BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
+		+ passing arguments via register reads values from the memory even if it is not necessary
+
+
++ release 0.7.0
 	+ BUG: it is impossible to generete two or more functions with one instance of the compiler (see jit_prolog)
 	+ i386 (emulated)
 		+ arithmetics
