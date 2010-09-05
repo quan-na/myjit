@@ -21,16 +21,19 @@
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		((((long)jit->buf + (long)((jit_label *)(imm))->pos - (long)jit->ip)) / 4))
-//#define __GET_REG_POS(jit, r) (+(jit)->allocai_mem + (- (r) * REG_SIZE) - REG_SIZE)
+
+///#define __GET_REG_POS(jit, r) (+(jit)->allocai_mem + (- (r) * REG_SIZE) - REG_SIZE)
 #define __GET_REG_POS(jit, r) (+(jit)->allocai_mem + (- (r) * REG_SIZE) - REG_SIZE)
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
+
+#define EXTRA_SPACE (16)
 
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
 	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
 	jit_current_func_info(jit)->allocai_mem += real_size;	
-	return (jit_current_func_info(jit)->allocai_mem);
+	return -(jit_current_func_info(jit)->allocai_mem + EXTRA_SPACE);
 }
 
 void jit_init_arg_params(struct jit * jit, int p)
@@ -125,19 +128,12 @@ static inline void __fpbranch_op(struct jit * jit, struct jit_op * op, int cond,
 // FIXME: more general, should use information from the reg. allocator
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
-	int args = prepare_op->arg[0];
 	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
-	if ((!hreg)
-	|| ((hreg->id == sparc_o0) && (args > 0))
-	|| ((hreg->id == sparc_o1) && (args > 1))
-	|| ((hreg->id == sparc_o2) && (args > 2))
-	|| ((hreg->id == sparc_o3) && (args > 3))
-	|| ((hreg->id == sparc_o4) && (args > 4))
-	|| ((hreg->id == sparc_o5) && (args > 5)))
-		return 1;
-
-	*reg = hreg->id;
-	return 0;
+	if (hreg) {
+		*reg = hreg->id;
+		return 0;
+	}
+	return 1;
 }
 
 static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg, int reg)
@@ -153,31 +149,41 @@ static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg, int reg
 	} else sparc_set32(jit->ip, value, reg);
 }
 
-static inline void __configure_args(struct jit * jit)
+static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg, int pos)
 {
 	int sreg;
-	struct jit_out_arg * args = jit->prepared_args.args;
-	int argcnt = jit->prepared_args.count;
-
-	if (argcnt > 0) __set_arg(jit, &(args[0]), sparc_o0);
-	if (argcnt > 1) __set_arg(jit, &(args[1]), sparc_o1);
-	if (argcnt > 2) __set_arg(jit, &(args[2]), sparc_o2);
-	if (argcnt > 3) __set_arg(jit, &(args[3]), sparc_o3);
-	if (argcnt > 4) __set_arg(jit, &(args[4]), sparc_o4);
-	if (argcnt > 5) __set_arg(jit, &(args[5]), sparc_o5);
-
-	for (int i = 6; i < argcnt; i++) {
-		long value = args[i].value.generic;
-		if (args[i].isreg) {
-			if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-				sparc_ld_imm(jit->ip, sparc_fp, - value * 4, sparc_g1);
-				sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (i - 6) * 4);
-			} else {
-				sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (i - 6) * 4);
-			}
+	long value = arg->value.generic;
+	if (arg->isreg) {
+		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+			sparc_ld_imm(jit->ip, sparc_fp, - value * 4, sparc_g1);
+			sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
 		} else {
-			sparc_set32(jit->ip, value, sparc_g1);
-			sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (i - 6) * 4);
+			sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (pos - 6) * 4);
+		}
+	} else {
+		sparc_set32(jit->ip, value, sparc_g1);
+		sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
+	}
+}
+
+static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg, int reg)
+{
+	assert(0);
+}
+
+static inline void __configure_args(struct jit * jit)
+{
+	static const int out_regs[] = { sparc_o0, sparc_o1, sparc_o2, sparc_o3, sparc_o4, sparc_o5 };
+	int free_reg = 0;
+
+	for (int i = 0; i < jit->prepared_args.count; i++) {
+		struct jit_out_arg * arg = &(jit->prepared_args.args[i]);
+		if (!arg->isfp) {
+			if (free_reg < 6) __set_arg(jit, arg, out_regs[free_reg++]);
+			else __push_arg(jit, arg, i); 
+		} else {
+			if (free_reg < 6) __set_fparg(jit, arg, out_regs[free_reg++]);
+			else assert(0);
 		}
 	}
 }
@@ -542,11 +548,19 @@ op_complete:
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
 		case JIT_PREPARE: __prepare_call(jit, op, a1); break;
 		case JIT_PROLOG:
-			*(void **)(a1) = jit->ip;
-			sparc_save_imm(jit->ip, sparc_sp, -96 - jit_current_func_info(jit)->allocai_mem, sparc_sp - 8); // 8 -- additional bytes 
+			do {
+				*(void **)(a1) = jit->ip;
+				struct jit_func_info * info = jit_current_func_info(jit);
+				int stack_mem = 96;
+				stack_mem += info->allocai_mem;
+				stack_mem += info->gp_reg_count * REG_SIZE;
+				stack_mem += info->fp_reg_count * sizeof(double);
+				stack_mem += EXTRA_SPACE;
+				sparc_save_imm(jit->ip, sparc_sp, -stack_mem, sparc_sp);
+			} while (0);
 			break;
 		case JIT_RETVAL: 
-			// o0 is not a port of the reg. pool and thus 
+			// o0 is not a part of the reg. pool and thus 
 			// reg. allocator can not take care of the proper register assignment
 			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
 			break;

@@ -28,9 +28,10 @@ float foobar(float x)
 	//return (int)(x * r);
 }
 
-int aaa()
+int aaa(char * f, int x)
 {
-	return 4567;
+	printf("R%i:%i\n", 123, 45);
+	return x;
 }
 
 int main()
@@ -77,14 +78,14 @@ int main()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	*/
 //	int a = jit_allocai(p, 10);
-//	jit_fmovr(p, FR(0), FR(1));
-	jit_fmovi(p, FR(0), 12.2);
-	jit_fmovi(p, FR(1), -16.4);
-	jit_fmovr(p, FR(0), FR(1));
-	jit_roundr(p, R(0), FR(1));
+	jit_movi(p, R(0), 123);
+	jit_prepare(p);
+	jit_putargi(p, str);
+	jit_putargr(p, R(0));
+	jit_call(p, aaa);
+	jit_retval(p, R(0));
+
 	jit_extr(p, FR(0), R(0));
-//	jit_movi(p, R(0), 45);
-//	jit_extr(p, FR(0), R(0));
 
 	jit_fretr(p, FR(0), sizeof(double));
 	//jit_retr(p, R(0));
