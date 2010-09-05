@@ -311,6 +311,73 @@ void __mul(struct jit * jit, jit_op * op)
 	} else sparc_smul(jit->ip, FALSE, a2, a3, a1);
 }
 
+// common function for floor & ceil ops
+static void __sparc_round(struct jit * jit, long a1, long a2)
+{
+	static double zero_point_5 = 0.5;
+	sparc_set32(jit->ip, 0, sparc_g1);
+
+	// tests the sign of the value
+	sparc_fabss(jit->ip, a2, sparc_f30);
+	sparc_fmovs(jit->ip, a2 + 1, sparc_f31);
+	sparc_fcmpd(jit->ip, a2, sparc_f30);
+
+	sparc_set32(jit->ip, (long)&zero_point_5, sparc_g1);
+	sparc_lddf(jit->ip, sparc_g1, sparc_g0, sparc_f30);
+
+	// if a2 is greater than 0 -> skip negation
+	unsigned char * br1 = jit->ip;
+	sparc_fbranch(jit->ip, FALSE, sparc_fbge, 0); 
+	sparc_nop(jit->ip);
+	sparc_fnegs(jit->ip, sparc_f30, sparc_f30);
+
+	sparc_patch(br1, jit->ip);
+
+	// conversion 
+	sparc_faddd(jit->ip, a2, sparc_f30, sparc_f30);
+	sparc_fdtoi(jit->ip, sparc_f30, sparc_f30);
+	sparc_stdf_imm(jit->ip, sparc_f30, sparc_fp, -8);
+	sparc_ld_imm(jit->ip, sparc_fp, -8, a1);
+}
+
+// common function for floor & ceil ops
+static void __sparc_floor(struct jit * jit, long a1, long a2, int floor)
+{
+	sparc_set32(jit->ip, 0, sparc_g1);
+
+	// tests the sign of the value
+	sparc_fabss(jit->ip, a2, sparc_f30);
+	sparc_fmovs(jit->ip, a2 + 1, sparc_f31);
+	sparc_fcmpd(jit->ip, a2, sparc_f30);
+
+	unsigned char * br1 = jit->ip;
+	sparc_fbranch(jit->ip, FALSE, (floor ? sparc_fbe : sparc_fbne), 0);
+	sparc_nop(jit->ip);
+
+	// branch1: conversion with correction
+	sparc_fdtoi(jit->ip, a2, sparc_f30);
+	sparc_fitod(jit->ip, sparc_f30, sparc_f30);
+
+	sparc_fcmpd(jit->ip, a2, sparc_f30);
+
+	unsigned char * br2 = jit->ip;
+	sparc_fbranch(jit->ip, FALSE, sparc_fbe, 0); // skip correction if not desired
+	sparc_nop(jit->ip);
+
+	sparc_set32(jit->ip, (floor ? -1 : 1), sparc_g1);
+
+	sparc_patch(br1, jit->ip);
+	sparc_patch(br2, jit->ip);
+
+	// branch2: direct conversion 
+	sparc_fdtoi(jit->ip, a2, sparc_f30);
+	sparc_stdf_imm(jit->ip, sparc_f30, sparc_fp, -8);
+	sparc_ld_imm(jit->ip, sparc_fp, -8, a1);
+
+	// adds correction
+	sparc_add(jit->ip, FALSE, a1, sparc_g1, a1);
+}
+
 #define __alu_op(cc, reg_op, imm_op) \
 	if (IS_IMM(op)) {\
 		if (a3 != 0) imm_op(jit->ip, cc, a2, a3, a1); \
@@ -594,7 +661,7 @@ op_complete:
 			break;
 		case (JIT_FMOV | IMM):
 			sparc_set32(jit->ip, (long)&op->flt_imm, sparc_g1);
-			sparc_lddf(jit->ip, sparc_g1, 0, a1);
+			sparc_lddf(jit->ip, sparc_g1, sparc_g0, a1);
 			break;
 		case (JIT_FADD | REG): sparc_faddd(jit->ip, a2, a3, a1); break;
 		case (JIT_FSUB | REG): sparc_fsubd(jit->ip, a2, a3, a1); break;
@@ -621,6 +688,11 @@ op_complete:
 			sparc_ldf_imm(jit->ip, sparc_fp, -8, sparc_f30);
 			sparc_fitod(jit->ip, sparc_f30, a1);
 			break;
+
+		case (JIT_FLOOR | REG): __sparc_floor(jit, a1, a2, 1); break;
+		case (JIT_CEIL | REG): __sparc_floor(jit, a1, a2, 0); break;
+		case (JIT_ROUND | REG): __sparc_round(jit, a1, a2); break;
+
 		case (JIT_FRET | REG):
 			if (op->arg_size == sizeof(float)) assert(0);
 			else {

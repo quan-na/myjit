@@ -60,7 +60,7 @@ int main()
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 */
-	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
+//	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
 	
 	/*
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
@@ -79,10 +79,12 @@ int main()
 //	int a = jit_allocai(p, 10);
 //	jit_fmovr(p, FR(0), FR(1));
 	jit_fmovi(p, FR(0), 12.2);
-	jit_fmovi(p, FR(1), 16.4);
+	jit_fmovi(p, FR(1), -16.4);
 	jit_fmovr(p, FR(0), FR(1));
-	jit_movi(p, R(0), 45);
+	jit_roundr(p, R(0), FR(1));
 	jit_extr(p, FR(0), R(0));
+//	jit_movi(p, R(0), 45);
+//	jit_extr(p, FR(0), R(0));
 
 	jit_fretr(p, FR(0), sizeof(double));
 	//jit_retr(p, R(0));
