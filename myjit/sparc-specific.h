@@ -783,13 +783,11 @@ op_complete:
 		case (JIT_FBEQ | REG): __fpbranch_op(jit, op, sparc_fbe, a2, a3); break;
 		case (JIT_FBNE | REG): __fpbranch_op(jit, op, sparc_fbne, a2, a3); break;
 		case (JIT_TRUNC | REG): 
-			// FIXME: synchronizace registru f30 a zkontrolovat jestli neco nekde neprepisuje
 			sparc_fdtoi(jit->ip, a2, sparc_f30);
 			sparc_stdf_imm(jit->ip, sparc_f30, sparc_fp, -8);
 			sparc_ld_imm(jit->ip, sparc_fp, -8, a1);
 			break;
 		case (JIT_EXT | REG):
-			// FIXME: synchronizace registru f30 a zkontrolovat jestli neco nekde neprepisuje
 			sparc_st_imm(jit->ip, a2, sparc_fp, -8); 
 			sparc_ldf_imm(jit->ip, sparc_fp, -8, sparc_f30);
 			sparc_fitod(jit->ip, sparc_f30, a1);
@@ -808,6 +806,70 @@ op_complete:
 			}
 			sparc_ret(jit->ip);
 			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
+			break;
+
+		case (JIT_FLD | REG):
+			if (op->arg_size == sizeof(double)) sparc_lddf(jit->ip, a2, sparc_g0, a1); 
+			else {
+				sparc_ldf(jit->ip, a2, sparc_g0, a1);
+				sparc_fstod(jit->ip, a1, a1);
+			}
+			break;
+
+		case (JIT_FLD | IMM):
+			if (op->arg_size == sizeof(double)) sparc_lddf_imm(jit->ip, sparc_g0, a2, a1);
+			else {
+				sparc_ldf_imm(jit->ip, sparc_g0, a2, a1);
+				sparc_fstod(jit->ip, a1, a1);
+			}
+			break;
+
+		case (JIT_FLDX | REG):
+			if (op->arg_size == sizeof(double)) sparc_lddf(jit->ip, a2, a3, a1); 
+			else {
+				sparc_ldf(jit->ip, a2, a3, a1);
+				sparc_fstod(jit->ip, a1, a1);
+			}
+			break;
+
+		case (JIT_FLDX | IMM):
+			if (op->arg_size == sizeof(double)) sparc_lddf_imm(jit->ip, a2, a3, a1);
+			else {
+				sparc_ldf_imm(jit->ip, a2, a3, a1);
+				sparc_fstod(jit->ip, a1, a1);
+			}
+			break;
+
+		case (JIT_FST | REG):
+			if (op->arg_size == sizeof(double)) sparc_stdf(jit->ip, a2, a1, sparc_g0);
+			else {
+				sparc_fdtos(jit->ip, a2, sparc_f30);
+				sparc_stf(jit->ip, sparc_f30, a1, sparc_g0);
+			}
+			break;
+
+		case (JIT_FST | IMM):
+			if (op->arg_size == sizeof(double)) sparc_stdf_imm(jit->ip, a2, sparc_g0, a1);
+			else {
+				sparc_fdtos(jit->ip, a2, sparc_f30);
+				sparc_stdf_imm(jit->ip, sparc_f30, sparc_g0, a1);
+			}
+			break;
+
+		case (JIT_FSTX | REG):
+			if (op->arg_size == sizeof(double)) sparc_stdf(jit->ip, a3, a2, a1);
+			else {
+				sparc_fdtos(jit->ip, a3, sparc_f30);
+				sparc_stf(jit->ip, sparc_f30, a2, a1);
+			}
+			break;
+
+		case (JIT_FSTX | IMM):
+			if (op->arg_size == sizeof(double)) sparc_stdf_imm(jit->ip, a3, a2, a1);
+			else {
+				sparc_fdtos(jit->ip, a3, sparc_f30);
+				sparc_stf_imm(jit->ip, sparc_f30, a2, a1);
+			}
 			break;
 
 		case (JIT_UREG): __ureg(jit, a1, a2); break;

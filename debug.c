@@ -92,6 +92,11 @@ int main()
 
 	jit_extr(p, FR(0), R(0));
 */
+	jit_movi(p, R(0), g);
+	jit_movi(p, R(1), h);
+	jit_movi(p, R(2), 8);
+	jit_fmovi(p, FR(1), 666.123);
+	jit_fstxi(p, 8, R(0), FR(1), sizeof(double));
 	jit_fretr(p, FR(0), sizeof(double));
 	//jit_retr(p, R(0));
 	jit_generate_code(p);
@@ -100,13 +105,13 @@ int main()
 	jit_dump_code(p, 0);
 
 //	foo(1.2, 2.5);
-//	for (int i = 0; i < 4; i++)
-//		printf("X:%f\n", g[i]);
 
 
 	// check
 	//printf("Check #1: %f\n", foo(1, 1.2, 2, 2.5));
 	printf("Check #1: %f\n", foo(1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2));
+	for (int i = 0; i < 4; i++)
+		printf("X:%f\t%f\n", g[i], h[i]);
 
 //	for (int i = 0; i < 4; i++)
 //		printf("%f\t%f\n", g[i], (double)h[i]);
