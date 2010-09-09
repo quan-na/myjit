@@ -14,16 +14,23 @@ ROADMAP
 	* test-cases involving large numbers of arguments
 	* prepare -> without argument
 
-+ release 0.5.2
-	+ BUG: stack corruption
++ release 0.5.1
+	* BUG: stack corruption
 	+ SPARC
 		* arithmetics
 		* branches
+		* ureg/lreg/sreg
+		* argument reading
 		+ conversions
 		+ load/store
-		+ ureg/lreg/sreg
-		+ argument reading
 		+ argument passing
+
++ release 0.5.2
+	+ arguments passed by registers should not be assigned to other registers if read by GETARG and there is no other GETARG which reads this argument
+	+ UREG should not set the value of argument passed if saving the value back to the stack (SPARC, AMD64?)
+	+ SPARC: vararg stack corruption
+	+ SPARC: get_arg should optimize moves of aligned doubles
+
 
 + release 0.6.0
 	+ AMD64

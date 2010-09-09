@@ -64,7 +64,7 @@ int test1()
 
 	jit_generate_code(p);
 
-	jit_dump_code(p, 0);
+	//jit_dump_code(p, 0);
 
 	// check
 	double r = foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
@@ -136,6 +136,7 @@ int test2()
 	jit_generate_code(p);
 
 	jit_dump_code(p, 0);
+	//jit_dump_ops(p, JIT_DEBUG_LIVENESS | JIT_DEBUG_ASSOC); 
 
 	// check
 	double r = foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);

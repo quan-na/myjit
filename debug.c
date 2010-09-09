@@ -5,7 +5,7 @@
 
 //typedef double (* pdfdd)(int, float, short, double);
 
-typedef double (* pdfdd)(/*float, float, float, float, float, float, float, float,float, float, float, float*/);
+typedef double (* pdfdd)(double, float, float, float, float, float, float, float,float, float, float, float);
 
 double foofn(float a, int b, float c)
 {
@@ -63,7 +63,7 @@ int main()
 */
 //	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
 	
-	/*
+	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
@@ -75,9 +75,14 @@ int main()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
-	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
-	*/
+
+	jit_getarg(p, FR(0), 0);
+	//jit_getarg(p, FR(1), 11);
+	//jit_getarg(p, FR(2), 11);
+	//jit_faddr(p, FR(0), FR(0), FR(1));
+	//jit_faddr(p, FR(0), FR(0), FR(2));
 //	int a = jit_allocai(p, 10);
+/*
 	jit_movi(p, R(0), 123);
 	jit_prepare(p);
 	jit_putargi(p, str);
@@ -86,7 +91,7 @@ int main()
 	jit_retval(p, R(0));
 
 	jit_extr(p, FR(0), R(0));
-
+*/
 	jit_fretr(p, FR(0), sizeof(double));
 	//jit_retr(p, R(0));
 	jit_generate_code(p);
@@ -101,7 +106,7 @@ int main()
 
 	// check
 	//printf("Check #1: %f\n", foo(1, 1.2, 2, 2.5));
-	printf("Check #1: %f\n", foo(/*1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2*/));
+	printf("Check #1: %f\n", foo(1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2));
 
 //	for (int i = 0; i < 4; i++)
 //		printf("%f\t%f\n", g[i], (double)h[i]);

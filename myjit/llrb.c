@@ -106,6 +106,8 @@ static inline rb_node * move_red_left(rb_node * h)
 
 static inline rb_node * move_red_right(rb_node * h)
 {
+	if (!h->left) return h; // workaround not present in the sedgewick's implementation;
+				// fixing seg. fault while deleting nodes
 	color_flip(h);
 	if (is_red(h->left->left)) {
 		h = rotate_right(h);

@@ -63,9 +63,10 @@ typedef long jit_int;
 typedef double jit_float;
 
 typedef struct {
-	unsigned type: 1; /* INT / FP */
-	unsigned spec: 2; /* register, alias, immediate, argument's shadow space */
-	unsigned id : 29;
+	unsigned type: 1; // INT / FP
+	unsigned spec: 2; // register, alias, immediate, argument's shadow space
+	unsigned part: 1; // allows to split one virtual register into two hw. registers (implicitly 0)
+	unsigned id : 28;
 } jit_reg;
 
 #define JIT_RTYPE_REG	(0)
@@ -87,6 +88,17 @@ static inline jit_value __mkreg(int type, int spec, int id)
 	r.type = type;
 	r.spec = spec;
 	r.id = id;
+	r.part = 0;
+	return (jit_value) *(int *)&(r);
+}
+
+static inline jit_value __mkreg_ex(int type, int spec, int id)
+{
+	jit_reg r;
+	r.type = type;
+	r.spec = spec;
+	r.id = id;
+	r.part = 1;
 	return (jit_value) *(int *)&(r);
 }
 
@@ -203,6 +215,8 @@ struct jit_func_info {			// collection of information related to one function
 		int spill_pos;		// location of the argument on the stack, if the value was spilled off
 		int gp_pos;		// position of the argument in the list of GP/FP
 		int fp_pos;		// position of the argument in the list of GP/FP
+		int overflow;		// indicates whether one argument overflow into the adjacent register
+		int phys_reg;		
 	} * args;			// collection of all arguments
 
 	int gp_reg_count;		// total number of GP registers used in the processed function
@@ -237,7 +251,14 @@ void jit_dump_ops(struct jit * jit, int verbosity);
 void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);
-void jit_init_arg_params(struct jit * jit, int argpos);
+
+/**
+ * Initialize argpos-th argument.
+ * phys_reg indicates how many actual registers have been already used to pass
+ * the arguments. This is used to correctly pass arguments which occupies two
+ * or more registers
+ */
+void jit_init_arg_params(struct jit * jit, int argpos, int * phys_reg);
 
 /* FIXME: presunout do generic-reg-allocator.h */
 void jit_assign_regs(struct jit * jit);

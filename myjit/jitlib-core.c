@@ -234,6 +234,7 @@ static inline void __initialize_arguments(struct jit * jit)
 	int gp_arg_pos = 0;
 	int fp_arg_pos = 0;
 	int argpos = 0;
+	int phys_reg = 0;
 
 	while (op) {
 		if (GET_OP(op) == JIT_PROLOG) {
@@ -252,7 +253,7 @@ static inline void __initialize_arguments(struct jit * jit)
 				info->args[argpos].gp_pos = gp_arg_pos++;
 				info->args[argpos].fp_pos = fp_arg_pos;
 			}
-			jit_init_arg_params(jit, argpos);
+			jit_init_arg_params(jit, argpos, &phys_reg);
 			argpos++;
 		}
 		op = op->next;

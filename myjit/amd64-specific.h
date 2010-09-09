@@ -80,7 +80,7 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-void jit_init_arg_params(struct jit * jit, int p)
+void jit_init_arg_params(struct jit * jit, int p, int * phys_reg)
 {
 	struct jit_func_info * info = jit_current_func_info(jit);
 	struct jit_inp_arg * a = &(info->args[p]);
@@ -97,6 +97,7 @@ void jit_init_arg_params(struct jit * jit, int p)
 			a->spill_pos = 16 + stack_pos * 8;
 			a->passed_by_reg = 0;
 		}
+		arg->overflow = 0;
 		return;
 	}
 
@@ -114,6 +115,7 @@ void jit_init_arg_params(struct jit * jit, int p)
 		a->spill_pos = 16 + stack_pos * 8;
 		a->passed_by_reg = 0;
 	}
+	a->overflow = 0;
 }
 
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
@@ -642,7 +644,6 @@ void __get_arg(struct jit * jit, jit_op * op)
 	int stack_pos;
 
 	if (!arg->passed_by_reg) {
-		printf("aaaaaa\n");
 		read_from_stack = 1;
 		stack_pos = arg->location.stack_pos;
 	}

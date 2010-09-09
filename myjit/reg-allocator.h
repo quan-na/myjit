@@ -166,6 +166,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
 
 		op->regmap = rmap_init();
+#if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
 		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt, al->gp_arg_reg_cnt));
 
 		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
@@ -183,6 +184,45 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				assoc_fp_regs++;
 			}
 		}
+#endif
+#if defined(JIT_ARCH_SPARC)
+		// sparc uses GP registers to pass FP values
+		// doubles are passed using two registers. grrrr....
+	
+		// counts howmany registers are really used to pass FP arguments
+		int fp_arg_cnt = 0;
+		for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
+			struct jit_inp_arg a = info->args[i];
+			if (a.type == JIT_FLOAT_NUM) fp_arg_cnt += a.size / sizeof(float);
+		}
+			
+
+		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt + fp_arg_cnt, al->gp_arg_reg_cnt));
+
+		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, NULL, 0);
+
+		int assoc_gp_regs = 0;
+		for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
+			if (assoc_gp_regs >= al->gp_arg_reg_cnt) break;
+			int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
+
+			if (!isfp_arg) {
+				rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+				assoc_gp_regs++;
+			}
+			if (isfp_arg) {
+				rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+				assoc_gp_regs++;
+				// initializes the second part of the register
+				if ((info->args[i].size == sizeof(double)) && (assoc_gp_regs < al->gp_reg_cnt)) {
+					jit_value r = __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i);
+					rmap_assoc(op->regmap, (int)r, __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+					assoc_gp_regs++;
+				}
+			}
+		}
+
+#endif
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 

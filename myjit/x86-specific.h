@@ -35,7 +35,7 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
-void jit_init_arg_params(struct jit * jit, int p)
+void jit_init_arg_params(struct jit * jit, int p, int * phys_reg)
 {
 	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
 	a->passed_by_reg = 0;
@@ -48,6 +48,7 @@ void jit_init_arg_params(struct jit * jit, int p)
 	}
 
 	a->spill_pos = a->location.stack_pos; 
+	a->overflow = 0;
 }
 
 static inline void __push_reg(struct jit * jit, struct __hw_reg * r)

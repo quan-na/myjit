@@ -49,12 +49,12 @@ static inline void jitset_or(jitset * target, jitset * s)
 	target->root = rb_addall(target->root, s->root);
 }
 
-static inline int jitset_get(jitset * s, unsigned int bit)
+static inline int jitset_get(jitset * s, int bit)
 {
 	return (rb_search(s->root, bit) != NULL);
 }
 
-static inline void jitset_set(jitset * s, unsigned int bit, int value)
+static inline void jitset_set(jitset * s, int bit, int value)
 {
 	if (value) s->root = rb_insert(s->root, bit, (void *)1, NULL);
 	else s->root = rb_delete(s->root, bit, NULL);
