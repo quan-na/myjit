@@ -287,7 +287,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 					unload_reg(op, hreg, reg);
 					jit_regpool_put(al->fp_regpool, hreg);
 				}
-				rmap_unassoc(op->regmap, reg, 0);
+				rmap_unassoc(op->regmap, reg, 1);
 			}
 		}
 	}
@@ -302,6 +302,16 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			return;
 		}
 	}
+
+#ifdef JIT_ARCH_SPARC
+	if (GET_OP(op) == JIT_FRETVAL) {
+		struct __hw_reg * hreg = jit_regpool_get_by_id(al->fp_regpool, al->fpret_reg);
+		if (hreg) {
+			rmap_assoc(op->regmap, op->arg[0], hreg);
+			return;
+		}
+	}
+#endif
 
 	if (GET_OP(op) == JIT_CALL) {
 
@@ -318,6 +328,18 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				rmap_unassoc(op->regmap, r, hreg->fp);
 			}
 		}
+#ifdef JIT_ARCH_SPARC
+		// unloads all FP registers
+		for (int q = 0; q < al->fp_reg_cnt; q++) {
+			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
+			if (hreg) {
+				unload_reg(op, hreg, reg);
+				jit_regpool_put(al->fp_regpool, hreg);
+				rmap_unassoc(op->regmap, reg, 1);
+			}
+		}
+#endif
+
 	}
 
 	// get registers used in the current operation

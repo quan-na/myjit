@@ -197,16 +197,91 @@ static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg, int r
 static inline void __configure_args(struct jit * jit)
 {
 	static const int out_regs[] = { sparc_o0, sparc_o1, sparc_o2, sparc_o3, sparc_o4, sparc_o5 };
-	int free_reg = 0;
+	int assoc_gp = 0;
+	int sreg;
 
 	for (int i = 0; i < jit->prepared_args.count; i++) {
 		struct jit_out_arg * arg = &(jit->prepared_args.args[i]);
 		if (!arg->isfp) {
-			if (free_reg < 6) __set_arg(jit, arg, out_regs[free_reg++]);
+			if (assoc_gp < 6) __set_arg(jit, arg, out_regs[assoc_gp++]);
 			else __push_arg(jit, arg, i); 
 		} else {
-			if (free_reg < 6) __set_fparg(jit, arg, out_regs[free_reg++]);
-			else assert(0);
+			if (arg->size == sizeof(float)) {
+				if (arg->isreg) {
+					long value = arg->value.generic;
+					int sreg = 0;
+					if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+						sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
+						sreg = sparc_f30;
+					}
+					if (assoc_gp < 6) {
+						sparc_fdtos(jit->ip, sreg, sparc_f30);
+						sparc_stf_imm(jit->ip, sparc_f30, sparc_fp, -8);
+						sparc_ld_imm(jit->ip, sparc_fp, -8, out_regs[assoc_gp++]);
+					} else {
+						sparc_fdtos(jit->ip, sreg, sparc_f30);
+						sparc_st_imm(jit->ip, sparc_f30, sparc_sp, 92 + (assoc_gp - 6) * 4);
+						assoc_gp++;
+					}
+				} else {
+					float fl = (float)arg->value.fp;
+					int fl_val = *(int *)&fl;
+					if (assoc_gp < 6)  {
+						int dreg = out_regs[assoc_gp++];
+						sparc_set32(jit->ip, fl_val, dreg);
+					} else {
+						sparc_set32(jit->ip, fl_val, sparc_g1);   
+						sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (assoc_gp - 6) * 4);
+						assoc_gp++;
+					}
+				}
+			} else {
+				if (arg->isreg) {
+					long value = arg->value.generic;
+					int sreg = 0;
+					if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+						sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
+						sreg = sparc_f30;
+					}
+					if (assoc_gp < 6) {
+						sparc_stf_imm(jit->ip, sreg, sparc_fp, -8);
+						sparc_ld_imm(jit->ip, sparc_fp, -8, out_regs[assoc_gp++]);
+					} else {
+						sparc_stf_imm(jit->ip, sreg, sparc_sp, 92 + (assoc_gp - 6) * 4);
+						assoc_gp++;
+					}
+
+					if (assoc_gp < 6) {
+						sparc_stf_imm(jit->ip, sreg + 1, sparc_fp, -8);
+						sparc_ld_imm(jit->ip, sparc_fp, -8, out_regs[assoc_gp++]);
+					} else {
+						sparc_st_imm(jit->ip, sreg + 1, sparc_sp, 92 + (assoc_gp - 6) * 4);
+						assoc_gp++;
+					}
+
+				} else {
+					int fl_val[2];
+					memcpy(fl_val, &(arg->value.fp), sizeof(double));
+
+					if (assoc_gp < 6) {
+						int dreg = out_regs[assoc_gp++];
+						sparc_set32(jit->ip, fl_val[0], dreg);
+					} else {
+						sparc_set32(jit->ip, fl_val[0], sparc_g1);   
+						sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (assoc_gp - 6) * 4);
+						assoc_gp++;
+					}
+
+					if (assoc_gp < 6) {
+						int dreg = out_regs[assoc_gp++];
+						sparc_set32(jit->ip, fl_val[1], dreg);
+					} else {
+						sparc_set32(jit->ip, fl_val[1], sparc_g1);   
+						sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (assoc_gp - 6) * 4);
+						assoc_gp++;
+					}
+				}
+			}
 		}
 	}
 }
@@ -617,14 +692,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
+		case JIT_FPUTARG: __fput_arg(jit, op); break;
 		case JIT_GETARG: __get_arg(jit, op); break;
 		case JIT_MSG:
-			sparc_set(jit->ip, a1, sparc_o0);
-			if (!IS_IMM(op)) sparc_mov_reg_reg(jit->ip, a2, sparc_o1);
-			op->patch_addr = __PATCH_ADDR(jit);
-			sparc_call_simple(jit->ip, printf);
-			sparc_nop(jit->ip);
-			break;
+				 sparc_set(jit->ip, a1, sparc_o0);
+				 if (!IS_IMM(op)) sparc_mov_reg_reg(jit->ip, a2, sparc_o1);
+				 op->patch_addr = __PATCH_ADDR(jit);
+				 sparc_call_simple(jit->ip, printf);
+				 sparc_nop(jit->ip);
+				 break;
 
 		case JIT_ALLOCA: break;
 
@@ -637,7 +713,7 @@ op_complete:
 	switch (op->code) {
 		case (JIT_MOV | REG): if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1); break;
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
-		case JIT_PREPARE: __prepare_call(jit, op, a1); break;
+		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); break;
 		case JIT_PROLOG:
 			do {
 				*(void **)(a1) = jit->ip;
@@ -652,94 +728,94 @@ op_complete:
 			} while (0);
 			break;
 		case JIT_RETVAL: 
-			// o0 is not a part of the reg. pool and thus 
-			// reg. allocator can not take care of the proper register assignment
-			if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
-			break;
+				  // o0 is not a part of the reg. pool and thus 
+				  // reg. allocator can not take care of the proper register assignment
+				  if (a1 != sparc_o0) sparc_mov_reg_reg(jit->ip, sparc_o0, a1); 
+				  break;
 
 		case JIT_DECL_ARG: break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 
 		case (JIT_LD | REG | SIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldsb(jit->ip, a2, sparc_g0, a1); break;
-				case 2: sparc_ldsh(jit->ip, a2, sparc_g0, a1); break;
-				case 4: sparc_ld(jit->ip, a2, sparc_g0, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldsb(jit->ip, a2, sparc_g0, a1); break;
+					case 2: sparc_ldsh(jit->ip, a2, sparc_g0, a1); break;
+					case 4: sparc_ld(jit->ip, a2, sparc_g0, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LD | REG | UNSIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldub(jit->ip, a2, sparc_g0, a1); break;
-				case 2: sparc_lduh(jit->ip, a2, sparc_g0, a1); break;
-				case 4: sparc_ld(jit->ip, a2, sparc_g0, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldub(jit->ip, a2, sparc_g0, a1); break;
+					case 2: sparc_lduh(jit->ip, a2, sparc_g0, a1); break;
+					case 4: sparc_ld(jit->ip, a2, sparc_g0, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LD | IMM | SIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldsb_imm(jit->ip, sparc_g0, a2, a1); break;
-				case 2: sparc_ldsh_imm(jit->ip, sparc_g0, a2, a1); break;
-				case 4: sparc_ld_imm(jit->ip, sparc_g0, a2, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldsb_imm(jit->ip, sparc_g0, a2, a1); break;
+					case 2: sparc_ldsh_imm(jit->ip, sparc_g0, a2, a1); break;
+					case 4: sparc_ld_imm(jit->ip, sparc_g0, a2, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LD | IMM | UNSIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldub_imm(jit->ip, sparc_g0, a2, a1); break;
-				case 2: sparc_lduh_imm(jit->ip, sparc_g0, a2, a1); break;
-				case 4: sparc_ld_imm(jit->ip, sparc_g0, a2, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldub_imm(jit->ip, sparc_g0, a2, a1); break;
+					case 2: sparc_lduh_imm(jit->ip, sparc_g0, a2, a1); break;
+					case 4: sparc_ld_imm(jit->ip, sparc_g0, a2, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LDX | IMM | SIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldsb_imm(jit->ip, a2, a3, a1); break;
-				case 2: sparc_ldsh_imm(jit->ip, a2, a3, a1); break;
-				case 4: sparc_ld_imm(jit->ip, a2, a3, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldsb_imm(jit->ip, a2, a3, a1); break;
+					case 2: sparc_ldsh_imm(jit->ip, a2, a3, a1); break;
+					case 4: sparc_ld_imm(jit->ip, a2, a3, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LDX | IMM | UNSIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldub_imm(jit->ip, a2, a3, a1); break;
-				case 2: sparc_lduh_imm(jit->ip, a2, a3, a1); break;
-				case 4: sparc_ld_imm(jit->ip, a2, a3, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldub_imm(jit->ip, a2, a3, a1); break;
+					case 2: sparc_lduh_imm(jit->ip, a2, a3, a1); break;
+					case 4: sparc_ld_imm(jit->ip, a2, a3, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LDX | REG | SIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldsb(jit->ip, a2, a3, a1); break;
-				case 2: sparc_ldsh(jit->ip, a2, a3, a1); break;
-				case 4: sparc_ld(jit->ip, a2, a3, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldsb(jit->ip, a2, a3, a1); break;
+					case 2: sparc_ldsh(jit->ip, a2, a3, a1); break;
+					case 4: sparc_ld(jit->ip, a2, a3, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_LDX | REG | UNSIGNED): 
-			switch (op->arg_size) {
-				case 1: sparc_ldub(jit->ip, a2, a3, a1); break;
-				case 2: sparc_lduh(jit->ip, a2, a3, a1); break;
-				case 4: sparc_ld(jit->ip, a2, a3, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_ldub(jit->ip, a2, a3, a1); break;
+					case 2: sparc_lduh(jit->ip, a2, a3, a1); break;
+					case 4: sparc_ld(jit->ip, a2, a3, a1); break;
+					default: abort();
+				} break;
 
 		case (JIT_ST | REG):
-			switch (op->arg_size) {
-				case 1: sparc_stb(jit->ip, a2, sparc_g0, a1); break;
-				case 2: sparc_sth(jit->ip, a2, sparc_g0, a1); break;
-				case 4: sparc_st(jit->ip, a2, sparc_g0, a1); break;
-				default: abort();
-			} break;
-		
+				switch (op->arg_size) {
+					case 1: sparc_stb(jit->ip, a2, sparc_g0, a1); break;
+					case 2: sparc_sth(jit->ip, a2, sparc_g0, a1); break;
+					case 4: sparc_st(jit->ip, a2, sparc_g0, a1); break;
+					default: abort();
+				} break;
+
 		case (JIT_ST | IMM):
-			switch (op->arg_size) {
-				case 1: sparc_stb_imm(jit->ip, sparc_g0, a2, a1); break;
-				case 2: sparc_sth_imm(jit->ip, sparc_g0, a2, a1); break;
-				case 4: sparc_st_imm(jit->ip, sparc_g0, a2, a1); break;
-				default: abort();
-			} break;
+				switch (op->arg_size) {
+					case 1: sparc_stb_imm(jit->ip, sparc_g0, a2, a1); break;
+					case 2: sparc_sth_imm(jit->ip, sparc_g0, a2, a1); break;
+					case 4: sparc_st_imm(jit->ip, sparc_g0, a2, a1); break;
+					default: abort();
+				} break;
 
 
 		case (JIT_STX | REG):
@@ -806,6 +882,11 @@ op_complete:
 			}
 			sparc_ret(jit->ip);
 			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
+			break;
+
+		case (JIT_FRETVAL):
+			// reg. allocator takes care of proper assignment of the register
+			if (op->arg_size == sizeof(float)) sparc_fstod(jit->ip, sparc_f0, sparc_f0);
 			break;
 
 		case (JIT_FLD | REG):
@@ -926,6 +1007,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 
 	a->fp_reg = sparc_fp;
 	a->ret_reg = sparc_i7;
+	a->fpret_reg = sparc_f0;
 
 	a->fp_reg_cnt = 4;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);

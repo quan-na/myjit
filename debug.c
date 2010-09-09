@@ -19,6 +19,15 @@ int eee(double a, double b, double c)
 	return a * b * c;
 }
 
+double foobaz(double x)
+{
+//	double r = 123.4;
+	printf("foo-bazzz:%f\n", x);
+	return 88.99;
+//	return eee(x, x + 1, x + 2);
+	//return (int)(x * r);
+}
+
 float foobar(float x)
 {
 //	double r = 123.4;
@@ -76,7 +85,7 @@ int main()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
 
-	jit_getarg(p, FR(0), 0);
+	//jit_getarg(p, FR(0), 0);
 	//jit_getarg(p, FR(1), 11);
 	//jit_getarg(p, FR(2), 11);
 	//jit_faddr(p, FR(0), FR(0), FR(1));
@@ -92,11 +101,20 @@ int main()
 
 	jit_extr(p, FR(0), R(0));
 */
+	jit_fmovi(p, FR(3), 111.222);
+	jit_prepare(p);
+	//jit_fputargr(p, FR(3), sizeof(double));
+	jit_fputargr(p, FR(3), sizeof(double));
+	jit_call(p, foobaz);
+	jit_fretval(p, FR(0), sizeof(double));
+	jit_fmuli(p, FR(0), FR(0), -1);
+/*
 	jit_movi(p, R(0), g);
 	jit_movi(p, R(1), h);
 	jit_movi(p, R(2), 8);
 	jit_fmovi(p, FR(1), 666.123);
 	jit_fstxi(p, 8, R(0), FR(1), sizeof(double));
+	*/
 	jit_fretr(p, FR(0), sizeof(double));
 	//jit_retr(p, R(0));
 	jit_generate_code(p);

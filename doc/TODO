@@ -21,9 +21,9 @@ ROADMAP
 		* branches
 		* ureg/lreg/sreg
 		* argument reading
-		+ conversions
-		+ load/store
-		+ argument passing
+		* conversions
+		* load/store
+		* argument passing
 
 + release 0.5.2
 	+ arguments passed by registers should not be assigned to other registers if read by GETARG and there is no other GETARG which reads this argument
