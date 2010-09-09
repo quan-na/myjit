@@ -27,18 +27,13 @@ ROADMAP
 
 + release 0.5.2
 	+ arguments passed by registers should not be assigned to other registers if read by GETARG and there is no other GETARG which reads this argument
-	+ UREG should not set the value of argument passed if saving the value back to the stack (SPARC, AMD64?)
+	+ UREG should not set the value of passed argument if saving the value back to the stack (AMD64?)
 	+ SPARC: vararg stack corruption
 	+ SPARC: get_arg should optimize moves of aligned doubles
+	+ BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
 
 
 + release 0.6.0
-	+ AMD64
-		+ BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
-		+ passing arguments via register reads values from the memory even if it is not necessary
-
-
-+ release 0.7.0
 	+ BUG: it is impossible to generete two or more functions with one instance of the compiler (see jit_prolog)
 	+ i386 (emulated)
 		+ arithmetics
@@ -53,6 +48,5 @@ ROADMAP
 	+ warnings
 	+ integrated disassambler
 	+ separate test-cases
-	+ input (i0, ..., i5) registers should be stored into their positions in the frame
 	+ optimizations
 	+ linear-scan reg. allocator

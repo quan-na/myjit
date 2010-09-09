@@ -159,128 +159,88 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 	return 1;
 }
 
-static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg, int reg)
-{
-	int sreg;
-	long value = arg->value.generic;
-	if (arg->isreg) {
-		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-			sparc_ld_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), reg);
-		} else {
-			sparc_mov_reg_reg(jit->ip, sreg, reg);
-		}
-	} else sparc_set32(jit->ip, value, reg);
-}
+static const int __out_regs[] = { sparc_o0, sparc_o1, sparc_o2, sparc_o3, sparc_o4, sparc_o5 };
 
-static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg, int pos)
+static inline void __set_arg_imm(struct jit * jit, int value, int slot)
 {
-	int sreg;
-	long value = arg->value.generic;
-	if (arg->isreg) {
-		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-			sparc_ld_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_g1);
-			sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
-		} else {
-			sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (pos - 6) * 4);
-		}
-	} else {
+	if (slot < 6) sparc_set32(jit->ip, value, __out_regs[slot]);
+	else {
 		sparc_set32(jit->ip, value, sparc_g1);
-		sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (pos - 6) * 4);
+		sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (slot - 6) * 4);
 	}
 }
 
-static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg, int reg)
+static inline void __set_arg_reg(struct jit * jit, int sreg, int slot) 
 {
-	assert(0);
+	if (slot < 6) sparc_mov_reg_reg(jit->ip, sreg, __out_regs[slot]);
+	else sparc_st_imm(jit->ip, sreg, sparc_sp, 92 + (slot - 6) * 4);
+}
+
+static inline void __set_arg_freg(struct jit * jit, int sreg, int slot) 
+{
+	if (slot < 6) { 
+		sparc_stf_imm(jit->ip, sreg, sparc_fp, -8);
+		sparc_ld_imm(jit->ip, sparc_fp, -8, __out_regs[slot]);
+	} else sparc_stf_imm(jit->ip, sreg, sparc_sp, 92 + (slot - 6) * 4);
+}
+
+static inline void __set_arg_mem(struct jit * jit, int disp, int slot) 
+{
+	if (slot < 6) sparc_ld_imm(jit->ip, sparc_fp, disp, __out_regs[slot]);
+	else {
+		sparc_ld_imm(jit->ip, sparc_fp, disp, sparc_g1);
+		sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (slot - 6) * 4);
+	}
 }
 
 static inline void __configure_args(struct jit * jit)
 {
-	static const int out_regs[] = { sparc_o0, sparc_o1, sparc_o2, sparc_o3, sparc_o4, sparc_o5 };
 	int assoc_gp = 0;
-	int sreg;
+	int sreg = 0;
 
 	for (int i = 0; i < jit->prepared_args.count; i++) {
 		struct jit_out_arg * arg = &(jit->prepared_args.args[i]);
+		long value = arg->value.generic;
+		// integers
 		if (!arg->isfp) {
-			if (assoc_gp < 6) __set_arg(jit, arg, out_regs[assoc_gp++]);
-			else __push_arg(jit, arg, i); 
-		} else {
-			if (arg->size == sizeof(float)) {
-				if (arg->isreg) {
-					long value = arg->value.generic;
-					int sreg = 0;
-					if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-						sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
-						sreg = sparc_f30;
-					}
-					if (assoc_gp < 6) {
-						sparc_fdtos(jit->ip, sreg, sparc_f30);
-						sparc_stf_imm(jit->ip, sparc_f30, sparc_fp, -8);
-						sparc_ld_imm(jit->ip, sparc_fp, -8, out_regs[assoc_gp++]);
-					} else {
-						sparc_fdtos(jit->ip, sreg, sparc_f30);
-						sparc_st_imm(jit->ip, sparc_f30, sparc_sp, 92 + (assoc_gp - 6) * 4);
-						assoc_gp++;
-					}
-				} else {
-					float fl = (float)arg->value.fp;
-					int fl_val = *(int *)&fl;
-					if (assoc_gp < 6)  {
-						int dreg = out_regs[assoc_gp++];
-						sparc_set32(jit->ip, fl_val, dreg);
-					} else {
-						sparc_set32(jit->ip, fl_val, sparc_g1);   
-						sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (assoc_gp - 6) * 4);
-						assoc_gp++;
-					}
+			if (arg->isreg) {
+				if (__is_spilled(value, jit->prepared_args.op, &sreg))
+					__set_arg_mem(jit, __GET_REG_POS(jit, value), assoc_gp++);
+				else __set_arg_reg(jit, sreg, assoc_gp++); 
+			} else __set_arg_imm(jit, value, assoc_gp++);
+			continue;
+		} 
+
+		// floats
+		if (arg->size == sizeof(float)) {
+			if (arg->isreg) {
+				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+					sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
+					sreg = sparc_f30;
 				}
+				sparc_fdtos(jit->ip, sreg, sparc_f30);
+				__set_arg_freg(jit, sparc_f30, assoc_gp++);
 			} else {
-				if (arg->isreg) {
-					long value = arg->value.generic;
-					int sreg = 0;
-					if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-						sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
-						sreg = sparc_f30;
-					}
-					if (assoc_gp < 6) {
-						sparc_stf_imm(jit->ip, sreg, sparc_fp, -8);
-						sparc_ld_imm(jit->ip, sparc_fp, -8, out_regs[assoc_gp++]);
-					} else {
-						sparc_stf_imm(jit->ip, sreg, sparc_sp, 92 + (assoc_gp - 6) * 4);
-						assoc_gp++;
-					}
-
-					if (assoc_gp < 6) {
-						sparc_stf_imm(jit->ip, sreg + 1, sparc_fp, -8);
-						sparc_ld_imm(jit->ip, sparc_fp, -8, out_regs[assoc_gp++]);
-					} else {
-						sparc_st_imm(jit->ip, sreg + 1, sparc_sp, 92 + (assoc_gp - 6) * 4);
-						assoc_gp++;
-					}
-
-				} else {
-					int fl_val[2];
-					memcpy(fl_val, &(arg->value.fp), sizeof(double));
-
-					if (assoc_gp < 6) {
-						int dreg = out_regs[assoc_gp++];
-						sparc_set32(jit->ip, fl_val[0], dreg);
-					} else {
-						sparc_set32(jit->ip, fl_val[0], sparc_g1);   
-						sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (assoc_gp - 6) * 4);
-						assoc_gp++;
-					}
-
-					if (assoc_gp < 6) {
-						int dreg = out_regs[assoc_gp++];
-						sparc_set32(jit->ip, fl_val[1], dreg);
-					} else {
-						sparc_set32(jit->ip, fl_val[1], sparc_g1);   
-						sparc_st_imm(jit->ip, sparc_g1, sparc_sp, 92 + (assoc_gp - 6) * 4);
-						assoc_gp++;
-					}
+				float fl = (float)arg->value.fp;
+				int fl_val;
+				memcpy(&fl_val, &(arg->value.fp), sizeof(float));
+				__set_arg_imm(jit, fl_val, assoc_gp++);
+			}
+		} else {
+			// doubles
+			if (arg->isreg) {
+				long value = arg->value.generic;
+				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+					sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
+					sreg = sparc_f30;
 				}
+				__set_arg_freg(jit, sreg, assoc_gp++);
+				__set_arg_freg(jit, sreg + 1, assoc_gp++);
+			} else {
+				int fl_val[2];
+				memcpy(fl_val, &(arg->value.fp), sizeof(double));
+				__set_arg_imm(jit, fl_val[0], assoc_gp++);
+				__set_arg_imm(jit, fl_val[1], assoc_gp++);
 			}
 		}
 	}

@@ -104,9 +104,12 @@ int main()
 	jit_fmovi(p, FR(3), 111.222);
 	jit_prepare(p);
 	//jit_fputargr(p, FR(3), sizeof(double));
+//	jit_fputargr(p, FR(3), sizeof(double));
+//	jit_fputargr(p, FR(3), sizeof(float));
+	jit_putargi(p, str);
 	jit_fputargr(p, FR(3), sizeof(double));
-	jit_call(p, foobaz);
-	jit_fretval(p, FR(0), sizeof(double));
+	jit_call(p, printf);
+	jit_fretval(p, FR(0), sizeof(float));
 	jit_fmuli(p, FR(0), FR(0), -1);
 /*
 	jit_movi(p, R(0), g);

@@ -1,3 +1,8 @@
+Version 0.5.1.0
+===============
++ SPARC: support for floating-point arithmetics
++ optimized RETVAL operation makes R_RET register almost useless
+
 Version 0.5.0.1
 ===============
 + fixed reg. allocator bug (all platforms)
