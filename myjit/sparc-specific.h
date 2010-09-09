@@ -262,6 +262,33 @@ static void __get_arg_float(struct jit * jit, struct jit_inp_arg * arg, int dest
 	}
 }
 
+static void __get_arg_double(struct jit * jit, jit_op * op, struct jit_inp_arg * arg, int dest_reg, int associated)
+{
+	int arg_id = op->r_arg[1];
+
+	// moves the first part of the register
+	if (associated) {
+		sparc_st_imm(jit->ip, arg->location.reg, sparc_fp, -8);
+		sparc_ldf_imm(jit->ip, sparc_fp, -8, dest_reg);
+	} else {
+		sparc_ldf_imm(jit->ip, sparc_fp, arg->location.stack_pos, dest_reg);
+	}
+
+	// moves the second part
+	int reg_id = __mkreg_ex(arg->type == JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id);
+	associated = (rmap_get(op->regmap, reg_id) == NULL);
+
+	struct jit_inp_arg arg2;
+	__init_arg(&arg2, arg->phys_reg + 1);
+
+	if (associated && arg2.passed_by_reg) {
+		sparc_st_imm(jit->ip, arg2.location.reg, sparc_fp, -4);
+		sparc_ldf_imm(jit->ip, sparc_fp, -4, dest_reg + 1);
+	} else {
+		sparc_ldf_imm(jit->ip, sparc_fp, arg2.spill_pos, dest_reg + 1);
+	}
+}
+
 static void __get_arg(struct jit * jit, jit_op * op)
 {
 	int dreg = op->r_arg[0];
@@ -275,28 +302,8 @@ static void __get_arg(struct jit * jit, jit_op * op)
 	if (arg->type != JIT_FLOAT_NUM) __get_arg_int(jit, arg, dreg, associated);
 	else {
 		if (arg->size == sizeof(float)) __get_arg_float(jit, arg, dreg, associated);
-		else {
-			// moves the first part of the register
-			if (associated) {
-				sparc_st_imm(jit->ip, arg->location.reg, sparc_fp, -8);
-				sparc_ldf_imm(jit->ip, sparc_fp, -8, dreg);
-			} else {
-				sparc_ldf_imm(jit->ip, sparc_fp, arg->location.stack_pos, dreg);
-			}
-			// moves the second part
-			reg_id = __mkreg_ex(arg->type == JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id);
-			associated = (rmap_get(op->regmap, reg_id) == NULL);
+		if (arg->size == sizeof(double)) __get_arg_double(jit, op, arg, dreg, associated);
 
-			struct jit_inp_arg arg2;
-			__init_arg(&arg2, arg->phys_reg + 1);
-
-			if (associated && arg2.passed_by_reg) {
-				sparc_st_imm(jit->ip, arg2.location.reg, sparc_fp, -4);
-				sparc_ldf_imm(jit->ip, sparc_fp, -4, dreg + 1);
-			} else {
-				sparc_ldf_imm(jit->ip, sparc_fp, arg2.spill_pos, dreg + 1);
-			}
-		}
 	}
 }
 
@@ -456,12 +463,12 @@ static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
 		if (JIT_REG(vreg).type == JIT_RTYPE_INT) sparc_st_imm(jit->ip, hreg_id, sparc_fp, __GET_REG_POS(jit, vreg));
 		else {
-			struct jit_func_info * info = jit_current_func_info(jit);
 			int arg_id = JIT_REG(vreg).id;
 			struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[arg_id]);
 			if (a->passed_by_reg) sparc_st_imm(jit->ip, hreg_id, sparc_fp, a->spill_pos);
 		} 
-	} else {
+	}
+	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
 		if (JIT_REG(vreg).type != JIT_RTYPE_FLOAT)
 			sparc_st_imm(jit->ip, hreg_id, sparc_fp, __GET_REG_POS(jit, vreg));
 		else sparc_stdf_imm(jit->ip, hreg_id, sparc_fp, __GET_REG_POS(jit, vreg));

@@ -709,8 +709,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_STX | REG): x86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
 		case (JIT_UREG):
-			if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
-			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
+			if (JIT_REG(a1).spec == JIT_RTYPE_REG) {
+				if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
+				else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
+			}
 			break;
 		case (JIT_LREG): 
 			if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));

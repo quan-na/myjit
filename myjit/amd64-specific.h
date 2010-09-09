@@ -97,7 +97,7 @@ void jit_init_arg_params(struct jit * jit, int p, int * phys_reg)
 			a->spill_pos = 16 + stack_pos * 8;
 			a->passed_by_reg = 0;
 		}
-		arg->overflow = 0;
+		a->overflow = 0;
 		return;
 	}
 
@@ -691,7 +691,8 @@ static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 
 		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, pos);
 		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, pos, hreg_id, REG_SIZE);
-	} else {
+	}
+	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
 		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, __GET_FPREG_POS(jit, vreg));
 		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, vreg), hreg_id, REG_SIZE);
 	}
