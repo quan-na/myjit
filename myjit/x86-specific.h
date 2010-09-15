@@ -270,9 +270,10 @@ static void __configure_args(struct jit * jit)
 					x86_movlpd_membase_xreg(jit->ip, sreg, X86_ESP, 0);
 				}
 			} else {
-				double b = args[i].value.fp;
-				x86_push_imm(jit->ip, *((unsigned long long *)&b) >> 32);
-				x86_push_imm(jit->ip, *((unsigned long long *)&b) && 0xffffffff);
+				int fl_val[2];
+				memcpy(fl_val, &(args[i].value.fp), sizeof(double));
+				x86_push_imm(jit->ip, fl_val[1]);
+				x86_push_imm(jit->ip, fl_val[0]);
 			}
 			continue;
 		}
@@ -293,8 +294,10 @@ static void __configure_args(struct jit * jit)
 				x86_fst_membase(jit->ip, X86_ESP, 0, 0, 1);
 			}
 		} else {
+			int fl_val;
 			float b = (float)args[i].value.fp;
-			x86_push_imm(jit->ip, *((unsigned long *)&b));
+			memcpy(&fl_val, &b, sizeof(float));
+			x86_push_imm(jit->ip, fl_val);
 		}
 	}
 }

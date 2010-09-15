@@ -81,6 +81,12 @@ typedef struct {
 #define JIT_DEBUG_ASSOC		(0x02)
 #define JIT_DEBUG_LIVENESS	(0x04)
 
+static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)
+{
+	jit_value v;
+	memcpy(&v, &r, sizeof(jit_reg));
+	return v;
+}
 
 static inline jit_value __mkreg(int type, int spec, int id)
 {
@@ -89,7 +95,7 @@ static inline jit_value __mkreg(int type, int spec, int id)
 	r.spec = spec;
 	r.id = id;
 	r.part = 0;
-	return (jit_value) *(int *)&(r);
+	return JIT_REG_TO_JIT_VALUE(r);
 }
 
 static inline jit_value __mkreg_ex(int type, int spec, int id)
@@ -99,13 +105,14 @@ static inline jit_value __mkreg_ex(int type, int spec, int id)
 	r.spec = spec;
 	r.id = id;
 	r.part = 1;
-	return (jit_value) *(int *)&(r);
+	return JIT_REG_TO_JIT_VALUE(r);
 }
 
-static inline jit_reg JIT_REG(jit_value r)
+static inline jit_reg JIT_REG(jit_value v)
 {
-	int x = (int)r;
-	return *(jit_reg *)(&(x));
+	jit_reg r;
+	memcpy(&r, &v, sizeof(jit_value));
+	return r;
 }
 
 struct __hw_reg {

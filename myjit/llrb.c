@@ -134,7 +134,7 @@ static inline int node_min(rb_node * x)
 	else return node_min(x->left);
 }
 
-static inline rb_node * delete_min(rb_node * h)
+static rb_node * delete_min(rb_node * h)
 { 
 	if (h->left == NULL) {
 		JIT_FREE(h);
@@ -219,7 +219,7 @@ static inline void rb_print_tree(rb_node * h, int level)
 	rb_print_tree(h->right, level + 1);
 }
 
-static inline void rb_free(rb_node * h)
+static void rb_free(rb_node * h)
 {
 	if (h == NULL) return;
 	rb_free(h->left);
@@ -227,13 +227,13 @@ static inline void rb_free(rb_node * h)
 	JIT_FREE(h);
 }
 
-static inline int rb_subset(rb_node * root, rb_node * n)
+static int rb_subset(rb_node * root, rb_node * n)
 {
 	if (n == NULL) return 1;
 	return rb_search(root, n->key) && rb_subset(root, n->left) && rb_subset(root, n->right);
 }
 
-static inline int rb_equal(rb_node * r1, rb_node * r2)
+static int rb_equal(rb_node * r1, rb_node * r2)
 {
 	return rb_subset(r1, r2) && rb_subset(r2, r1);
 }
