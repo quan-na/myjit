@@ -48,7 +48,6 @@ int main()
 	// returns the factorial
 	jit_retr(p, R(1));
 
-
 	// compiles the above defined code
 	jit_generate_code(p);
 	jit_dump_code(p, 0);
@@ -57,10 +56,6 @@ int main()
 	printf("Check #1: 1! = %li\n", factorial(1));
 	printf("Check #2: 5! = %li\n", factorial(5));
 	printf("Check #3: 6! = %li\n", factorial(6));
-
-	// if you are interested, you can dump the machine code
-	// this functionality is provided through the `gcc' and `objdump'
-	// jit_dump(p);
 
 	// cleanup
 	jit_free(p);

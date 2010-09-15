@@ -22,43 +22,77 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "llrb.c"
 
+#ifndef JIT_NODEBUG
+#include "../dis-asm/dis-asm.h"
+#include "../dis-asm/bfd.h"
+#endif
+
 #define OUTPUT_BUF_SIZE		(8192)
+
+
+static void override_printf(char * buf, const char * format, ...)
+{
+	va_list args;
+
+	buf += strlen(buf);
+
+	va_start(args, format);
+	vsprintf(buf, format, args);
+	va_end(args);
+}
+
+static void override_print_address(bfd_vma addr, struct disassemble_info *info)
+{
+	char * buf = info->stream;
+	buf += strlen(buf);
+
+	sprintf(buf, "0x%lx", (long)addr);
+}
 
 void jit_dump_code(struct jit * jit, int verbosity)
 {
-	FILE * f = stderr;
+#ifndef JIT_NODEBUG
+	struct disassemble_info info;
+	unsigned long count, pc, buf_size;
+	char output_buf[OUTPUT_BUF_SIZE];
 
-	char * source_file_name = tempnam(NULL, "myjit");
-	char * obj_file_name = tempnam(NULL, "myjit");
+	fprintf_ftype print_fn = (fprintf_ftype) override_printf;
 
-	char * cmd1_fmt = "gcc -x assembler -c -o %s %s";
-	char cmd1[strlen(cmd1_fmt) + strlen(source_file_name) + strlen(obj_file_name)];
+	init_disassemble_info(&info, output_buf, print_fn);
+	info.print_address_func = override_print_address;
 
-	char * cmd2_fmt = "objdump -d -M intel %s";
-	char cmd2[strlen(cmd2_fmt) + strlen(obj_file_name)];
-	
-	f = fopen(source_file_name, "w");
+#ifdef JIT_ARCH_I386
+	info.mach = bfd_mach_i386_i386_intel_syntax;
+	info.endian = BFD_ENDIAN_LITTLE;
+#endif
 
-	int size = jit->ip - jit->buf;
-	fprintf (f, ".text\n.align 4\n.globl main\n.type main,@function\nmain:\n");
-        for (int i = 0; i < size; i++)
-		fprintf(f, ".byte %d\n", (unsigned int) jit->buf[i]);
-	fclose(f);
+#ifdef JIT_ARCH_AMD64
+	info.mach = bfd_mach_x86_64_intel_syntax;;
+	info.endian = BFD_ENDIAN_LITTLE;
+#endif
 
-	sprintf(cmd1, cmd1_fmt, obj_file_name, source_file_name);
-	system(cmd1);
+#ifdef JIT_ARCH_SPARC
+	info.mach = bfd_mach_sparc_sparclite;
+	info.endian = BFD_ENDIAN_BIG;
+#endif
 
-	sprintf(cmd2, cmd2_fmt, obj_file_name);
-	system(cmd2);
+	buf_size = (unsigned long)(jit->ip - jit->buf);
+	info.buffer = (void *)jit->buf;
+	info.buffer_length = buf_size;
 
-	unlink(source_file_name);
-	unlink(obj_file_name);
-
-	free(source_file_name);
-	free(obj_file_name);
+	for (pc = 0; pc < buf_size; ) {
+		sprintf(output_buf, "%4lx:  ", pc);
+		count = print_insn_i386_intel(pc, &info);
+		printf("%s\n", output_buf);
+		pc += count;
+	}
+#else
+	fprintf(stderr, "Internal debugger disabled. To turn this feature on, you have to recompile MyJIT without the JIT_NODEBUG directive.\n");
+#endif
 }
 
 char * jit_get_op_name(struct jit_op * op)

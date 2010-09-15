@@ -1,58 +1,58 @@
 all: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010 t101 t102 t103 t104 t105 t107 t108 t109
 
 t001: t001-basics.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t001 t001-basics.c jitlib-core.o 
+	gcc -g -std=c99 -o t001 t001-basics.c jitlib-core.o -lopcodes
 
 t002: t002-arithmetic.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t002 t002-arithmetic.c jitlib-core.o 
+	gcc -g -std=c99 -o t002 t002-arithmetic.c jitlib-core.o -lopcodes
 
 t003: t003-conditions.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t003 t003-conditions.c jitlib-core.o 
+	gcc -g -std=c99 -o t003 t003-conditions.c jitlib-core.o -lopcodes
 
 t004: t004-branches.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t004 t004-branches.c jitlib-core.o 
+	gcc -g -std=c99 -o t004 t004-branches.c jitlib-core.o -lopcodes
 
 t005: t005-functions.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t005 t005-functions.c jitlib-core.o 
+	gcc -g -std=c99 -o t005 t005-functions.c jitlib-core.o -lopcodes
 
 t006: t006-misc.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t006 t006-misc.c jitlib-core.o 
+	gcc -g -std=c99 -o t006 t006-misc.c jitlib-core.o -lopcodes
 
 t007: t007-args.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t007 t007-args.c jitlib-core.o 
+	gcc -g -std=c99 -o t007 t007-args.c jitlib-core.o -lopcodes
 
 t008: t008-pushargs.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t008 t008-pushargs.c jitlib-core.o 
+	gcc -g -std=c99 -o t008 t008-pushargs.c jitlib-core.o -lopcodes
 
 t009: t009-allocaireg.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t009 t009-allocaireg.c jitlib-core.o 
+	gcc -g -std=c99 -o t009 t009-allocaireg.c jitlib-core.o -lopcodes
 
 t010: t010-debug.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t010 t010-debug.c jitlib-core.o 
+	gcc -g -std=c99 -o t010 t010-debug.c jitlib-core.o -lopcodes
 
 t101: t101-fp-basics.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t101 t101-fp-basics.c jitlib-core.o 
+	gcc -g -std=c99 -o t101 t101-fp-basics.c jitlib-core.o -lopcodes
 
 t102: t102-fp-arithmetic.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t102 t102-fp-arithmetic.c jitlib-core.o 
+	gcc -g -std=c99 -o t102 t102-fp-arithmetic.c jitlib-core.o -lopcodes
 
 t103: t103-fp-rounding.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t103 -lm t103-fp-rounding.c jitlib-core.o 
+	gcc -g -std=c99 -o t103 -lm t103-fp-rounding.c jitlib-core.o -lopcodes
 
 t104: t104-fp-branches.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t104 t104-fp-branches.c jitlib-core.o 
+	gcc -g -std=c99 -o t104 t104-fp-branches.c jitlib-core.o -lopcodes
 
 t105: t105-fp-functions.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t105 t105-fp-functions.c jitlib-core.o 
+	gcc -g -std=c99 -o t105 t105-fp-functions.c jitlib-core.o -lopcodes
 
 t107: t107-fp-args.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t107 t107-fp-args.c jitlib-core.o 
+	gcc -g -std=c99 -o t107 t107-fp-args.c jitlib-core.o -lopcodes
 
 t108: t108-fp-pushargs.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t108 t108-fp-pushargs.c jitlib-core.o 
+	gcc -g -std=c99 -o t108 t108-fp-pushargs.c jitlib-core.o -lopcodes
 
 t109: t109-fp-allocaireg.c jitlib-core.o tests.h
-	gcc -g -std=c99 -o t109 t109-fp-allocaireg.c jitlib-core.o 
+	gcc -g -std=c99 -o t109 t109-fp-allocaireg.c jitlib-core.o -lopcodes
 
 
 

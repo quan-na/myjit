@@ -34,7 +34,6 @@ int main()
 	jit_generate_code(p);
 
 	// if you are interested, you can dump the machine code
-	// this functionality is provided through the `gcc' and `objdump'
 	jit_dump_code(p, 0);
 
 	// check
