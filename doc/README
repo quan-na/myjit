@@ -2,7 +2,7 @@
 MyJIT
 =====
 
-MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a tool enabling Just-in-Time compilation of the Schemik (http://schemik.sourceforge.net) programming language and it was considered as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/). The main goal was to fix some of its annoying features. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some aspects. The key features of MyJIT are:
+MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a part of the Just-in-Time compiler of the Schemik (http://schemik.sourceforge.net) programming language. It has began as as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/) fixing some of its annoying features, however, it has evolved into more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some key aspects. The key features that should be highlighted are:
 
 + support for an unlimited number of registers
 + thread-safety
@@ -22,28 +22,42 @@ You can also checkout the latest release from the Bazaar repository (bzr://myjit
 
 Instruction Set
 ---------------
-The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation accepts 0, 1, 2, 3, or 4 operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.
+The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation accepts up to four operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.
 
-All registers and values have the same size which conforms to the size of the register of the actual hardware platform. This means, if you are running MyJIT on 32-bit machine, all registers are 32 bits wide and  on 64-bit machine MyJIT uses 64-bit registers. Technically, each value processed by MyJIT conforms to ``signed long`` type. In specific cases, e.g., if you need smaller values than ``long`` or if you need an ``unsigned`` value and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
+All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the actual hardware platform. This means, on i386 and SPARC registers are 32-bit wide and on AMD64 registers are 64-bit wide.  To overcome this inconsistency, MyJIT provides integer type ``jit_value`` which has the same size as all general purpose registers. In specific cases, e.g., if you need smaller values or if you need an ``unsigned`` value and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
 
+All floating-point numbers and registers are internally treated as double precision values. However, if necessary, the value can be converted to single precision value.
 
-Name of each instruction consist of three parts:
+Typically, name of each instruction consist of three parts:
 
-+ name of the operation (``add`` for addition, ``mul`` for multiplication, etc.)
-+ instruction name can contain ``r`` or ``i`` character indicating whether the operation is taking merely registers, or if it also takes an immediate value as its input
-+ name of the operation can also contain additional flags delimited by underscore (typically, this is used to identify operations handling unsigned numbers)
++ name of the operation (e.g., ``add`` for addition, ``mul`` for multiplication, etc.)
++ the name of the operation is often accompanied if the character ``r`` or ``i`` indicating whether the operation is taking merely registers, or if it also takes an immediate value as its argument
++ name of the operation can be equipped with additional flags delimited by underscore (typically, this is used to identify operations handling unsigned numbers)
 
 Registers
 .........
 
-MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by numbers from 0 up to n-1. To refer to these registers you should use the macro ``R(x)``.
+MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by integer from 0. To refer to these register you should use macros ``R(x)`` and ``FR(x)`` that identify general purpose and floating point registers, respectively.
 
-Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior.
+Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access dynamically allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior. However, in most cases register allocator can optimize return value passing which makes this register almost unnecessary.
 
+Notation
+........
+
+In order to describe instruction set, we are using symbols ``reg`` and ``freg`` to denote general purpose and floating-point registers, respectively. Analogously, ``imm`` and ``fimm`` denote immediate integerXXX: rika se to tak and floating point values. Particular instructions (e.g., load and operations), have extra operands which specifies the size (number of bytes) of the data they work with. XXX: lip. The size of the operation shall be denoted ``size`` and ``fsize``. The value passed by the operand ``size`` can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8-byte long values. The value passed by the operand ``fsize`` can be either 4 or 8. Indeed, XXX: jde to tak pouzit? ``fsize`` denotes precision of the value single or double, respectively.
 
 Transfer Operations
 -------------------
-Operations ``movi`` and ``movr`` allows to explicitly set the value of the register. First operand is always a register and the second one, can be either an immediate value or a register.
+These operation allows to assign value into a registers. The first operand is always a register and the second one, can be either an immediate value or a register.
+
+::
+
+	movi  reg, imm		O1 := O2
+	movr  reg, reg 		O1 := O2
+
+	fmovr freg, freg	O1 := O2
+	fmov  freg, fimm	O1 := O2
+
 
 Binary Arithmetic Operations
 ----------------------------
@@ -51,40 +65,56 @@ Each binary arithmetic operation takes exactly three operands. First two operand
 
 ::
 
-	addr       O1 = O2 + O3
-	addi       O1 = O2 + O3
-	addxr      O1 = O2 + (O3 + carry)
-	addxi      O1 = O2 + (O3 + carry)
-	addcr      O1 = O2 + O3, set carry
-	addci      O1 = O2 + O3, set carry
-	subr       O1 = O2 - O3
-	subi       O1 = O2 - O3
-	subxr      O1 = O2 - (O3 + carry)
-	subxi      O1 = O2 - (O3 + carry)
-	subcr      O1 = O2 - O3, set carry
-	subci      O1 = O2 - O3, set carry
-	rsbr       O1 = O3 - O2
-	rsbi       O1 = O3 - O2
-	mulr       O1 = O2 * O3
-	muli       O1 = O2 * O3
-	hmulr      O1 = high bits of O2 * O3
-	hmuli      O1 = high bits of O2 * O3
-	divr       O1 = O2 / O3
-	divi       O1 = O2 / O3
-	modr       O1 = O2 % O3
-	modi       O1 = O2 % O3
-	andr       O1 = O2 & O3
-	andi       O1 = O2 & O3
-	orr        O1 = O2 | O3
-	ori        O1 = O2 | O3
-	xorr       O1 = O2 ^ O3
-	xori       O1 = O2 ^ O3
-	lshr       O1 = O2 << O3
-	lshi       O1 = O2 << O3
-	rshr (u)   O1 = O2 >> O3
-	rshi (u)   O1 = O2 >> O3
+	addr   reg, reg, reg      O1 = O2 + O3
+	addi   reg, reg, imm      O1 = O2 + O3
+	addxr  reg, reg, reg      O1 = O2 + (O3 + carry)
+	addxi  reg, reg, imm      O1 = O2 + (O3 + carry)
+	addcr  reg, reg, reg      O1 = O2 + O3, set carry
+	addci  reg, reg, imm      O1 = O2 + O3, set carry
+	subr   reg, reg, reg      O1 = O2 - O3
+	subi   reg, reg, imm      O1 = O2 - O3
+	subxr  reg, reg, reg      O1 = O2 - (O3 + carry)
+	subxi  reg, reg, imm      O1 = O2 - (O3 + carry)
+	subcr  reg, reg, reg      O1 = O2 - O3, set carry
+	subci  reg, reg, imm      O1 = O2 - O3, set carry
+	rsbr   reg, reg, reg      O1 = O3 - O2
+	rsbi   reg, reg, imm      O1 = O3 - O2
+	mulr   reg, reg, reg      O1 = O2 * O3
+	muli   reg, reg, imm      O1 = O2 * O3
+	hmulr  reg, reg, reg      O1 = high bits of O2 * O3
+	hmuli  reg, reg, imm      O1 = high bits of O2 * O3
+	divr   reg, reg, reg      O1 = O2 / O3
+	divi   reg, reg, imm      O1 = O2 / O3
+	modr   reg, reg, reg      O1 = O2 % O3
+	modi   reg, reg, imm      O1 = O2 % O3
+	andr   reg, reg, reg      O1 = O2 & O3
+	andi   reg, reg, imm      O1 = O2 & O3
+	orr    reg, reg, reg      O1 = O2 | O3
+	ori    reg, reg, imm      O1 = O2 | O3
+	xorr   reg, reg, reg      O1 = O2 ^ O3
+	xori   reg, reg, imm      O1 = O2 ^ O3
+	lshr   reg, reg, reg      O1 = O2 << O3
+	lshi   reg, reg, imm      O1 = O2 << O3
+	rshr   reg, reg, reg      O1 = O2 >> O3
+	rshi   reg, reg, imm      O1 = O2 >> O3
+	rshr_u reg, reg, reg      O1 = O2 >> O3	 (unsigned variant)
+	rshi_u reg, reg, imm      O1 = O2 >> O3  (unsigned variant)
 
 Operations ``subx`` and ``addx`` have to directly follow ``subc`` and ``addc`` otherwise the is result undefined. Note that you can specify ``unsigned sign`` along with the ``rshr`` operation to propagate the first bit accordingly.
+
+There are also equivalent floating operations.
+
+::
+
+	faddr   freg, freg, freg      O1 = O2 + O3
+	faddi   freg, freg, fimm      O1 = O2 + O3
+	fsubr   freg, freg, freg      O1 = O2 - O3
+	fsubi   freg, freg, fimm      O1 = O2 - O3
+	frsbr   freg, freg, freg      O1 = O3 - O2
+	frsbi   freg, freg, fimm      O1 = O3 - O2
+	fmulr   freg, freg, freg      O1 = O2 * O3
+	fmuli   freg, freg, fimm      O1 = O2 * O3
+
 
 Unary Arithmetic Operations
 ---------------------------
@@ -92,8 +122,9 @@ These operations accepts two operands and both of which have to be registers.
 
 ::
 
-	negr    O1 = -O2
-	notr    O1 = ~O2
+	negr  reg      O1 = -O2
+	fnegr freg     O1 = -O2
+	notr  reg      O1 = ~O2
 
 Load Operations
 ---------------
@@ -359,8 +390,8 @@ Notes on Development
 
 + At this moment, MyJIT has experimental support (requires SSE2) for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
 
-+ The library is still in the early stage of development and the API may slightly change in the near future.
++ The library is still under development and the API may slightly change in the near future.
 
 + If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.
 
-+ The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still under development. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (myjit-devel@lists.sourceforge.net). If you  would like to participate on documentation improvements, please, let us know, we will really appreciate it.
++ The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still developed. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (myjit-devel@lists.sourceforge.net). If you  would like to participate on documentation improvements, please let us know, we will really appreciate it.
