@@ -223,7 +223,7 @@ static inline void __configure_args(struct jit * jit)
 			} else {
 				float fl = (float)arg->value.fp;
 				int fl_val;
-				memcpy(&fl_val, &(arg->value.fp), sizeof(float));
+				memcpy(&fl_val, &fl, sizeof(float));
 				__set_arg_imm(jit, fl_val, assoc_gp++);
 			}
 		} else {

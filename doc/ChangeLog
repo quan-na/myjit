@@ -1,3 +1,8 @@
+Version 0.5.1.1
+===============
++ big documentation update
++ SPARC: passing of immediate floats has been fixed
+
 Version 0.5.1.0
 ===============
 + SPARC: support for floating-point arithmetics
