@@ -2,16 +2,16 @@
 MyJIT
 =====
 
-MyJIT is a library that allows to generate machine code at run-time and afterwards execute this code. The project has started as a part of the Just-in-Time compiler of the Schemik (http://schemik.sourceforge.net) programming language. It has began as as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/) fixing some of its annoying features, however, it has evolved into more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning, however, it differs in some key aspects. The key features that should be highlighted are:
+MyJIT is a library that allows to generate machine code at run-time and afterwards execute it. The project has started as a part of the Just-in-Time compiler of the Schemik (http://schemik.sourceforge.net) programming language and as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/) fixing some of its design issues. However, it has evolved into a more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning but it differs in some key aspects. The key features which make MyJIT different or should be highlighted are:
 
 + support for an unlimited number of registers
 + thread-safety
 + support for the i386, AMD64, and SPARC processors
 + convenient debugging
 + easy to use and easy to extend design
-+ particular backward compatibility with GNU lightning
-+ MyJIT allows for future optimizations
++ support for (future) optimizations
 + the library is fully embeddable 
++ particular backward compatibility with GNU lightning
 
 Getting MyJIT
 -------------
@@ -22,33 +22,33 @@ You can also checkout the latest release from the Bazaar repository (bzr://myjit
 
 Instruction Set
 ---------------
-The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation accepts up to four operands which can be an immediate values (numbers) or registers. The number of available registers is virtually unlimited.
+The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation has up to four operands which can be immediate values (numbers) or registers. The number of available registers is virtually unlimited.
 
-All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the actual hardware platform. This means, on i386 and SPARC registers are 32-bit wide and on AMD64 registers are 64-bit wide.  To overcome this inconsistency, MyJIT provides integer type ``jit_value`` which has the same size as all general purpose registers. In specific cases, e.g., if you need smaller values or if you need an ``unsigned`` value and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
+All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides type ``jit_value`` which has the same size as the CPU's general purpose register. In specific cases, e.g., if a smaller values or ``unsigned`` value is needed and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
 
 All floating-point numbers and registers are internally treated as double precision values. However, if necessary, the value can be converted to single precision value.
 
-Typically, name of each instruction consist of three parts:
+Typically, name of each instruction consists of three parts:
 
 + name of the operation (e.g., ``add`` for addition, ``mul`` for multiplication, etc.)
-+ the name of the operation is often accompanied if the character ``r`` or ``i`` indicating whether the operation is taking merely registers, or if it also takes an immediate value as its argument
-+ name of the operation can be equipped with additional flags delimited by underscore (typically, this is used to identify operations handling unsigned numbers)
++ the name of the operation is often accompanied with a suffix ``r`` or ``i`` indicating whether the operation is taking merely registers or if it also takes an immediate value as its argument
++ name of the operation can be equipped with additional flags delimited by the underscore (typically, this is used to identify operations handling unsigned numbers)
 
 Registers
 .........
 
-MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by integer from 0. To refer to these register you should use macros ``R(x)`` and ``FR(x)`` that identify general purpose and floating point registers, respectively.
+MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by positive integers including zero. To refer to these registers you should use macros ``R(x)`` and ``FR(x)`` that identify general purpose and floating point registers, respectively. Registers ``R(x)`` and ``FR(x)`` are completely different register and do not occupy the same space.
 
-Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access dynamically allocated memory on the stack. The R_OUT can be used to handle the return values. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, you can use this register right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior. However, in most cases register allocator can optimize return value passing which makes this register almost unnecessary.
+Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access dynamically allocated memory on the stack. The R_OUT can be used to handle the return values more efficiently. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, it can be use right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior. However, in most cases register allocator can optimize return value passing which makes this register almost obsolete.
 
 Notation
 ........
 
-In order to describe instruction set, we are using symbols ``reg`` and ``freg`` to denote general purpose and floating-point registers, respectively. Analogously, ``imm`` and ``fimm`` denote immediate integerXXX: rika se to tak and floating point values. Particular instructions (e.g., load and operations), have extra operands which specifies the size (number of bytes) of the data they work with. XXX: lip. The size of the operation shall be denoted ``size`` and ``fsize``. The value passed by the operand ``size`` can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8-byte long values. The value passed by the operand ``fsize`` can be either 4 or 8. Indeed, XXX: jde to tak pouzit? ``fsize`` denotes precision of the value single or double, respectively.
+In order to describe instruction set, we are using symbols ``reg`` and ``freg`` to denote general purpose and floating-point registers, respectively. Analogously, ``imm`` and ``fimm`` denote inmmediate integer values floating-point values. Particular instructions (e.g., load and operations), have an extra operand which specifies the size (number of bytes) of data they work with. This operand shall be denoted by ``size`` and ``fsize``. The value passed by the operand ``size`` can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8 byte long values. The value passed by the operand ``fsize`` can be either 4 or 8. In other words, ``fsize`` denotes precision of the value.
 
 Transfer Operations
 -------------------
-These operation allows to assign value into a registers. The first operand is always a register and the second one, can be either an immediate value or a register.
+These operations allow to assign a value into a registers. The first operand is always a register and the second one, can be either an immediate value or a register.
 
 ::
 
@@ -61,166 +61,220 @@ These operation allows to assign value into a registers. The first operand is al
 
 Binary Arithmetic Operations
 ----------------------------
-Each binary arithmetic operation takes exactly three operands. First two operands are always registers and the last one can be an immediate value or a register.These operations are fully compatible with those used by GNU lightning. 
+Each binary arithmetic operation has exactly three operands. First two operands are always registers and the last one can be an immediate value or a register. These operations are fully compatible with those used by GNU lightning. 
 
 ::
 
-	addr   reg, reg, reg      O1 = O2 + O3
-	addi   reg, reg, imm      O1 = O2 + O3
-	addxr  reg, reg, reg      O1 = O2 + (O3 + carry)
-	addxi  reg, reg, imm      O1 = O2 + (O3 + carry)
-	addcr  reg, reg, reg      O1 = O2 + O3, set carry
-	addci  reg, reg, imm      O1 = O2 + O3, set carry
-	subr   reg, reg, reg      O1 = O2 - O3
-	subi   reg, reg, imm      O1 = O2 - O3
-	subxr  reg, reg, reg      O1 = O2 - (O3 + carry)
-	subxi  reg, reg, imm      O1 = O2 - (O3 + carry)
-	subcr  reg, reg, reg      O1 = O2 - O3, set carry
-	subci  reg, reg, imm      O1 = O2 - O3, set carry
-	rsbr   reg, reg, reg      O1 = O3 - O2
-	rsbi   reg, reg, imm      O1 = O3 - O2
-	mulr   reg, reg, reg      O1 = O2 * O3
-	muli   reg, reg, imm      O1 = O2 * O3
-	hmulr  reg, reg, reg      O1 = high bits of O2 * O3
-	hmuli  reg, reg, imm      O1 = high bits of O2 * O3
-	divr   reg, reg, reg      O1 = O2 / O3
-	divi   reg, reg, imm      O1 = O2 / O3
-	modr   reg, reg, reg      O1 = O2 % O3
-	modi   reg, reg, imm      O1 = O2 % O3
-	andr   reg, reg, reg      O1 = O2 & O3
-	andi   reg, reg, imm      O1 = O2 & O3
-	orr    reg, reg, reg      O1 = O2 | O3
-	ori    reg, reg, imm      O1 = O2 | O3
-	xorr   reg, reg, reg      O1 = O2 ^ O3
-	xori   reg, reg, imm      O1 = O2 ^ O3
-	lshr   reg, reg, reg      O1 = O2 << O3
-	lshi   reg, reg, imm      O1 = O2 << O3
-	rshr   reg, reg, reg      O1 = O2 >> O3
-	rshi   reg, reg, imm      O1 = O2 >> O3
-	rshr_u reg, reg, reg      O1 = O2 >> O3	 (unsigned variant)
-	rshi_u reg, reg, imm      O1 = O2 >> O3  (unsigned variant)
+	addr   reg, reg, reg      O1 := O2 + O3
+	addi   reg, reg, imm      O1 := O2 + O3
+	addxr  reg, reg, reg      O1 := O2 + (O3 + carry)
+	addxi  reg, reg, imm      O1 := O2 + (O3 + carry)
+	addcr  reg, reg, reg      O1 := O2 + O3, set carry
+	addci  reg, reg, imm      O1 := O2 + O3, set carry
 
-Operations ``subx`` and ``addx`` have to directly follow ``subc`` and ``addc`` otherwise the is result undefined. Note that you can specify ``unsigned sign`` along with the ``rshr`` operation to propagate the first bit accordingly.
+	subr   reg, reg, reg      O1 := O2 - O3
+	subi   reg, reg, imm      O1 := O2 - O3
+	subxr  reg, reg, reg      O1 := O2 - (O3 + carry)
+	subxi  reg, reg, imm      O1 := O2 - (O3 + carry)
+	subcr  reg, reg, reg      O1 := O2 - O3, set carry
+	subci  reg, reg, imm      O1 := O2 - O3, set carry
+	rsbr   reg, reg, reg      O1 := O3 - O2
+	rsbi   reg, reg, imm      O1 := O3 - O2
 
-There are also equivalent floating operations.
+	mulr   reg, reg, reg      O1 := O2 * O3
+	muli   reg, reg, imm      O1 := O2 * O3
+	hmulr  reg, reg, reg      O1 := high bits of O2 * O3
+	hmuli  reg, reg, imm      O1 := high bits of O2 * O3
+
+	divr   reg, reg, reg      O1 := O2 / O3
+	divi   reg, reg, imm      O1 := O2 / O3
+	modr   reg, reg, reg      O1 := O2 % O3
+	modi   reg, reg, imm      O1 := O2 % O3
+
+	andr   reg, reg, reg      O1 := O2 & O3
+	andi   reg, reg, imm      O1 := O2 & O3
+	orr    reg, reg, reg      O1 := O2 | O3
+	ori    reg, reg, imm      O1 := O2 | O3
+	xorr   reg, reg, reg      O1 := O2 ^ O3
+	xori   reg, reg, imm      O1 := O2 ^ O3
+
+	lshr   reg, reg, reg      O1 := O2 << O3
+	lshi   reg, reg, imm      O1 := O2 << O3
+	rshr   reg, reg, reg      O1 := O2 >> O3
+	rshi   reg, reg, imm      O1 := O2 >> O3
+	rshr_u reg, reg, reg      O1 := O2 >> O3  (unsigned variant)
+	rshi_u reg, reg, imm      O1 := O2 >> O3  (unsigned variant)
+
+Operations ``subx`` and ``addx`` have to directly follow ``subc`` and ``addc`` otherwise the is result undefined. Note that you can use the ``unsigned`` flag with the ``rshr`` operation to propagate the first bit accordingly.
+
+There are also equivalent operations for floating-point values.
 
 ::
 
-	faddr   freg, freg, freg      O1 = O2 + O3
-	faddi   freg, freg, fimm      O1 = O2 + O3
-	fsubr   freg, freg, freg      O1 = O2 - O3
-	fsubi   freg, freg, fimm      O1 = O2 - O3
-	frsbr   freg, freg, freg      O1 = O3 - O2
-	frsbi   freg, freg, fimm      O1 = O3 - O2
-	fmulr   freg, freg, freg      O1 = O2 * O3
-	fmuli   freg, freg, fimm      O1 = O2 * O3
+	faddr   freg, freg, freg      O1 := O2 + O3
+	faddi   freg, freg, fimm      O1 := O2 + O3
+	fsubr   freg, freg, freg      O1 := O2 - O3
+	fsubi   freg, freg, fimm      O1 := O2 - O3
+	frsbr   freg, freg, freg      O1 := O3 - O2
+	frsbi   freg, freg, fimm      O1 := O3 - O2
+	fmulr   freg, freg, freg      O1 := O2 * O3
+	fmuli   freg, freg, fimm      O1 := O2 * O3
+	fdivr   freg, freg, freg      O1 := O2 / O3
+	fdivi   freg, freg, fimm      O1 := O2 / O3
 
 
 Unary Arithmetic Operations
 ---------------------------
-These operations accepts two operands and both of which have to be registers.
+These operations have two operands, both of which have to be registers.
 
 ::
 
-	negr  reg      O1 = -O2
-	fnegr freg     O1 = -O2
-	notr  reg      O1 = ~O2
+	negr  reg      O1 := -O2
+	notr  reg      O1 := ~O2
+	fnegr freg     O1 := -O2
 
 Load Operations
 ---------------
-These operations allows to read data from the memory. Each operation has 3 or 4 operands. The last operand is an immediate value and indicates the "``size``" of the data processed by this operation, i.e., a number of bytes copied from the memory to the register. It can be one of the following values: 1, 2, 4, or 8. Furthermore, the ``size`` cannot be larger than the size of the register. If the size of the data copied from the memory is smaller than the size of the register the value is expanded to fit the entire register. Therefore, it may be necessary to specify the sign flag.
-
-The last but one operand can be an immediate value or a register. Other operands have to be registers.
+These operations allow to transfer data from the memory into a register. Each operation has 3 or 4 operands. The last operand is an immediate value indicating the "size" of the data processed by this operation, i.e., a number of bytes copied from the memory to the register. It can be one of the following values: 1, 2, 4, or 8. Furthermore, the ``size`` cannot be larger than the size of the register. If the size of the data copied from the memory is smaller than the size of the register the value is expanded to fit the entire register. Therefore, it may be necessary to specify the additional sign flag.
 
 ::
 
-	ldi  (u)    O1 = *O2       (O3 = size)
-	ldr  (u)    O1 = *O2       (O3 = size)
-	ldxi (u)    O1 = *(O2+O3)  (O4 = size)
-	ldxr (u)    O1 = *(O2+O3)  (O4 = size)
+	ldr      reg, reg, size             O1 := *O2
+	ldi      reg, imm, size             O1 := *O2
+	ldr_u    reg, reg, size             O1 := *O2	      (unsigned variant)  
+	ldi_u    reg, imm, size             O1 := *O2  	      (unsigned variant)
+
+	ldxr     reg, reg, reg, size        O1 := *(O2 + O3)
+	ldxi     reg, reg, imm, size        O1 := *(O2 + O3)
+	ldxr_u   reg, reg, reg, size        O1 := *(O2 + O3)  (unsigned variant)  
+	ldxi_u   reg, reg, imm, size        O1 := *(O2 + O3)  (unsigned variant)
+
+	fldr     freg, reg, fsize           O1 := *O2
+	fldi     freg, imm, fsize           O1 := *O2
+
+	fldxr    freg, reg, reg, fsize      O1 := *(O2 + O3)	  
+	fldxi    freg, reg, imm, fsize      O1 := *(O2 + O3)	  
+
 
 Store Operations
 ----------------
-These operations allows to store the data to the memory. Each operation has 3 or 4 operands. The last operand is an immediate value and indicates the ``size`` of the operation, see "Load Operations" for more details. The first operand can be either an immediate or a register. Other operands must be registers.
+These operations allow to transfer data from the register into the memory. Each operation has 3 or 4 operands. The last operand is an immediate value and indicates the "size" of the data, see "Load Operations" for more details. The first operand can be either an immediate or a register. Other operands must be registers.
 
 ::
 
-	str     *O1 = O2	(O3 = size)
-	sti     *O1 = O2        (O3 = size)
-	stxr    *(O1+O2) = O3   (O4 = size)
-	stxi    *(O1+O2) = O3   (O4 = size)
+	str     reg, reg, size              *O1 := O2
+	sti     imm, reg, size              *O1 := O2
+
+	stxr    reg, reg, reg, size         *(O1 + O2) := O3
+	stxi    imm, reg, reg, size         *(O1 + O2) := O3
+
+	fstr    reg, freg, fsize            *O1 := O2
+	fsti    imm, freg, fsize            *O1 := O2
+
+	fstxr   reg, reg, freg, fsize       *(O1 + O2) := O3
+	fstxi   imm, reg, freg, fsize       *(O1 + O2) := O3
 	
 
 Compare Instructions
 --------------------
 
-These operations compare last two operands and store the result (1 or 0, if the condition was met or not, respectively) into the first operand. All these operations have three operands. The first two operands have to be registers and the last one can be either a register or an immediate value. 
+These operations compare last two operands and store one or zero (if the condition was met or not, respectively) into the first operand. All these operations have three operands. The first two operands have to be registers and the last one can be either a register or an immediate value. 
 
 ::
 
-          ltr (u)   O1 = (O2 <  O3)
-          lti (u)   O1 = (O2 <  O3)
-          ler (u)   O1 = (O2 <= O3)
-          lei (u)   O1 = (O2 <= O3)
-          gtr (u)   O1 = (O2 >  O3)
-          gti (u)   O1 = (O2 >  O3)
-          ger (u)   O1 = (O2 >= O3)
-          gei (u)   O1 = (O2 >= O3)
-          eqr       O1 = (O2 == O3)
-          eqi       O1 = (O2 == O3)
-          ner       O1 = (O2 != O3)
-          nei       O1 = (O2 != O3)
+	ltr    reg, reg, reg      O1 := (O2 <  O3)
+	lti    reg, reg, imm      O1 := (O2 <  O3)
+	ltr_u  reg, reg, reg      O1 := (O2 <  O3)  (unsigned variant)
+	lti_u  reg, reg, imm      O1 := (O2 <  O3)  (unsigned variant)
 
-Instructions Related to Function Calls
---------------------------------------
-The following operations and auxiliary macros helps to create a function, read its arguments, and return values.
+	ler    reg, reg, reg      O1 := (O2 <= O3)
+	lei    reg, reg, imm      O1 := (O2 <= O3)
+	ler_u  reg, reg, reg      O1 := (O2 <= O3)  (unsigned variant)
+	lei_u  reg, reg, imm      O1 := (O2 <= O3)  (unsigned variant)
 
-+ ``prolog`` takes one operand which is an immediate value, which is a reference to a pointer of a function described by the code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the "Getting started", for more details.
+	gtr    reg, reg, reg      O1 := (O2 >  O3)
+	gti    reg, reg, imm      O1 := (O2 >  O3)
+	gtr_u  reg, reg, reg      O1 := (O2 >  O3)  (unsigned variant)
+	gti_u  reg, reg, imm      O1 := (O2 >  O3)  (unsigned variant)
 
-+ ``retr`` and ``reti`` -- are operations which returns from the function; these accept one operand which is a returned value (a register or an immediate value)
+	ger    reg, reg, reg      O1 := (O2 >= O3)
+	gei    reg, reg, imm      O1 := (O2 >= O3)
+	ger_u  reg, reg, reg      O1 := (O2 >= O3)  (unsigned variant)
+	gei_u  reg, reg, imm      O1 := (O2 >= O3)  (unsigned variant)
 
-+ ``declare_arg`` -- this is not an actual operation but rather a auxiliary function which declares the type of the argument and its size; ``declare_arg`` can take the following types of arguments
+	eqr    reg, reg, reg      O1 := (O2 == O3)
+	eqi    reg, reg, imm      O1 := (O2 == O3)
+
+	ner    reg, reg, reg      O1 := (O2 != O3)
+	nei    reg, reg, imm      O1 := (O2 != O3)
+
+Conversion
+----------
+Register for integer and floating-pint values are independent and to convert value from one type to another you have to use the following operations.
+
+::
+
+	extr    freg, reg        O1 := O2
+        truncr  reg, freg        O1 := trunc(O2)
+        ceilr   reg, freg        O1 := ceil(O2)
+        floorr  reg, freg        O1 := floor(O2)
+        roundr  reg, freg        O1 := round(O2)
+
+
+The operation ``truncr`` rounds the value towards zero and is the fastest one. Operations ``floorr`` and ``ceilr`` rounds the value towards negative or positive infinity, respectively. ``roundr`` rounds the given value to the nearest integer.
+
+
+Function Calls
+--------------
+The following operations and auxiliary macros help to create a function, read its arguments, and return values.
+
++ Operation ``prolog imm`` has one operand which is an immediate value, which is a reference to a pointer of a function defined by the intermediate code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the "Getting started" section, for more details.
+
++ Operations ``retr reg``, ``reti imm``, ``fretr freg, fsize``, and ``freti freg, fsize`` set the return value and return control the calling procedure (or function).
+
++ Operation ``declare_arg imm, imm`` is not an actual operation but rather an auxiliary function which declares the type of the argument and its size (in this order); ``declare_arg`` can take the following types of arguments
 
 	+ ``JIT_SIGNED_NUM`` -- signed integer number
 	+ ``JIT_UNSIGNED_NUM`` -- unsigned integer number
+	+ ``JIT_FLOAT`` -- floating-point number
 	+ ``JIT_PTR`` -- pointer
 
-+ to read an argument use the ``getarg`` operation, which accepts two arguments register and an immediate value. The register is the destination register where the input argument is stored. The immediate value is the position of the argument. 
++ To read an argument there are ``getarg reg, size`` and ``getarg freg, fsize`` operations having two arguments. The destination register where the input argument is stored and the immediate value which identifies position of the argument. 
 
-+ ``allocai`` reserves space on the stack which has at least the size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an *offset from the frame pointer R_FP!*
-
++ Operation ``allocai imm`` reserves space on the stack which has at least the size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an *offset from the frame pointer R_FP!*
 
 
 Function calls
 --------------
 
-Each function call is done in three steps. The call is initiated by the operation ``prepare`` accepting no argument. In the second step, arguments are passed to a function using ``putarg``. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operation ``retval`` having one operand, the register to store the return value.
+Each function call is done in three steps. The call is initiated by the operation ``prepare`` having no argument. In the second step, arguments are passed to a function using ``putarg``. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operations ``retval`` and ``fretval`` having one operand---the register to store the return value.
 
 Let us make few notes on function calls:
 
-+ If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through the registers.
++ If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through registers. Each function has its own set of registers.
 
-+ You should not nest the prepare operations.
-
-+ Only ``putargr`` or ``putargi`` operations are allowed within the ``prepare-call`` block, otherwise, the behavior of the library is unspecified.
++ Only ``putargr``, ``putargi``, ``fputargr``, and ``fputargi`` operations are allowed inside the ``prepare-call`` block, otherwise, the behavior of the library is unspecified.
 
 List of operations related to function calls:
 
-+ ``prepare`` -- prepares a function call (generic)
-+ ``putargr reg`` -- passes the argument to a function
-+ ``putargi imm`` -- passes the argument to a function
++ ``prepare`` -- prepares function call (generic)
++ ``putargr reg`` -- passes an argument to a function
++ ``putargi imm`` -- passes an argument to a function
++ ``fputargr freg, fsize`` -- passes the argument to a function
++ ``fputargi fimm, fsize`` -- passes the argument to a function
 + ``call imm`` -- calls a function
 + ``callr reg``
-+ ``retval reg`` -- retrieves return value
++ ``retval reg`` -- reads return value
++ ``fretval freg, fsize`` -- reads return value
 
 Jumps
 -----
 
-Operations ``jmpi`` and ``jmpr`` can be used to implement unconditional jumps. Both operations accept one argument, address to jump to. To obtain this address you can use the ``get_label`` operation or use the forward declaration along with the ``patch`` operation.
+Operations ``jmpi`` and ``jmpr`` can be used to implement unconditional jumps. Both operations have one operand, address to jump to. To obtain this address you can use the ``get_label`` operation or use the forward declaration along with the ``patch`` operation.
 
-+ ``get_label`` is not an actual operation; it is a function that returns a ``jit_label`` value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.
++ ``get_label`` is not an actual operation; it is a function that returns a ``jit_label``---value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.
 
-+ It may happen that one need to jump into the code which was not defined yet. Therefore, we can use forward declaration and set the address later. This means, we declare that the operation ``jmpi`` or branch operations jumps to the place defined by the macro JIT_FORWARD, and subsequently, we store the operation in some value ``jit_op *``. In the place we want to jump to, we call the ``patch`` operation with an argument which is the patched operation. The following code illustrates the situation.
++ It may happen that one need to jump into the code which will be defined later. Therefore, we can use the forward declaration and set the address later. This means, one can declare that the operation ``jmpi`` or a branch operations jumps to the place defined by the JIT_FORWARD macro and save the pointer to the operation into some ``jit_op *`` value. To set the address later, there is the ``patch imm`` operation with an argument which is the patched operation. The following code illustrates the situation.
 
 ::
 
@@ -232,45 +286,76 @@ Operations ``jmpi`` and ``jmpr`` can be used to implement unconditional jumps. B
 
 Branch Operations
 -----------------
-Branch operations represents conditional jumps and all have three operands. The first operand is an immediate value and represents an address to jump to. The latter two are values to be compared. The last operand can be either an immediate value or a register.
+Branch operations represent conditional jumps and all have three operands. The first operand is an immediate value and represents the address to jump to. The latter two are values to be compared. The last operand can be either an immediate value or a register.
 
 ::
 
-	bltr (u)   if (O2 <  O3) goto O1
-	blti (u)   if (O2 <  O3) goto O1
-	bler (u)   if (O2 <= O3) goto O1
-	blei (u)   if (O2 <= O3) goto O1
-	bgtr (u)   if (O2 >  O3) goto O1
-	bgti (u)   if (O2 >  O3) goto O1
-	bger (u)   if (O2 >= O3) goto O1
-	bgei (u)   if (O2 >= O3) goto O1
-	beqr       if (O2 == O3) goto O1
-	beqi       if (O2 == O3) goto O1
-	bner       if (O2 != O3) goto O1
-	bnei       if (O2 != O3) goto O1
+	bltr      imm, reg, reg       if (O2 <  O3) goto O1
+	blti      imm, reg, imm       if (O2 <  O3) goto O1
+	bltr_u    imm, reg, reg       if (O2 <  O3) goto O1
+	blti_u    imm, reg, imm       if (O2 <  O3) goto O1
+
+	bler      imm, reg, reg       if (O2 <= O3) goto O1
+	blei      imm, reg, imm       if (O2 <= O3) goto O1
+	bler_u    imm, reg, reg       if (O2 <= O3) goto O1
+	blei_u    imm, reg, imm       if (O2 <= O3) goto O1
+
+	bgtr      imm, reg, reg       if (O2 >  O3) goto O1
+	bgti      imm, reg, imm       if (O2 >  O3) goto O1
+	bgtr_u    imm, reg, reg       if (O2 >  O3) goto O1
+	bgti_u    imm, reg, imm       if (O2 >  O3) goto O1
+
+	bger      imm, reg, reg       if (O2 >= O3) goto O1
+	bgei      imm, reg, imm       if (O2 >= O3) goto O1
+	bger_u    imm, reg, reg       if (O2 >= O3) goto O1
+	bgei_u    imm, reg, imm       if (O2 >= O3) goto O1
+
+	beqr      imm, reg, reg       if (O2 == O3) goto O1
+	beqi      imm, reg, imm       if (O2 == O3) goto O1
+	bner      imm, reg, reg       if (O2 != O3) goto O1
+	bnei      imm, reg, imm       if (O2 != O3) goto O1
 	
-	
-	bmsr        if O2 &  O3 goto O1
-	bmsi        if O2 &  O3 goto O1
-	bmcr        if !(O2 & O3) goto O1
-	bmci        if !(O2 & O3) goto O1
-	boaddr (u)     O2 += O3, goto O1 on overflow
-	boaddi (u)     O2 += O3, goto O1 on overflow
-	bosubr (u)     O2 -= O3, goto O1 on overflow
-	bosubi (u)     O2 -= O3, goto O1 on overflow
-	
+	bmsr      imm, reg, reg       if (O2 &  O3) goto O1
+	bmsi      imm, reg ,imm       if (O2 &  O3) goto O1
+	bmcr      imm, reg ,reg       if !(O2 & O3) goto O1
+	bmci      imm, reg ,imm       if !(O2 & O3) goto O1
+
+	boaddr    imm, reg, reg       O2 += O3, goto O1 on overflow
+	boaddi    imm, reg, imm       O2 += O3, goto O1 on overflow
+	boaddr_u  imm, reg, reg       O2 += O3, goto O1 on overflow
+	boaddi_u  imm, reg, imm       O2 += O3, goto O1 on overflow
+
+	bosubr    imm, reg, reg       O2 -= O3, goto O1 on overflow
+	bosubi    reg, reg, imm       O2 -= O3, goto O1 on overflow
+	bosubr_u  imm, reg, reg       O2 -= O3, goto O1 on overflow
+	bosubi_u  imm, reg, imm       O2 -= O3, goto O1 on overflow
+
+	fbltr     imm, freg, freg     if (O2 <  O3) goto O1
+	fblti     imm, freg, fimm     if (O2 <  O3) goto O1
+	fbler     imm, freg, freg     if (O2 <= O3) goto O1
+	fblei     imm, freg, fimm     if (O2 <= O3) goto O1
+
+	fbgtr     imm, freg, freg     if (O2 >  O3) goto O1
+	fbgti     imm, freg, fimm     if (O2 >  O3) goto O1
+	fbger     imm, freg, freg     if (O2 >= O3) goto O1
+	fbgei     imm, freg, fimm     if (O2 >= O3) goto O1
+
+	fbeqr     imm, freg, freg     if (O2 == O3) goto O1
+	fbeqi     imm, freg, fimm     if (O2 == O3) goto O1
+	fbner     imm, freg, freg     if (O2 != O3) goto O1
+	fbnei     imm, freg, fimm     if (O2 != O3) goto O1
 
 Getting Started
 ---------------
 
-We start with a really simple example---with a function returning its argument incremented by one. The source code of this example can be found in ``demo1.c`` which is part of the MyJIT package.
+We start with a really simple example---function returning its argument incremented by one. The source code of this example can be found in ``demo1.c`` which is part of the MyJIT package.
 
 .. sourcecode:: c
 	
 	#include <stdlib.h>
 	#include <stdio.h>
 	
-	// include the header file
+	// includes the header file
 	#include "myjit/jitlib.h"
 	
 	// pointer to a function accepting one argument of type long and returning long value
@@ -278,7 +363,7 @@ We start with a really simple example---with a function returning its argument i
 	
 	int main()
 	{
-		// we create a new instance of a compiler
+		// creates a new instance of the compiler
 		struct jit * p = jit_init();
 	
 		plfl foo;
@@ -316,59 +401,59 @@ We start with a really simple example---with a function returning its argument i
 		return 0;
 	}
 
-We assume that the code above is quite (self-)explanatory and thus we do not include comments on this. However, let us make a note on compiling programs using MyJIT. To include the MyJIT it is sufficient to copy the ``myjit`` subdirectory into your project. Programs using the MyJIT should include the ``#include "myjit/jitlib-core.h"`` header file. In order to link the application and build a proper executable file, it is necessary to also compile ``"myjit/libjit-core.c"``.
+We assume that the code above is quite (self-)explanatory, and thus, we do not include comments on this. However, let us make a note on compiling programs using MyJIT. To start with MyJIT, it is sufficient to copy the ``myjit`` subdirectory into your project. Programs using the MyJIT should include the ``#include "myjit/jitlib.h"`` header file. In order to link the application and build a proper executable file, it is necessary to also compile ``"myjit/libjit-core.c"``.
 
 For instance, to build a program with ``gcc`` you may use the following steps:
 
-::
+.. sourcecode:: shell
 
 	gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 demo1.c
 	gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 myjit/jitlib-core.c
 	gcc -o demo1 -g -Wall -std=c99 -pedantic demo1.o jitlib-core.o
 
-The first command compiles the example, the second one compiles the functions used by MyJIT, and the last links the object files together and creates an execute file---``demo1``.
+The first command compiles the example, the second one compiles the functions used by MyJIT, and the last one links the object files together and creates an execute file---``demo1``.
 
 It should be emphasized that the MyJIT conforms to the C99 standard and all MyJIT files should be compiled according to this standard.
 
-We also recommend to check the ``demo2.c`` and ``demo3.c`` examples, which are also included in the MyJIT package.
+We also recommend to check out the ``demo2.c`` and ``demo3.c`` examples which are also included in the MyJIT package.
 
 Debugging
 ---------
 
-MyJIT contains several tools simplifying application development. The first one, is the ``msg`` operation which prints out a given message or a value of the given register. The ``msg`` operation takes one or two arguments. The first one is always an immediate value which is a string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
+MyJIT contains several tools simplifying application development. The first one is the ``msg`` operation which prints out given message or a value of the given register. The ``msg`` operation has one or two operands. The first one is always an immediate value which is the string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
 
 .. sourcecode:: c
 
 	jit_msg(jit, "Simple message\n");
 	jit_msgr(jit, "Reg 1: %l\n", R(1));
 
-The MyJIT library also provides two functions ``jit_dump_ops`` and ``jit_dump_code`` which allows to print out the code. The first one print outs the high level code and the second one prints out the final machine code. Both functions take two arguments---the reference to the compiler and the verbosity level. However, the second argument is not used and its value should be always zero.
+The MyJIT library also provides two functions ``jit_dump_ops`` and ``jit_dump_code`` which allow to print out the code. The first one prints out the high level code and the second one prints out the final machine code. Both functions take two arguments---the reference to the compiler and the verbosity level. However, the second argument is not used and its value should be always zero.
 
 Examples of the outputs for the above mentioned source code.
 
 ::
 
-	prolog      0xbfd34a64
-        getarg      (dword) r0, 0x0
+	prolog      0xbfe62858
+        declarg     integer, 0x4
+        getarg      r0, 0x0
         addi        r1, r0, 0x1
         retr        r1
+
 
 ::
 
 	00000000 <main>:
 	   0:   55                      push   ebp
 	   1:   8b ec                   mov    ebp,esp
-	   3:   83 ec 34                sub    esp,0x34
-	   6:   56                      push   esi
-	   7:   57                      push   edi
-	   8:   8b 7d 08                mov    edi,DWORD PTR [ebp+0x8]
-	   b:   8d 77 01                lea    esi,[edi+0x1]
-	   e:   8b c6                   mov    eax,esi
-	  10:   5f                      pop    edi
-	  11:   5e                      pop    esi
-	  12:   8b e5                   mov    esp,ebp
-	  14:   5d                      pop    ebp
-	  15:   c3                      ret
+	   3:   83 ec 08                sub    esp,0x8
+	   6:   8b 55 08                mov    edx,DWORD PTR [ebp+0x8]
+	   9:   8b ca                   mov    ecx,edx
+	   b:   83 c1 01                add    ecx,0x1
+	   e:   8b c1                   mov    eax,ecx
+	  10:   8b e5                   mov    esp,ebp
+	  12:   5d                      pop    ebp
+	  13:   c3                      ret  
+
 
 *NOTICE!* Do not use the debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the ``printf`` function explicitly. The ``jit_dump_code`` is using ``gcc`` and ``objdump`` to disassemble the code, therefore, these two programs have to be present in the system.
 
@@ -384,14 +469,14 @@ Notes on Development
 
 + The primary use of this library is in our compiler of the Schemik programming language and the development of this library affected requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.
 
-+ MyJIT can be considered as a replacement for the GNU lightning library and it should be quite easy to port your lightning code to MyJIT.
++ The library is almost complete and each release undergoes extensive testing (hundreds of tests), therefore, we hope there are no serious bugs. If you find any, please, let us know.
+
++ Despite the fact that the library is almost complete, it is still under development and the API may slightly (not much) change in the near future.
 
 + Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.
 
-+ At this moment, MyJIT has experimental support (requires SSE2) for floating point arithmetics. We are aware of the lack of the documentation, and thus, we refer users to the relevant test cases in the test directory which can serve as tutorials.
-
-+ The library is still under development and the API may slightly change in the near future.
++ At this moment, MyJIT has support for floating point arithmetics. However, i386 port supports only processors having SSE2 unit, i.e., floating-point operations won't work on legacy CPUs without this unit.
 
 + If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.
 
-+ The documentation is quite poor and totally lacks information on internals of MyJIT. The lack of information on MyJIT's internals is purely intentional because the library is still developed. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts, check the GNU lightning manual :-] or ask in the mailing list (myjit-devel@lists.sourceforge.net). If you  would like to participate on documentation improvements, please let us know, we will really appreciate it.
++ The documentation lacks information on internals of MyJIT. This is purely intentional because the library is still developed. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts,  ask in the mailing list (myjit-devel@lists.sourceforge.net). If you  would like to participate on documentation improvements, please let us know, we will really appreciate it.
