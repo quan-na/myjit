@@ -32,7 +32,6 @@ ROADMAP
 	+ SPARC: vararg stack corruption
 	+ SPARC: get_arg should optimize moves of aligned doubles
 
-
 + release 0.6.0
 	+ i386 (emulated)
 		+ arithmetics

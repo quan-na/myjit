@@ -82,7 +82,6 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
-//	struct jit_func_info * info = jit_current_func_info(jit);
 	struct jit_inp_arg * a = &(info->args[p]);
 	if (a->type != JIT_FLOAT_NUM) { // normal argument
 		int pos = a->gp_pos;

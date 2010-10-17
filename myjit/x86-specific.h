@@ -42,7 +42,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 
 	if (p == 0) a->location.stack_pos = 8;
 	else {
-		struct jit_inp_arg * prev_a = &(jit_current_func_info(jit)->args[p - 1]);
+		struct jit_inp_arg * prev_a = &(info->args[p - 1]);
 		int stack_shift = (prev_a->size + 3) & 0xfffffffc; // 4-bytes aligned
 		a->location.stack_pos = prev_a->location.stack_pos + stack_shift;
 	}
@@ -648,9 +648,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				  break;
 		case JIT_PROLOG:
 			do {
+				jit->current_func = op;
 				struct jit_func_info * info = jit_current_func_info(jit);
 				while ((long)jit->ip % 8) 
-					amd64_nop(jit->ip);
+					x86_nop(jit->ip);
 
 				op->patch_addr = __PATCH_ADDR(jit);
 				x86_push_reg(jit->ip, X86_EBP);

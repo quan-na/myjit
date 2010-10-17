@@ -44,7 +44,6 @@ static inline int __GET_REG_POS(struct jit * jit, int r)
 	assert(0);
 }
 
-
 static inline int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
@@ -676,6 +675,7 @@ op_complete:
 		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); break;
 		case JIT_PROLOG:
 			do {
+				jit->current_func = op;
 				struct jit_func_info * info = jit_current_func_info(jit);
 				int stack_mem = 96;
 				op->patch_addr = __PATCH_ADDR(jit);

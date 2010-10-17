@@ -94,3 +94,4 @@ clean:
 	rm -f t108
 	rm -f t109
 	rm -f t200
+	rm -f t201
