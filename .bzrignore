@@ -14,12 +14,13 @@ test/t009
 test/t010
 test/t101
 test/t102
+test/t103
 test/t104
 test/t105
 test/t107
 test/t108
 test/t109
 test/t200
+test/t201
 sse-test
 debug
-t103

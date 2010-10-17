@@ -70,9 +70,9 @@ static inline void __init_arg(struct jit_inp_arg * arg, int p)
 	arg->phys_reg = p;
 }
 
-void jit_init_arg_params(struct jit * jit, int p, int * phys_reg)
+void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
-	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
+	struct jit_inp_arg * a = &(info->args[p]);
 	__init_arg(a, *phys_reg);
 	*phys_reg = *phys_reg + 1;
 	if ((a->type == JIT_FLOAT_NUM) && (a->size == sizeof(double))) {
@@ -676,9 +676,9 @@ op_complete:
 		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); break;
 		case JIT_PROLOG:
 			do {
-				*(void **)(a1) = jit->ip;
 				struct jit_func_info * info = jit_current_func_info(jit);
 				int stack_mem = 96;
+				op->patch_addr = __PATCH_ADDR(jit);
 				stack_mem += info->allocai_mem;
 				stack_mem += info->gp_reg_count * REG_SIZE;
 				stack_mem += info->fp_reg_count * sizeof(double);

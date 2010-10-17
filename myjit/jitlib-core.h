@@ -266,7 +266,7 @@ void jit_optimize_st_ops(struct jit * jit);
  * the arguments. This is used to correctly pass arguments which occupies two
  * or more registers
  */
-void jit_init_arg_params(struct jit * jit, int argpos, int * phys_reg);
+void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int argpos, int * phys_reg);
 
 /* FIXME: presunout do generic-reg-allocator.h */
 void jit_assign_regs(struct jit * jit);

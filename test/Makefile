@@ -4,7 +4,7 @@ gp: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010
 	
 fp: t101 t102 t103 t104 t105 t107 t108 t109
 
-misc: t200
+misc: t200 t201
 
 t001: t001-basics.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t001 t001-basics.c jitlib-core.o -ldl
@@ -62,6 +62,10 @@ t109: t109-fp-allocaireg.c jitlib-core.o tests.h
 
 t200: t200-callr.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t200 t200-callr.c jitlib-core.o -ldl
+
+
+t201: t201-functions.c jitlib-core.o tests.h
+	gcc -g -std=c99 -o t201 t201-functions.c jitlib-core.o -ldl
 
 
 

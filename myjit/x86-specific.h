@@ -35,9 +35,9 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
-void jit_init_arg_params(struct jit * jit, int p, int * phys_reg)
+void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
-	struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[p]);
+	struct jit_inp_arg * a = &(info->args[p]);
 	a->passed_by_reg = 0;
 
 	if (p == 0) a->location.stack_pos = 8;
@@ -649,6 +649,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PROLOG:
 			do {
 				struct jit_func_info * info = jit_current_func_info(jit);
+				while ((long)jit->ip % 8) 
+					amd64_nop(jit->ip);
 
 				op->patch_addr = __PATCH_ADDR(jit);
 				x86_push_reg(jit->ip, X86_EBP);

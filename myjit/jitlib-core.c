@@ -253,7 +253,7 @@ static inline void __initialize_arguments(struct jit * jit)
 				info->args[argpos].gp_pos = gp_arg_pos++;
 				info->args[argpos].fp_pos = fp_arg_pos;
 			}
-			jit_init_arg_params(jit, argpos, &phys_reg);
+			jit_init_arg_params(jit, info, argpos, &phys_reg);
 			argpos++;
 		}
 		op = op->next;
