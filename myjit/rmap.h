@@ -103,8 +103,15 @@ static int rmap_equal(rmap_t * r1, rmap_t * r2)
 static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
+
+	jitset * tgt_livein = op->jmp_addr->live_in;
+	jitset * tgt_liveout = op->jmp_addr->live_out;
+	if (!jitset_get(tgt_livein, current->key)) return;
+	if (!jitset_get(tgt_liveout, current->key)) return;
+
 	rb_node * found = rb_search(target, current->key);
 	int i = current->key;
+
 	if ((!found) || (current->value != found->value)) {
 		struct __hw_reg * hreg = (struct __hw_reg *) current->value;
 		switch (mode) {
