@@ -419,7 +419,9 @@ static inline int __configure_args(struct jit * jit)
 		}
 	}
 	/* AL is used to pass the number of floating point arguments passed through the XMM0-XMM7 registers */
-	amd64_mov_reg_imm(jit->ip, AMD64_RAX, MIN(jit->prepared_args.fp_args, jit->reg_al->fp_arg_reg_cnt)); 
+	int fp_reg_arg_cnt = MIN(jit->prepared_args.fp_args, jit->reg_al->fp_arg_reg_cnt);
+	if (fp_reg_arg_cnt != 0) amd64_mov_reg_imm(jit->ip, AMD64_RAX, fp_reg_arg_cnt); 
+	else amd64_alu_reg_reg_size(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX, 4);
 	return stack_correction;
 }
 
@@ -429,10 +431,13 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	int stack_correction = __configure_args(jit);
 
 	if (!imm) {
-		amd64_call_reg(jit->ip, op->r_arg[0]);
+		//amd64_call_reg(jit->ip, op->r_arg[0]);
+		struct __hw_reg * hreg = rmap_get(op->regmap, op->arg[0]);
+		if (hreg) amd64_call_reg(jit->ip, hreg->id);
+		else amd64_call_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, op->arg[0]));
 	} else {
 		op->patch_addr = __PATCH_ADDR(jit);
-		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); // 4: magic constant
+		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->arg[0]) - 4); // 4: magic constant
 	}
 
 	stack_correction += jit->prepared_args.stack_size;

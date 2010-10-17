@@ -339,6 +339,11 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			}
 		}
 #endif
+#ifdef JIT_ARCH_AMD64
+		// since the CALLR may use the given register also to pass an argument,
+		// code genarator has to take care of the register value itself
+		return;
+#endif
 
 	}
 

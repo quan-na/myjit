@@ -1,8 +1,10 @@
-all: gp fp
+all: gp fp misc
 
 gp: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010
 	
 fp: t101 t102 t103 t104 t105 t107 t108 t109
+
+misc: t200
 
 t001: t001-basics.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t001 t001-basics.c jitlib-core.o -ldl
@@ -58,6 +60,9 @@ t108: t108-fp-pushargs.c jitlib-core.o tests.h
 t109: t109-fp-allocaireg.c jitlib-core.o tests.h
 	gcc -g -std=c99 -o t109 t109-fp-allocaireg.c jitlib-core.o -ldl
 
+t200: t200-callr.c jitlib-core.o tests.h
+	gcc -g -std=c99 -o t200 t200-callr.c jitlib-core.o -ldl
+
 
 
 jitlib-core.o: ../myjit/jitlib.h ../myjit/jitlib-core.h ../myjit/jitlib-core.c ../myjit/jitlib-debug.c ../myjit/x86-codegen.h ../myjit/x86-specific.h ../myjit/reg-allocator.h ../myjit/flow-analysis.h ../myjit/set.h ../myjit/amd64-specific.h ../myjit/amd64-codegen.h ../myjit/llrb.c ../myjit/reg-allocator.h ../myjit/rmap.h 
@@ -84,3 +89,4 @@ clean:
 	rm -f t107
 	rm -f t108
 	rm -f t109
+	rm -f t200
