@@ -145,6 +145,7 @@ struct jit_reg_allocator {
 	struct jit_regpool * fp_regpool;	// pool of available floating-point registers
 	int * gp_arg_regs;			// array of GP registers used to pass arguments (in the given order) 
 	int * fp_arg_regs;			// array of FP registers used to pass arguments (in the given order) 
+	struct jit_func_info * current_func_info; // information on currently processed function
 };
 
 typedef struct rmap_t {

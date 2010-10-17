@@ -431,7 +431,6 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	int stack_correction = __configure_args(jit);
 
 	if (!imm) {
-		//amd64_call_reg(jit->ip, op->r_arg[0]);
 		struct __hw_reg * hreg = rmap_get(op->regmap, op->arg[0]);
 		if (hreg) amd64_call_reg(jit->ip, hreg->id);
 		else amd64_call_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, op->arg[0]));
@@ -1054,20 +1053,20 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
 	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->gp_reg_cnt);
 
-	a->gp_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0, 0, 14 };
-	a->gp_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1, 0, 1 };
-	a->gp_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0, 0, 11 };
-	a->gp_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0, 0, 10 };
-	a->gp_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0, 0, 12 };
-	a->gp_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 0, 0, 13  };
-	a->gp_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 0, 9 };
-	a->gp_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 0, 8 };
-	a->gp_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 0, 6 };
-	a->gp_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0, 0, 7 };
-	a->gp_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1, 0, 2 };
-	a->gp_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 0, 3 };
-	a->gp_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 0, 4 };
-	a->gp_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 0, 5 };
+	a->gp_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0, 0, 7 };
+	a->gp_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1, 0, 8 };
+	a->gp_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0, 0, 4 };
+	a->gp_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0, 0, 3 };
+	a->gp_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0, 0, 2 };
+	a->gp_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 0, 0, 1 };
+	a->gp_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 0, 5 };
+	a->gp_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 0, 6 };
+	a->gp_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 0, 9 };
+	a->gp_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0, 0, 10 };
+	a->gp_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1, 0, 11 };
+	a->gp_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 0, 12 };
+	a->gp_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 0, 13 };
+	a->gp_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 0, 14 };
 
 
 	a->gp_arg_reg_cnt = 6;

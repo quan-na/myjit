@@ -44,7 +44,7 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 	rp->pool[++rp->pos] = hreg;
 	
 	// reorders registers according to their priority
-#ifdef JIT_ARCH_SPARC
+#if defined(JIT_ARCH_SPARC) || defined(JIT_ARCH_AMD64)
 	int i = rp->pos;
 	while (i > 0) {
 		if (rp->pool[i - 1]->priority <= rp->pool[i]->priority) break;
@@ -53,6 +53,11 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 		rp->pool[i - 1] = x;
 		i--;
 	}
+	/*
+	for (int i = 0; i < rp->pos; i++)
+		printf("%s ", rp->pool[i]->name);
+	printf("\n");
+	*/
 #endif
 }
 
@@ -164,6 +169,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if (GET_OP(op) == JIT_PROLOG) {
 		
 		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
+		al->current_func_info = info;
 
 		op->regmap = rmap_init();
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
@@ -300,6 +306,28 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		if (hreg) {
 			rmap_assoc(op->regmap, op->arg[0], hreg);
 			return;
+		}
+	}
+
+	if (GET_OP(op) == JIT_GETARG) {
+		// optimization which eliminates undesirable assignments
+		int arg_id = op->arg[1];
+		struct jit_inp_arg * arg = &(al->current_func_info->args[arg_id]);
+		int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+		if (!jitset_get(op->live_out, reg_id)) {
+			if (((arg->type != JIT_FLOAT_NUM) && (arg->size == REG_SIZE))
+			|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))) {
+				struct __hw_reg * hreg = rmap_get(op->regmap, reg_id);
+				if (hreg) {
+					   rmap_unassoc(op->regmap, reg_id, arg->type == JIT_FLOAT_NUM);
+					   rmap_assoc(op->regmap, op->arg[0], hreg);
+					   op->r_arg[0] = hreg->id;
+					   op->r_arg[1] = op->arg[1];
+					   // FIXME: should have its own name
+					   op->code = JIT_NOP;
+					   return;
+				}
+			}
 		}
 	}
 
