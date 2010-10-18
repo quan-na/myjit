@@ -242,6 +242,7 @@ static inline void __initialize_arguments(struct jit * jit)
 			gp_arg_pos = 0;
 			fp_arg_pos = 0;
 			argpos = 0;
+			phys_reg = 0;
 		}
 		if (GET_OP(op) == JIT_DECL_ARG) {
 			info->args[argpos].type = op->arg[0];

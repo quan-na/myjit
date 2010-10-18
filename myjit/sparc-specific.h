@@ -59,7 +59,8 @@ static inline void __init_arg(struct jit_inp_arg * arg, int p)
 	if (p < 6) {
 		arg->passed_by_reg = 1;
 		arg->location.reg = in_regs[p];
-		arg->spill_pos = 68 + (p - 6) * 4;
+		//arg->spill_pos = 68 + (p - 6) * 4;
+		arg->spill_pos = 92 + (p - 6) * 4;
 	} else {
 		arg->passed_by_reg = 0;
 		arg->location.stack_pos = 92 + (p - 6) * 4;
@@ -678,6 +679,7 @@ op_complete:
 				jit->current_func = op;
 				struct jit_func_info * info = jit_current_func_info(jit);
 				int stack_mem = 96;
+
 				op->patch_addr = __PATCH_ADDR(jit);
 				stack_mem += info->allocai_mem;
 				stack_mem += info->gp_reg_count * REG_SIZE;

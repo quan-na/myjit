@@ -14,6 +14,7 @@ void test1()
 {
 	long r;
 	struct jit * p = jit_init();
+
 	plfsss f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
@@ -48,8 +49,6 @@ void test1()
 	jit_patch(p, end);	
 	jit_retr(p, R(2));
 
-
-
 	// TEST 3
 	// function which computes factorial
 	plfuc f3;
@@ -70,7 +69,6 @@ void test1()
 	jit_jmpi(p, loop2);
 	jit_patch(p, end2);
 	jit_retr(p, R(1));
-
 
 	// TEST 4
 	// function which computes fibonacci's number
@@ -155,9 +153,9 @@ void test1()
 	jit_patch(p, end3);
 	jit_retr(p, R(4));
 
-
 	jit_generate_code(p);
 	jit_dump_code(p, 0);
+
 
 	r = f1(20, 20, -10);
 	if (r == 10) SUCCESS(10);

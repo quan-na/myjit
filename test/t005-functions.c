@@ -151,7 +151,8 @@ void test4()
 	jit_generate_code(p);
 
 //	jit_dump_ops(p, 0); return;
-	jit_dump_code(p, 0); return;
+//	jit_dump_code(p, 0); return;
+	jit_dump_code(p, 0);
 
 
 	r = f1(30);

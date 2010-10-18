@@ -316,7 +316,10 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 		if (!jitset_get(op->live_out, reg_id)) {
 			if (((arg->type != JIT_FLOAT_NUM) && (arg->size == REG_SIZE))
-			|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))) {
+#ifdef JIT_ARCH_AMD64
+			|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))
+#endif
+			) {
 				struct __hw_reg * hreg = rmap_get(op->regmap, reg_id);
 				if (hreg) {
 					   rmap_unassoc(op->regmap, reg_id, arg->type == JIT_FLOAT_NUM);
