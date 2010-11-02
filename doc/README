@@ -2,7 +2,7 @@
 MyJIT
 =====
 
-MyJIT is a library that allows to generate machine code at run-time and afterwards execute it. The project has started as a part of the Just-in-Time compiler of the Schemik (http://schemik.sourceforge.net) programming language and as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/) fixing some of its design issues. However, it has evolved into a more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning but it differs in some key aspects. The key features which make MyJIT different or should be highlighted are:
+MyJIT is a library that allows to generate machine code at run-time and afterwards execute it. The project has started as a part of the Just-in-Time compiler of the Schemik (http://schemik.sourceforge.net) programming language and as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/) fixing some of its design issues. However, it has evolved into a more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning but it differs in some key aspects. The most important features which make MyJIT different or which should be highlighted are:
 
 + support for an unlimited number of registers
 + thread-safety
@@ -16,22 +16,22 @@ MyJIT is a library that allows to generate machine code at run-time and afterwar
 Getting MyJIT
 -------------
 
-The source code including this documentation and examples is available at SourceFroge (http://sourceforge.net/projects/myjit/files) as of other information (http://sourceforge.net/projects/myjit)
+The source code including this documentation and examples is available at SourceForge (http://sourceforge.net/projects/myjit/files) as of other information (http://sourceforge.net/projects/myjit)
 
 You can also checkout the latest release from the Bazaar repository (bzr://myjit.bzr.sourceforge.net/bzrroot/myjit).
 
 Instruction Set
 ---------------
-The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation has up to four operands which can be immediate values (numbers) or registers. The number of available registers is virtually unlimited.
+The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation has up to four operands which can be immediate values (numbers, constants) or registers. The number of available registers is virtually unlimited.
 
-All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides type ``jit_value`` which has the same size as the CPU's general purpose register. In specific cases, e.g., if a smaller values or ``unsigned`` value is needed and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
+All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides the ``jit_value`` type which has the same size as the CPU's general purpose register. In specific cases, e.g., if smaller or ``unsigned`` value is needed and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
 
 All floating-point numbers and registers are internally treated as double precision values. However, if necessary, the value can be converted to single precision value.
 
 Typically, name of each instruction consists of three parts:
 
 + name of the operation (e.g., ``add`` for addition, ``mul`` for multiplication, etc.)
-+ the name of the operation is often accompanied with a suffix ``r`` or ``i`` indicating whether the operation is taking merely registers or if it also takes an immediate value as its argument
++ the name of the operation is often accompanied with the suffix ``r`` or ``i`` indicating whether the operation is taking merely registers or if it also takes an immediate value as its argument
 + name of the operation can be equipped with additional flags delimited by the underscore (typically, this is used to identify operations handling unsigned numbers)
 
 Registers
@@ -44,7 +44,7 @@ Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves a
 Notation
 ........
 
-In order to describe instruction set, we are using symbols ``reg`` and ``freg`` to denote general purpose and floating-point registers, respectively. Analogously, ``imm`` and ``fimm`` denote inmmediate integer values floating-point values. Particular instructions (e.g., load and operations), have an extra operand which specifies the size (number of bytes) of data they work with. This operand shall be denoted by ``size`` and ``fsize``. The value passed by the operand ``size`` can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8 byte long values. The value passed by the operand ``fsize`` can be either 4 or 8. In other words, ``fsize`` denotes precision of the value.
+In order to describe instruction set, we are using symbols ``reg`` and ``freg`` to denote general purpose and floating-point registers, respectively. Analogously, ``imm`` and ``fimm`` denote immediate integer values and floating-point values. Particular instructions (e.g., load and operations) have an extra operand which specifies the size (number of bytes) of data they work with. This operand shall be denoted by ``size`` and ``fsize``. The value passed by the operand ``size`` can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8 bytes long values. The value passed by the operand ``fsize`` can be either 4 or 8. In other words, ``fsize`` denotes precision of the value.
 
 Transfer Operations
 -------------------
@@ -210,7 +210,7 @@ These operations compare last two operands and store one or zero (if the conditi
 
 Conversion
 ----------
-Register for integer and floating-pint values are independent and to convert value from one type to another you have to use the following operations.
+Register for integer and floating-pint values are independent and in order to convert value from one type to another you have to use the following operations.
 
 ::
 
@@ -230,7 +230,7 @@ The following operations and auxiliary macros help to create a function, read it
 
 + Operation ``prolog imm`` has one operand which is an immediate value, which is a reference to a pointer of a function defined by the intermediate code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the "Getting started" section, for more details.
 
-+ Operations ``retr reg``, ``reti imm``, ``fretr freg, fsize``, and ``freti freg, fsize`` set the return value and return control the calling procedure (or function).
++ Operations ``retr reg``, ``reti imm``, ``fretr freg, fsize``, and ``freti freg, fsize`` set the return value and return control to the calling procedure (or function).
 
 + Operation ``declare_arg imm, imm`` is not an actual operation but rather an auxiliary function which declares the type of the argument and its size (in this order); ``declare_arg`` can take the following types of arguments
 
@@ -247,7 +247,7 @@ The following operations and auxiliary macros help to create a function, read it
 Function calls
 --------------
 
-Each function call is done in three steps. The call is initiated by the operation ``prepare`` having no argument. In the second step, arguments are passed to a function using ``putarg``. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operations ``retval`` and ``fretval`` having one operand---the register to store the return value.
+Each function call is done in three steps. The call is initiated by the operation ``prepare`` having no argument. In the second step, arguments are passed to a function using ``putarg`` or ``fputarg``. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the ``call`` operation. To retrieve the returned value you can use operations ``retval`` and ``fretval``.
 
 Let us make few notes on function calls:
 
@@ -272,9 +272,9 @@ Jumps
 
 Operations ``jmpi`` and ``jmpr`` can be used to implement unconditional jumps. Both operations have one operand, address to jump to. To obtain this address you can use the ``get_label`` operation or use the forward declaration along with the ``patch`` operation.
 
-+ ``get_label`` is not an actual operation; it is a function that returns a ``jit_label``---value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.
++ ``get_label`` is not an actual operation; it is a function that returns a ``jit_label`` value---value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.
 
-+ It may happen that one need to jump into the code which will be defined later. Therefore, we can use the forward declaration and set the address later. This means, one can declare that the operation ``jmpi`` or a branch operations jumps to the place defined by the JIT_FORWARD macro and save the pointer to the operation into some ``jit_op *`` value. To set the address later, there is the ``patch imm`` operation with an argument which is the patched operation. The following code illustrates the situation.
++ It may happen that one need to jump into the code which will be defined later. Therefore, we can use the forward declaration and set the address later. This means, one can declare that the operation ``jmpi`` or a branch operations jumps to the place defined by the JIT_FORWARD macro and store the pointer to the operation into some ``jit_op *`` value. To set the address later, there is the ``patch imm`` operation with an argument which is the patched operation. The following code illustrates the situation.
 
 ::
 
@@ -469,11 +469,11 @@ Notes on Development
 
 + The primary use of this library is in our compiler of the Schemik programming language and the development of this library is driven by requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.
 
-+ The library is almost complete and each release undergoes extensive testing (hundreds of tests), therefore, we hope there are no serious bugs. If you find any, please, let us know.
++ The library is almost complete and each release undergoes extensive testing (hundreds of tests), therefore, we hope there are no serious bugs. If you found any, please, let us know.
 
 + Despite the fact that the library is almost complete, it is still under development and the API may slightly (but not much) change in the near future.
 
-+ Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.
++ Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be easy and straigtforward.
 
 + At this moment, MyJIT has support for floating point arithmetics. However, i386 port supports only processors having SSE2 unit, i.e., floating-point operations won't work on legacy CPUs without this unit.
 

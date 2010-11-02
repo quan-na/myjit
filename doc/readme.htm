@@ -129,7 +129,7 @@ hr {
 <div class="document" id="myjit">
 <h1 class="title">MyJIT</h1>
 
-<p>MyJIT is a library that allows to generate machine code at run-time and afterwards execute it. The project has started as a part of the Just-in-Time compiler of the Schemik (<a class="reference external" href="http://schemik.sourceforge.net">http://schemik.sourceforge.net</a>) programming language and as a replacement for the GNU lightning library (<a class="reference external" href="http://www.gnu.org/software/lightning/">http://www.gnu.org/software/lightning/</a>) fixing some of its design issues. However, it has evolved into a more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning but it differs in some key aspects. The key features which make MyJIT different or should be highlighted are:</p>
+<p>MyJIT is a library that allows to generate machine code at run-time and afterwards execute it. The project has started as a part of the Just-in-Time compiler of the Schemik (<a class="reference external" href="http://schemik.sourceforge.net">http://schemik.sourceforge.net</a>) programming language and as a replacement for the GNU lightning library (<a class="reference external" href="http://www.gnu.org/software/lightning/">http://www.gnu.org/software/lightning/</a>) fixing some of its design issues. However, it has evolved into a more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning but it differs in some key aspects. The most important features which make MyJIT different or which should be highlighted are:</p>
 <ul class="simple">
 <li>support for an unlimited number of registers</li>
 <li>thread-safety</li>
@@ -142,18 +142,18 @@ hr {
 </ul>
 <div class="section" id="getting-myjit">
 <h1>Getting MyJIT</h1>
-<p>The source code including this documentation and examples is available at SourceFroge (<a class="reference external" href="http://sourceforge.net/projects/myjit/files">http://sourceforge.net/projects/myjit/files</a>) as of other information (<a class="reference external" href="http://sourceforge.net/projects/myjit">http://sourceforge.net/projects/myjit</a>)</p>
+<p>The source code including this documentation and examples is available at SourceForge (<a class="reference external" href="http://sourceforge.net/projects/myjit/files">http://sourceforge.net/projects/myjit/files</a>) as of other information (<a class="reference external" href="http://sourceforge.net/projects/myjit">http://sourceforge.net/projects/myjit</a>)</p>
 <p>You can also checkout the latest release from the Bazaar repository (bzr://myjit.bzr.sourceforge.net/bzrroot/myjit).</p>
 </div>
 <div class="section" id="instruction-set">
 <h1>Instruction Set</h1>
-<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation has up to four operands which can be immediate values (numbers) or registers. The number of available registers is virtually unlimited.</p>
-<p>All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides type <tt class="docutils literal">jit_value</tt> which has the same size as the CPU's general purpose register. In specific cases, e.g., if a smaller values or <tt class="docutils literal">unsigned</tt> value is needed and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.</p>
+<p>The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation has up to four operands which can be immediate values (numbers, constants) or registers. The number of available registers is virtually unlimited.</p>
+<p>All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides the <tt class="docutils literal">jit_value</tt> type which has the same size as the CPU's general purpose register. In specific cases, e.g., if smaller or <tt class="docutils literal">unsigned</tt> value is needed and if it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.</p>
 <p>All floating-point numbers and registers are internally treated as double precision values. However, if necessary, the value can be converted to single precision value.</p>
 <p>Typically, name of each instruction consists of three parts:</p>
 <ul class="simple">
 <li>name of the operation (e.g., <tt class="docutils literal">add</tt> for addition, <tt class="docutils literal">mul</tt> for multiplication, etc.)</li>
-<li>the name of the operation is often accompanied with a suffix <tt class="docutils literal">r</tt> or <tt class="docutils literal">i</tt> indicating whether the operation is taking merely registers or if it also takes an immediate value as its argument</li>
+<li>the name of the operation is often accompanied with the suffix <tt class="docutils literal">r</tt> or <tt class="docutils literal">i</tt> indicating whether the operation is taking merely registers or if it also takes an immediate value as its argument</li>
 <li>name of the operation can be equipped with additional flags delimited by the underscore (typically, this is used to identify operations handling unsigned numbers)</li>
 </ul>
 <div class="section" id="registers">
@@ -163,7 +163,7 @@ hr {
 </div>
 <div class="section" id="notation">
 <h2>Notation</h2>
-<p>In order to describe instruction set, we are using symbols <tt class="docutils literal">reg</tt> and <tt class="docutils literal">freg</tt> to denote general purpose and floating-point registers, respectively. Analogously, <tt class="docutils literal">imm</tt> and <tt class="docutils literal">fimm</tt> denote inmmediate integer values floating-point values. Particular instructions (e.g., load and operations), have an extra operand which specifies the size (number of bytes) of data they work with. This operand shall be denoted by <tt class="docutils literal">size</tt> and <tt class="docutils literal">fsize</tt>. The value passed by the operand <tt class="docutils literal">size</tt> can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8 byte long values. The value passed by the operand <tt class="docutils literal">fsize</tt> can be either 4 or 8. In other words, <tt class="docutils literal">fsize</tt> denotes precision of the value.</p>
+<p>In order to describe instruction set, we are using symbols <tt class="docutils literal">reg</tt> and <tt class="docutils literal">freg</tt> to denote general purpose and floating-point registers, respectively. Analogously, <tt class="docutils literal">imm</tt> and <tt class="docutils literal">fimm</tt> denote immediate integer values and floating-point values. Particular instructions (e.g., load and operations) have an extra operand which specifies the size (number of bytes) of data they work with. This operand shall be denoted by <tt class="docutils literal">size</tt> and <tt class="docutils literal">fsize</tt>. The value passed by the operand <tt class="docutils literal">size</tt> can be 1, 2, 4, or 8. However, only the AMD64 port supports operation processing 8 bytes long values. The value passed by the operand <tt class="docutils literal">fsize</tt> can be either 4 or 8. In other words, <tt class="docutils literal">fsize</tt> denotes precision of the value.</p>
 </div>
 </div>
 <div class="section" id="transfer-operations">
@@ -316,7 +316,7 @@ nei    reg, reg, imm      O1 := (O2 != O3)
 </div>
 <div class="section" id="conversion">
 <h1>Conversion</h1>
-<p>Register for integer and floating-pint values are independent and to convert value from one type to another you have to use the following operations.</p>
+<p>Register for integer and floating-pint values are independent and in order to convert value from one type to another you have to use the following operations.</p>
 <pre class="literal-block">
 extr    freg, reg        O1 := O2
 truncr  reg, freg        O1 := trunc(O2)
@@ -332,7 +332,7 @@ roundr  reg, freg        O1 := round(O2)
 <ul>
 <li><p class="first">Operation <tt class="docutils literal">prolog imm</tt> has one operand which is an immediate value, which is a reference to a pointer of a function defined by the intermediate code. In other words, MyJIT generates machine code for a function which resides somewhere in the memory. The address of the functions is handed by this reference. See the &quot;Getting started&quot; section, for more details.</p>
 </li>
-<li><p class="first">Operations <tt class="docutils literal">retr reg</tt>, <tt class="docutils literal">reti imm</tt>, <tt class="docutils literal">fretr freg, fsize</tt>, and <tt class="docutils literal">freti freg, fsize</tt> set the return value and return control the calling procedure (or function).</p>
+<li><p class="first">Operations <tt class="docutils literal">retr reg</tt>, <tt class="docutils literal">reti imm</tt>, <tt class="docutils literal">fretr freg, fsize</tt>, and <tt class="docutils literal">freti freg, fsize</tt> set the return value and return control to the calling procedure (or function).</p>
 </li>
 <li><p class="first">Operation <tt class="docutils literal">declare_arg imm, imm</tt> is not an actual operation but rather an auxiliary function which declares the type of the argument and its size (in this order); <tt class="docutils literal">declare_arg</tt> can take the following types of arguments</p>
 <blockquote>
@@ -352,7 +352,7 @@ roundr  reg, freg        O1 := round(O2)
 </div>
 <div class="section" id="id1">
 <h1>Function calls</h1>
-<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal">prepare</tt> having no argument. In the second step, arguments are passed to a function using <tt class="docutils literal">putarg</tt>. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the <tt class="docutils literal">call</tt> operation. To retrieve the returned value you can use operations <tt class="docutils literal">retval</tt> and <tt class="docutils literal">fretval</tt> having one operand---the register to store the return value.</p>
+<p>Each function call is done in three steps. The call is initiated by the operation <tt class="docutils literal">prepare</tt> having no argument. In the second step, arguments are passed to a function using <tt class="docutils literal">putarg</tt> or <tt class="docutils literal">fputarg</tt>. (The arguments are passed in the normal order not in reverse order, cf. GNU Lightning.) Afterwards, the function is called with the <tt class="docutils literal">call</tt> operation. To retrieve the returned value you can use operations <tt class="docutils literal">retval</tt> and <tt class="docutils literal">fretval</tt>.</p>
 <p>Let us make few notes on function calls:</p>
 <ul class="simple">
 <li>If calling a function defined in the same instance of the compiler (e.g., recursive function), you cannot pass values through registers. Each function has its own set of registers.</li>
@@ -375,8 +375,8 @@ roundr  reg, freg        O1 := round(O2)
 <h1>Jumps</h1>
 <p>Operations <tt class="docutils literal">jmpi</tt> and <tt class="docutils literal">jmpr</tt> can be used to implement unconditional jumps. Both operations have one operand, address to jump to. To obtain this address you can use the <tt class="docutils literal">get_label</tt> operation or use the forward declaration along with the <tt class="docutils literal">patch</tt> operation.</p>
 <ul class="simple">
-<li><tt class="docutils literal">get_label</tt> is not an actual operation; it is a function that returns a <tt class="docutils literal">jit_label</tt>---value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.</li>
-<li>It may happen that one need to jump into the code which will be defined later. Therefore, we can use the forward declaration and set the address later. This means, one can declare that the operation <tt class="docutils literal">jmpi</tt> or a branch operations jumps to the place defined by the JIT_FORWARD macro and save the pointer to the operation into some <tt class="docutils literal">jit_op *</tt> value. To set the address later, there is the <tt class="docutils literal">patch imm</tt> operation with an argument which is the patched operation. The following code illustrates the situation.</li>
+<li><tt class="docutils literal">get_label</tt> is not an actual operation; it is a function that returns a <tt class="docutils literal">jit_label</tt> value---value which corresponds to the current position in the code. This value can be passed to jmpi/call or to a branch operation.</li>
+<li>It may happen that one need to jump into the code which will be defined later. Therefore, we can use the forward declaration and set the address later. This means, one can declare that the operation <tt class="docutils literal">jmpi</tt> or a branch operations jumps to the place defined by the JIT_FORWARD macro and store the pointer to the operation into some <tt class="docutils literal">jit_op *</tt> value. To set the address later, there is the <tt class="docutils literal">patch imm</tt> operation with an argument which is the patched operation. The following code illustrates the situation.</li>
 </ul>
 <pre class="literal-block">
 op = jmpi JIT_FORWARD
@@ -546,10 +546,10 @@ retr        r1
 <div class="section" id="notes-on-development">
 <h1>Notes on Development</h1>
 <ul class="simple">
-<li>The primary use of this library is in our compiler of the Schemik programming language and the development of this library affected requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.</li>
-<li>The library is almost complete and each release undergoes extensive testing (hundreds of tests), therefore, we hope there are no serious bugs. If you find any, please, let us know.</li>
-<li>Despite the fact that the library is almost complete, it is still under development and the API may slightly (not much) change in the near future.</li>
-<li>Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be quite easy and straigtforward.</li>
+<li>The primary use of this library is in our compiler of the Schemik programming language and the development of this library is driven by requirements of this compiler. Nevertheless, MyJIT is a general purpose library and its functionality is not limited.</li>
+<li>The library is almost complete and each release undergoes extensive testing (hundreds of tests), therefore, we hope there are no serious bugs. If you found any, please, let us know.</li>
+<li>Despite the fact that the library is almost complete, it is still under development and the API may slightly (but not much) change in the near future.</li>
+<li>Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be easy and straigtforward.</li>
 <li>At this moment, MyJIT has support for floating point arithmetics. However, i386 port supports only processors having SSE2 unit, i.e., floating-point operations won't work on legacy CPUs without this unit.</li>
 <li>If you are using this library or if you want to contribute some code (e.g., port to some architecture), please, let us know.</li>
 <li>The documentation lacks information on internals of MyJIT. This is purely intentional because the library is still developed. We expect that the quality of the documentation will improve with the maturity of the project. If in doubts,  ask in the mailing list (<a class="reference external" href="mailto:myjit-devel&#64;lists.sourceforge.net">myjit-devel&#64;lists.sourceforge.net</a>). If you  would like to participate on documentation improvements, please let us know, we will really appreciate it.</li>
@@ -558,7 +558,7 @@ retr        r1
 </div>
 <div class="footer">
 <hr class="footer" />
-Generated on: 2010-10-10 14:27 UTC.
+Generated on: 2010-11-02 17:26 UTC.
 
 </div>
 </body>

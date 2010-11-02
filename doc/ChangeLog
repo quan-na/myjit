@@ -1,3 +1,12 @@
+Version 0.5.2.0
+===============
++ removed some unnecessary register moves related to register allocation --
+argument passing on AMD64 and SPARC should be faster as well as some
+conditional and unconditional jumps
++ fixed bugs preventing to compile multiple functions with one instance of the
+compiler
++ fixed CALLR issue on AMD64
+
 Version 0.5.1.1
 ===============
 + big documentation update
