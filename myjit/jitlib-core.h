@@ -66,7 +66,11 @@ typedef struct {
 	unsigned type: 1; // INT / FP
 	unsigned spec: 2; // register, alias, immediate, argument's shadow space
 	unsigned part: 1; // allows to split one virtual register into two hw. registers (implicitly 0)
-	unsigned id : 28;
+	unsigned id: 28;
+#ifndef JIT_ARCH_AMD64
+#else
+	unsigned reserved: 32; 
+#endif
 } jit_reg;
 
 #define JIT_RTYPE_REG	(0)
@@ -95,6 +99,9 @@ static inline jit_value __mkreg(int type, int spec, int id)
 	r.spec = spec;
 	r.id = id;
 	r.part = 0;
+#ifdef JIT_ARCH_AMD64
+	r.reserved = 0;
+#endif
 	return JIT_REG_TO_JIT_VALUE(r);
 }
 
