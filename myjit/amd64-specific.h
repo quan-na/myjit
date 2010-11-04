@@ -80,6 +80,24 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
+static void __amd64_sse_reg_imm(struct jit * jit, long reg, double * imm)
+{
+	if (((unsigned long)imm) > 0xffffffff) {
+		if (jit->reg_al->gp_regpool->pos >= 0) {
+			int r = jit->reg_al->gp_regpool->pool[0];
+			amd64_mov_reg_imm(jit->ip, r, (long)imm);
+			amd64_movsd_reg_membase(jit->ip, reg, r, 0);
+		} else {
+			amd64_push_reg(jit->ip, AMD64_RAX);
+			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
+			amd64_movsd_reg_membase(jit->ip, reg, AMD64_RAX, 0);
+			amd64_pop_reg(jit->ip, AMD64_RAX);
+		}
+	} else {
+		amd64_movsd_reg_mem(jit->ip, reg, (long)imm);
+	}
+}
+
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
 	struct jit_inp_arg * a = &(info->args[p]);
@@ -388,6 +406,7 @@ static inline void __push_fparg(struct jit * jit, struct jit_out_arg * arg)
 			amd64_sse_movlpd_membase_xreg(jit->ip, AMD64_XMM0, AMD64_RSP, 0);
 		} else {
 			float b = arg->value.fp;
+			// FIXME: mely by se kopirovat jenom 4B!!!
 			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned long *)&b, 8);
 			amd64_push_reg(jit->ip, AMD64_RAX);
 		}
@@ -918,7 +937,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		// Floating-point operations;
 		//
 		case (JIT_FMOV | REG): amd64_sse_movsd_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_FMOV | IMM): amd64_movsd_reg_mem(jit->ip, a1, (long)&op->flt_imm); break;
+		case (JIT_FMOV | IMM): __amd64_sse_reg_imm(jit, a1, &op->flt_imm); break; 
 		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
 		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
