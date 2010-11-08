@@ -31,7 +31,7 @@ void test1()
 //	jit_dump_code(p, 0);
 
 	r = f1(20, 20, -10);
-	printf("DD:%i\n", r);
+	printf("DD:%li\n", r);
 	if (r == 10) SUCCESS(10);
 	else FAIL(10);
 
@@ -156,7 +156,7 @@ void test4()
 
 
 	r = f1(30);
-	printf("::%i\n", r);
+	printf("::%li\n", r);
 	if (r == 832040) SUCCESS(41);
 	else FAIL(41);
 
@@ -218,7 +218,7 @@ void test5()
 //	jit_dump_ops(p, 0); return;
 //	jit_dump_code(p, 0); return;
 	r = f1("1f", 16);
-	printf("::%i\n", r);
+	printf("::%li\n", r);
 	if (r == 31) SUCCESS(51);
 	else FAIL(51);
 

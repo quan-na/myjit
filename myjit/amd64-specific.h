@@ -489,7 +489,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		if (hreg) amd64_call_reg(jit->ip, hreg->id);
 		else amd64_call_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, op->arg[0]));
 	} else {
-		if (jit_is_label(jit, op->arg[0])) {
+		if (jit_is_label(jit, (void *)op->arg[0])) {
 			op->patch_addr = __PATCH_ADDR(jit);
 			amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->arg[0]) - 4); // 4: magic constant
 		} else {
@@ -636,7 +636,6 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 
 static void __sse_change_sign(struct jit * jit, int reg)
 {
-	long mask = (long)__sse_get_sign_mask();
 	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
 }
 
@@ -648,22 +647,19 @@ static inline void __sse_round(struct jit * jit, long a1, long a2)
 	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
 	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 
-	//amd64_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
-	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_COMI, a2, &x0);
+	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_COMI, a2, (double *)&x0);
 
 	unsigned char * branch1 = jit->ip;
 	amd64_branch_disp(jit->ip, X86_CC_LT, 0, 0);
 
-	//amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_ADD, a2, &x05);
-	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_ADD, a2, &x05);
+	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_ADD, a2, (double *)&x05);
 
 	unsigned char * branch2 = jit->ip;
 	amd64_jump_disp(jit->ip, 0);
 
 	amd64_patch(branch1, jit->ip);
 
-	//amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_SUB, a2, &x05);
-	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_SUB, a2, &x05);
+	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_SUB, a2, (double *)&x05);
 	amd64_patch(branch2, jit->ip);
 
 	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);

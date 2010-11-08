@@ -195,20 +195,20 @@ TEST_IMM_OTHER_REG(test95, 95, jit_subci, 42, 28, 14)
 TEST_REG_SAME_REG(test96, 96, jit_subcr, 42, 28, 14) 
 TEST_REG_OTHER_REG(test97, 97, jit_subcr, 42, 28, 14) 
 
-TEST_IMM_SAME_REG(test100, 100, jit_ori, 42, 28, 42 | 28) 
-TEST_IMM_OTHER_REG(test101, 101, jit_ori, 42, 28, 42 | 28) 
-TEST_REG_SAME_REG(test102, 102, jit_orr, 42, 28, 42 | 28) 
-TEST_REG_OTHER_REG(test103, 103, jit_orr, 42, 28, 42 | 28) 
+TEST_IMM_SAME_REG(test100, 100, jit_ori, 42, 28, (42 | 28)) 
+TEST_IMM_OTHER_REG(test101, 101, jit_ori, 42, 28, (42 | 28)) 
+TEST_REG_SAME_REG(test102, 102, jit_orr, 42, 28, (42 | 28))
+TEST_REG_OTHER_REG(test103, 103, jit_orr, 42, 28, (42 | 28)) 
 
 TEST_IMM_SAME_REG(test110, 110, jit_andi, 42, 28, 8) 
 TEST_IMM_OTHER_REG(test111, 111, jit_andi, 42, 28, 8) 
 TEST_REG_SAME_REG(test112, 112, jit_andr, 42, 28, 8) 
 TEST_REG_OTHER_REG(test113, 113, jit_andr, 42, 28, 8) 
 
-TEST_IMM_SAME_REG(test120, 120, jit_xori, 42, 28, 42 ^ 28) 
-TEST_IMM_OTHER_REG(test121, 121, jit_xori, 42, 28, 42 ^ 28) 
-TEST_REG_SAME_REG(test122, 122, jit_xorr, 42, 28, 42 ^ 28) 
-TEST_REG_OTHER_REG(test123, 123, jit_xorr, 42, 28, 42 ^ 28) 
+TEST_IMM_SAME_REG(test120, 120, jit_xori, 42, 28, (42 ^ 28)) 
+TEST_IMM_OTHER_REG(test121, 121, jit_xori, 42, 28, (42 ^ 28)) 
+TEST_REG_SAME_REG(test122, 122, jit_xorr, 42, 28, (42 ^ 28)) 
+TEST_REG_OTHER_REG(test123, 123, jit_xorr, 42, 28, (42 ^ 28)) 
 
 TEST_IMM_SAME_REG(test130, 130, jit_lshi, 42, 8, 42 << 8) 
 TEST_IMM_OTHER_REG(test131, 131, jit_lshi, 42, 8, 42 << 8) 
@@ -236,12 +236,12 @@ TEST_REG_SAME_REG(test156, 156, jit_rshr_u, -42UL, 2, -42UL >> 2)
 TEST_REG_OTHER_REG(test157, 157, jit_rshr_u, -42UL, 2, -42UL >> 2) 
 
 
-TEST_UNARY_REG_SAME_REG(test160, 160, jit_negr, 42, -42);
-TEST_UNARY_REG_OTHER_REG(test161, 161, jit_negr, 42, -42);
+TEST_UNARY_REG_SAME_REG(test160, 160, jit_negr, 42, -42)
+TEST_UNARY_REG_OTHER_REG(test161, 161, jit_negr, 42, -42)
 
 
-TEST_UNARY_REG_SAME_REG(test162, 162, jit_notr, 42, ~42);
-TEST_UNARY_REG_OTHER_REG(test163, 163, jit_notr, 42, ~42);
+TEST_UNARY_REG_SAME_REG(test162, 162, jit_notr, 42, ~42)
+TEST_UNARY_REG_OTHER_REG(test163, 163, jit_notr, 42, ~42)
 
 
 
