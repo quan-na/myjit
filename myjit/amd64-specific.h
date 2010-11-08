@@ -489,8 +489,17 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		if (hreg) amd64_call_reg(jit->ip, hreg->id);
 		else amd64_call_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, op->arg[0]));
 	} else {
-		op->patch_addr = __PATCH_ADDR(jit);
-		amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->arg[0]) - 4); // 4: magic constant
+		if (jit_is_label(jit, op->arg[0])) {
+			op->patch_addr = __PATCH_ADDR(jit);
+			amd64_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->arg[0]) - 4); // 4: magic constant
+		} else {
+			// external functions may reside anywhere in the memory
+			// even in the place which is not addressable with 32bit wide value
+			// therefore external functions are called using %r11 register
+			// which is caller-saved register and its value should be already on stack 
+			amd64_mov_reg_imm_size(jit->ip, AMD64_R11, op->arg[0], 8);
+			amd64_call_reg(jit->ip, AMD64_R11);
+		}
 	}
 
 	stack_correction += jit->prepared_args.stack_size;
@@ -762,12 +771,16 @@ static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 
 void jit_patch_external_calls(struct jit * jit)
 {
+	// On AMD64 called function can be anywhere in the memory, even so far that its address won't fit into
+	// 32bit address, therefore all external function calls are handed through the R_IMM register
+/*
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0])))
 			amd64_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
 		if (GET_OP(op) == JIT_MSG)
 			amd64_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
 	}
+*/
 }
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
@@ -861,8 +874,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			      	      if (!IS_IMM(op)) amd64_mov_reg_reg_size(jit->ip, AMD64_RSI, a2, 8);
 				      amd64_mov_reg_imm_size(jit->ip, AMD64_RDI, a1, 8);
 				      amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
-				      op->patch_addr = __PATCH_ADDR(jit);
-				      amd64_call_imm(jit->ip, -1);
+				      amd64_mov_reg_imm(jit->ip, AMD64_RDX, printf);
+				      amd64_call_reg(jit->ip, AMD64_RDX);
 
 				      for (int i = al->gp_reg_cnt - 1; i >= 0; i--)
 				      if (!al->gp_regs[i].callee_saved)

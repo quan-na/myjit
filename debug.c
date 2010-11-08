@@ -47,6 +47,7 @@ int main()
 {
 	struct jit * p = jit_init();
 	static char * str = "Hello, World! Number of the day is %f!!!\n";
+	static char * str2 = "Hello, World! Number of the day is %u!!!\n";
 
 	static double g[4];
 	g[0] = 11.2;
@@ -66,7 +67,12 @@ int main()
 	jit_prolog(p, &foo);
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
-	//jit_fldi(p, FR(0), g, sizeof(double));
+
+	jit_prepare(p);
+	jit_putargi(p, str2);
+	jit_putargi(p, 1234);
+	jit_call(p, printf);
+
 	jit_fmovi(p, FR(0), 3.14); 
 	jit_fretr(p, FR(0), sizeof(double));
 	jit_generate_code(p);

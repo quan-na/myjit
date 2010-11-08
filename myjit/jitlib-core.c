@@ -66,9 +66,9 @@ struct jit * jit_init()
 
 #if JIT_IMM_BITS > 0
 /**
- * returns 1 if the immediate value have to be transformed into register
+ * returns 1 if the immediate value has to be transformed into register
  */
-static inline int jit_imm_overflow(struct jit * jit, int signed_op, long value)
+static int jit_imm_overflow(struct jit * jit, int signed_op, long value)
 {
 	unsigned long mask = ~((1UL << JIT_IMM_BITS) - 1);
 	unsigned long high_bits = value & mask;
@@ -84,7 +84,7 @@ static inline int jit_imm_overflow(struct jit * jit, int signed_op, long value)
 /**
  * converts long immediates to MOV operation
  */
-static inline void jit_correct_long_imms(struct jit * jit)
+static void jit_correct_long_imms(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		if (!IS_IMM(op)) continue;

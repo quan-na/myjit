@@ -62,7 +62,7 @@ int main()
 	jit_putargr(p, R(9));
 	jit_call(p, foobar);
 
-	// print outs allocated memory
+	// prints out allocated memory
 
 	jit_movi(p, R(0), 0);	// index
 	jit_addi(p, R(1), R_FP, i); // pointer to the allocated memory
