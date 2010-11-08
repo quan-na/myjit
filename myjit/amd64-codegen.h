@@ -441,6 +441,12 @@ do {     \
 #define amd64_sse_alu_pd_reg_reg_imm(ip, op, dreg, reg, imm) \
 	emit_sse_reg_reg_imm(ip, dreg, reg, 0x66, 0x0f, op, imm)
 
+#define amd64_sse_alu_pd_reg_membase(inst,opc,dreg,basereg,disp)       \
+	emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0x66, 0x0f, opc)
+
+#define amd64_sse_alu_sd_reg_membase(inst,opc,dreg,basereg,disp)       \
+	emit_sse_reg_membase ((inst), (dreg), (basereg), (disp), 0xf2, 0x0f, opc)
+
 
 #define amd64_movsxd_reg_memindex(inst,reg,basereg,disp,indexreg,shift) \
 	do { \

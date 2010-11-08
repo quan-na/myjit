@@ -80,11 +80,11 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-static void __amd64_sse_reg_imm(struct jit * jit, long reg, double * imm)
+static void __amd64_sse_reg_safeimm(struct jit * jit, long reg, double * imm)
 {
 	if (((unsigned long)imm) > 0xffffffff) {
 		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0];
+			int r = jit->reg_al->gp_regpool->pool[0]->id;
 			amd64_mov_reg_imm(jit->ip, r, (long)imm);
 			amd64_movsd_reg_membase(jit->ip, reg, r, 0);
 		} else {
@@ -95,6 +95,42 @@ static void __amd64_sse_reg_imm(struct jit * jit, long reg, double * imm)
 		}
 	} else {
 		amd64_movsd_reg_mem(jit->ip, reg, (long)imm);
+	}
+}
+
+static void __amd64_sse_alu_pd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
+{
+	if (((unsigned long)imm) > 0xffffffff) {
+		if (jit->reg_al->gp_regpool->pos >= 0) {
+			int r = jit->reg_al->gp_regpool->pool[0]->id;
+			amd64_mov_reg_imm(jit->ip, r, (long)imm);
+			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, r, 0);
+		} else {
+			amd64_push_reg(jit->ip, AMD64_RAX);
+			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
+			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
+			amd64_pop_reg(jit->ip, AMD64_RAX);
+		}
+	} else {
+		amd64_sse_alu_pd_reg_mem(jit->ip, op, reg, (long)imm);
+	}
+}
+
+static void __amd64_sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
+{
+	if (((unsigned long)imm) > 0xffffffff) {
+		if (jit->reg_al->gp_regpool->pos >= 0) {
+			int r = jit->reg_al->gp_regpool->pool[0]->id;
+			amd64_mov_reg_imm(jit->ip, r, (long)imm);
+			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, r, 0);
+		} else {
+			amd64_push_reg(jit->ip, AMD64_RAX);
+			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
+			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
+			amd64_pop_reg(jit->ip, AMD64_RAX);
+		}
+	} else {
+		amd64_sse_alu_sd_reg_mem(jit->ip, op, reg, (long)imm);
 	}
 }
 
@@ -591,7 +627,8 @@ static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign
 
 static void __sse_change_sign(struct jit * jit, int reg)
 {
-	amd64_sse_xorpd_reg_mem(jit->ip, reg, (long)__sse_get_sign_mask());
+	long mask = (long)__sse_get_sign_mask();
+	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
 }
 
 static inline void __sse_round(struct jit * jit, long a1, long a2)
@@ -602,19 +639,22 @@ static inline void __sse_round(struct jit * jit, long a1, long a2)
 	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
 	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 
-	amd64_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
+	//amd64_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
+	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_COMI, a2, &x0);
 
 	unsigned char * branch1 = jit->ip;
 	amd64_branch_disp(jit->ip, X86_CC_LT, 0, 0);
 
-	amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_ADD, a2, &x05);
+	//amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_ADD, a2, &x05);
+	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_ADD, a2, &x05);
 
 	unsigned char * branch2 = jit->ip;
 	amd64_jump_disp(jit->ip, 0);
 
 	amd64_patch(branch1, jit->ip);
 
-	amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_SUB, a2, &x05);
+	//amd64_sse_alu_sd_reg_mem(jit->ip, X86_SSE_SUB, a2, &x05);
+	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_SUB, a2, &x05);
 	amd64_patch(branch2, jit->ip);
 
 	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
@@ -937,7 +977,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		// Floating-point operations;
 		//
 		case (JIT_FMOV | REG): amd64_sse_movsd_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_FMOV | IMM): __amd64_sse_reg_imm(jit, a1, &op->flt_imm); break; 
+		case (JIT_FMOV | IMM): __amd64_sse_reg_safeimm(jit, a1, &op->flt_imm); break; 
 		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
 		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
