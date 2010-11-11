@@ -241,11 +241,23 @@ static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
 	} else return 1;
 }
 
-static void __configure_args(struct jit * jit)
+static int __configure_args(struct jit * jit)
 {
+	int stack_correction = 0;
+	struct jit_out_arg * args = jit->prepared_args.args;
+
+#ifdef __APPLE__
+	int alignment = jit->push_count * 4 + jit->prepared_args.stack_size;
+
+	while (((alignment + stack_correction) % 16) != 8)
+		stack_correction += 4;
+
+	if (stack_correction)
+                x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_correction);
+#endif
+
 	int sreg;
 	for (int i = jit->prepared_args.ready - 1; i >= 0; i--) {
-		struct jit_out_arg * args = jit->prepared_args.args;
 		if (!args[i].isfp) { // integers
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
@@ -300,11 +312,12 @@ static void __configure_args(struct jit * jit)
 			x86_push_imm(jit->ip, fl_val);
 		}
 	}
+	return stack_correction;
 }
 
 static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
-	__configure_args(jit);
+	int stack_correction = __configure_args(jit);
 
 	if (!imm) {
 		x86_call_reg(jit->ip, op->r_arg[0]);
@@ -313,11 +326,11 @@ static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		x86_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
 	}
 	
-	if (jit->prepared_args.stack_size) 
-		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args.stack_size);
+	if (jit->prepared_args.stack_size + stack_correction) 
+		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args.stack_size + stack_correction);
 	JIT_FREE(jit->prepared_args.args);
 
-	__pop_caller_saved_regs(jit, op);
+	jit->push_count -= __pop_caller_saved_regs(jit, op);
 }
 
 static void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
@@ -644,7 +657,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); 
-				  __push_caller_saved_regs(jit, op);
+				  jit->push_count += __push_caller_saved_regs(jit, op);
 				  break;
 		case JIT_PROLOG:
 			do {
@@ -657,8 +670,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				x86_push_reg(jit->ip, X86_EBP);
 				x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
 				int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
+				
+#ifdef __APPLE__
+				stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
+#endif
 				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
-				__push_callee_saved_regs(jit, op);
+				jit->push_count = __push_callee_saved_regs(jit, op);
 			} while(0);
 			break;
 
@@ -815,7 +832,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				       x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)
 
 				       // common epilogue
-				       __pop_callee_saved_regs(jit);
+				       jit->push_count -= __pop_callee_saved_regs(jit);
 				       x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
 				       x86_pop_reg(jit->ip, X86_EBP);
 				       x86_ret(jit->ip);
