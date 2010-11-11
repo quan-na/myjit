@@ -50,6 +50,7 @@ int main()
 
 	// compiles the above defined code
 	jit_generate_code(p);
+	jit_dump_ops(p, JIT_DEBUG_ASSOC | JIT_DEBUG_LIVENESS);
 	jit_dump_code(p, 0);
 
 	// check

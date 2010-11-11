@@ -1,3 +1,8 @@
+Version 0.5.2.1
+===============
++ AMD64: fixed number of integer overflows preventing to run MyJIT on MacOS X
++ i386: correct stack alignment on MacOS X
+
 Version 0.5.2.0
 ===============
 + removed some unnecessary register moves related to register allocation --
