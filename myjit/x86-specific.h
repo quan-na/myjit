@@ -335,9 +335,9 @@ static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 
 static void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
 {
-	long dest = op->r_arg[0];
-	long factor1 = op->r_arg[1];
-	long factor2 = op->r_arg[2];
+	jit_value dest = op->r_arg[0];
+	jit_value factor1 = op->r_arg[1];
+	jit_value factor2 = op->r_arg[2];
 
 	/* optimization for special cases */
 	if ((!high_bytes) && (imm)) {
@@ -394,9 +394,9 @@ static void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int h
 
 static void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
-	long dest = op->r_arg[0];
-	long dividend = op->r_arg[1];
-	long divisor = op->r_arg[2];
+	jit_value dest = op->r_arg[0];
+	jit_value dividend = op->r_arg[1];
+	jit_value divisor = op->r_arg[2];
 
 	if (imm && ((divisor == 2) || (divisor == 4) || (divisor == 8))) {
 		if (dest != dividend) x86_mov_reg_reg(jit->ip, dest, dividend, REG_SIZE);
@@ -461,7 +461,7 @@ static void __sse_change_sign(struct jit * jit, int reg)
 	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, __sse_get_sign_mask());
 }
 
-static void __sse_round(struct jit * jit, long a1, long a2)
+static void __sse_round(struct jit * jit, jit_value a1, jit_value a2)
 {
 	static const double x0 = 0.0;
 	static const double x05 = 0.5;
@@ -490,7 +490,7 @@ static void __sse_round(struct jit * jit, long a1, long a2)
 	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 }
 
-static void __sse_floor(struct jit * jit, long a1, long a2, int floor)
+static void __sse_floor(struct jit * jit, jit_value a1, jit_value a2, int floor)
 {
 	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
 
@@ -530,10 +530,9 @@ void jit_patch_external_calls(struct jit * jit)
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
-
-	long a1 = op->r_arg[0];
-	long a2 = op->r_arg[1];
-	long a3 = op->r_arg[2];
+	jit_value a1 = op->r_arg[0];
+	jit_value a2 = op->r_arg[1];
+	jit_value a3 = op->r_arg[2];
 
 	int found = 1;
 	
