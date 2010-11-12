@@ -26,6 +26,7 @@
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
 #include "x86-common-stuff.c"
+#include "common86-codegen.h"
 
 static inline int jit_allocai(struct jit * jit, int size)
 {
@@ -69,23 +70,6 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-static void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		x86_alu_reg_imm(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
-
-	}  else {
-		if (op->r_arg[0] == op->r_arg[1]) {
-			x86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
-		} else if (op->r_arg[0] == op->r_arg[2]) {
-			x86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[1]);
-		} else {
-			x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-			x86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
-		}	
-	}
-}
 
 static void __sub_op(struct jit * jit, struct jit_op * op, int imm)
 {

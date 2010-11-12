@@ -171,6 +171,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	a->overflow = 0;
 }
 
+/*
 static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
 {
 	if (imm) {
@@ -188,7 +189,7 @@ static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, 
 		}	
 	}
 }
-
+*/
 static inline void __sub_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {

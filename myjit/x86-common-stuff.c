@@ -24,6 +24,30 @@
 
 //
 //
+// Common function which generates general operations
+//
+//
+
+static void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
+{
+	if (imm) {
+		if (op->r_arg[0] != op->r_arg[1]) common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+		common86_alu_reg_imm(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
+
+	}  else {
+		if (op->r_arg[0] == op->r_arg[1]) {
+			common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
+		} else if (op->r_arg[0] == op->r_arg[2]) {
+			common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[1]);
+		} else {
+			common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+			common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
+		}	
+	}
+}
+
+//
+//
 // Registers
 //
 //
