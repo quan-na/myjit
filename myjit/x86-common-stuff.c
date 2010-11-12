@@ -46,6 +46,66 @@ static void __alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 	}
 }
 
+static inline void __sub_op(struct jit * jit, struct jit_op * op, int imm)
+{
+	if (imm) {
+		if (op->r_arg[0] != op->r_arg[1]) common86_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
+		else common86_alu_reg_imm(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
+		return;
+
+	}
+	if (op->r_arg[0] == op->r_arg[1]) {
+		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
+	} else if (op->r_arg[0] == op->r_arg[2]) {
+		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
+		common86_neg_reg(jit->ip, op->r_arg[0]);
+	} else {
+		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
+	}	
+}
+
+static inline void __subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
+{
+	if (imm) {
+		if (op->r_arg[0] != op->r_arg[1]) common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+		common86_alu_reg_imm(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
+		return;
+
+	}
+	if (op->r_arg[0] == op->r_arg[1]) {
+		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
+	} else if (op->r_arg[0] == op->r_arg[2]) {
+		common86_push_reg(jit->ip, op->r_arg[2]);
+		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+		common86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], AMD64_RSP, 0);
+		common86_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
+	} else {
+		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
+	}	
+}
+
+static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
+{
+	if (imm) {
+		if (op->r_arg[0] == op->r_arg[1]) common86_alu_reg_imm(jit->ip, X86_ADD, op->r_arg[0], -op->r_arg[2]);
+		else common86_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
+		common86_neg_reg(jit->ip, op->r_arg[0]);
+		return;
+	}
+
+	if (op->r_arg[0] == op->r_arg[1]) { // O1 = O3 - O1
+		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
+		common86_neg_reg(jit->ip, op->r_arg[0]);
+	} else if (op->r_arg[0] == op->r_arg[2]) { // O1 = O1 - O2
+		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
+	} else {
+		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[2], REG_SIZE);
+		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
+	}
+}
+
 //
 //
 // Registers

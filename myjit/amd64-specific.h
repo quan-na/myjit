@@ -52,6 +52,7 @@ static inline int __GET_REG_POS(struct jit * jit, int r)
 
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
+#include "common86-codegen.h"
 #include "x86-common-stuff.c"
 
 static inline int jit_allocai(struct jit * jit, int size)
@@ -171,84 +172,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	a->overflow = 0;
 }
 
-/*
-static inline void __alu_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_imm(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
 
-	}  else {
-		if (op->r_arg[0] == op->r_arg[1]) {
-			amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-		} else if (op->r_arg[0] == op->r_arg[2]) {
-			amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[1]);
-		} else {
-			amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-			amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-		}	
-	}
-}
-*/
-static inline void __sub_op(struct jit * jit, struct jit_op * op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) amd64_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
-		else amd64_alu_reg_imm(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-		return;
-
-	}
-	if (op->r_arg[0] == op->r_arg[1]) {
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-		amd64_neg_reg(jit->ip, op->r_arg[0]);
-	} else {
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-	}	
-}
-
-static inline void __subx_op(struct jit * jit, struct jit_op * op, int amd64_op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_imm(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-		return;
-
-	}
-	if (op->r_arg[0] == op->r_arg[1]) {
-		amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		amd64_push_reg(jit->ip, op->r_arg[2]);
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_membase(jit->ip, amd64_op, op->r_arg[0], AMD64_RSP, 0);
-		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
-	} else {
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		amd64_alu_reg_reg(jit->ip, amd64_op, op->r_arg[0], op->r_arg[2]);
-	}	
-}
-
-static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] == op->r_arg[1]) amd64_alu_reg_imm(jit->ip, X86_ADD, op->r_arg[0], -op->r_arg[2]);
-		else amd64_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
-		amd64_neg_reg(jit->ip, op->r_arg[0]);
-		return;
-	}
-
-	if (op->r_arg[0] == op->r_arg[1]) { // O1 = O3 - O1
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-		amd64_neg_reg(jit->ip, op->r_arg[0]);
-	} else if (op->r_arg[0] == op->r_arg[2]) { // O1 = O1 - O2
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-	} else {
-		amd64_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[2], REG_SIZE);
-		amd64_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-	}
-}
 
 static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
 {

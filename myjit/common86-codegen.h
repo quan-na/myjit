@@ -33,11 +33,17 @@
 #define COMMON86_BP	X86_EBP
 
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	x86_mov_reg_reg(ptr, reg1, reg2, size)
-#define common86_alu_reg_reg(ptr, op, reg1, reg2) 	x86_mov_reg_reg(ptr, op, reg1, reg2)
-#define common86_alu_reg_imm(ptr, op, reg, imm) 	x86_mov_reg_reg(ptr, op, reg, imm)
-#define common86_neg_reg(ptr, op, reg) 			x86_neg_reg(ptr, op, reg)
+#define common86_alu_reg_reg(ptr, op, reg1, reg2) 	x86_alu_reg_reg(ptr, op, reg1, reg2)
+#define common86_alu_reg_imm(ptr, op, reg, imm) 	x86_alu_reg_imm(ptr, op, reg, imm)
+#define common86_alu_reg_membase(ptr, op, reg, basereg, disp) 	x86_alu_reg_membase(ptr, op, reg, basereg, disp)
+#define common86_neg_reg(ptr, reg) 			x86_neg_reg(ptr, reg)
+#define common86_lea_membase(ptr, reg, basereg, disp)	x86_lea_membase(ptr, reg, basereg, disp)
+#define common86_push_reg(ptr, reg) 			x86_push_reg(ptr, reg)
 
-#elif JIT_ARCH_AMD64
+
+#endif
+
+#ifdef JIT_ARCH_AMD64
 #include "amd64-codegen.h"
 
 #define COMMON86_AX	AMD64_RAX
@@ -50,11 +56,11 @@
 #define COMMON86_BP	AMD64_RBP
 
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	amd64_mov_reg_reg(ptr, reg1, reg2, size)
-#define common86_alu_reg_reg(ptr, op, reg1, reg2) 	amd64_mov_reg_reg(ptr, op, reg1, reg2)
-#define common86_alu_reg_imm(ptr, op, reg, imm) 	amd64_mov_reg_reg(ptr, op, reg, imm)
-#define common86_neg_reg(ptr, op, reg) 			amd64_neg_reg(ptr, op, reg)
+#define common86_alu_reg_reg(ptr, op, reg1, reg2) 	amd64_alu_reg_reg(ptr, op, reg1, reg2)
+#define common86_alu_reg_imm(ptr, op, reg, imm) 	amd64_alu_reg_imm(ptr, op, reg, imm)
+#define common86_alu_reg_membase(ptr, op, reg, basereg, disp) 	amd64_alu_reg_membase(ptr, op, reg, basereg, disp)
+#define common86_neg_reg(ptr, reg) 			amd64_neg_reg(ptr, reg)
+#define common86_lea_membase(ptr, reg, basereg, disp)	amd64_lea_membase(ptr, reg, basereg, disp)
+#define common86_push_reg(ptr, reg) 			amd64_push_reg(ptr, reg)
 
-#else
-
-#error "unknown architecture"
 #endif
