@@ -78,8 +78,8 @@ static inline void __subx_op(struct jit * jit, struct jit_op * op, int x86_op, i
 	} else if (op->r_arg[0] == op->r_arg[2]) {
 		common86_push_reg(jit->ip, op->r_arg[2]);
 		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		common86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], AMD64_RSP, 0);
-		common86_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
+		common86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], COMMON86_SP, 0);
+		common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, 8);
 	} else {
 		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
 		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
@@ -106,6 +106,211 @@ static inline void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
 	}
 }
 
+static inline void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
+{
+	jit_value dest = op->r_arg[0];
+	jit_value factor1 = op->r_arg[1];
+	jit_value factor2 = op->r_arg[2];
+
+	// optimization for special cases 
+	if ((!high_bytes) && (imm)) {
+		switch (factor2) {
+			case 2: if (factor1 == dest) common86_shift_reg_imm(jit->ip, X86_SHL, dest, 1);
+				else common86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 0);
+				return;
+
+			case 3: common86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 1); return;
+
+			case 4: if (factor1 != dest) common86_mov_reg_reg(jit->ip, dest, factor1, REG_SIZE);
+				common86_shift_reg_imm(jit->ip, X86_SHL, dest, 2);
+				return;
+			case 5: common86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 2);
+				return;
+			case 8: if (factor1 != dest) common86_mov_reg_reg(jit->ip, dest, factor1, REG_SIZE);
+				common86_shift_reg_imm(jit->ip, X86_SHL, dest, 3);
+				return;
+			case 9: common86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 3);
+				return;
+		}
+	}
+
+
+	// generic multiplication
+	int ax_in_use = jit_reg_in_use(op, COMMON86_AX, 0);
+	int dx_in_use = jit_reg_in_use(op, COMMON86_DX, 0);
+
+	if ((dest != COMMON86_AX) && ax_in_use) common86_push_reg(jit->ip, COMMON86_AX);
+	if ((dest != COMMON86_DX) && dx_in_use) common86_push_reg(jit->ip, COMMON86_DX);
+
+	if (imm) {
+		if (factor1 != COMMON86_AX) common86_mov_reg_reg(jit->ip, COMMON86_AX, factor1, REG_SIZE);
+		common86_mov_reg_imm(jit->ip, COMMON86_DX, factor2);
+		common86_mul_reg(jit->ip, COMMON86_DX, sign);
+	} else {
+		if (factor1 == COMMON86_AX) common86_mul_reg(jit->ip, factor2, sign);
+		else if (factor2 == COMMON86_AX) common86_mul_reg(jit->ip, factor1, sign);
+		else {
+			common86_mov_reg_reg(jit->ip, COMMON86_AX, factor1, REG_SIZE);
+			common86_mul_reg(jit->ip, factor2, sign);
+		}
+	}
+
+	if (!high_bytes) {
+		if (dest != COMMON86_AX) common86_mov_reg_reg(jit->ip, dest, COMMON86_AX, REG_SIZE);
+	} else {
+		if (dest != COMMON86_DX) common86_mov_reg_reg(jit->ip, dest, COMMON86_DX, REG_SIZE);
+	}
+
+	if ((dest != COMMON86_DX) && dx_in_use) common86_pop_reg(jit->ip, COMMON86_DX);
+	if ((dest != COMMON86_AX) && ax_in_use) common86_pop_reg(jit->ip, COMMON86_AX);
+}
+
+static inline void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
+{
+	jit_value dest = op->r_arg[0];
+	jit_value dividend = op->r_arg[1];
+	jit_value divisor = op->r_arg[2];
+
+	if (imm && ((divisor == 2) || (divisor == 4) || (divisor == 8))) {
+		if (dest != dividend) common86_mov_reg_reg(jit->ip, dest, dividend, REG_SIZE);
+		if (!modulo) {
+			switch (divisor) {
+				case 2: common86_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 1); break;
+				case 4: common86_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 2); break;
+				case 8: common86_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 3); break;
+			}
+		} else {
+			switch (divisor) {
+				case 2: common86_alu_reg_imm(jit->ip, X86_AND, dest, 0x1); break;
+				case 4: common86_alu_reg_imm(jit->ip, X86_AND, dest, 0x3); break;
+				case 8: common86_alu_reg_imm(jit->ip, X86_AND, dest, 0x7); break;
+			}
+		}
+		return;
+	}
+
+	int ax_in_use = jit_reg_in_use(op, COMMON86_AX, 0);
+	int dx_in_use = jit_reg_in_use(op, COMMON86_DX, 0);
+
+	if ((dest != COMMON86_AX) && ax_in_use) common86_push_reg(jit->ip, COMMON86_AX);
+	if ((dest != COMMON86_DX) && dx_in_use) common86_push_reg(jit->ip, COMMON86_DX);
+
+	if (imm) {
+		if (dividend != COMMON86_AX) common86_mov_reg_reg(jit->ip, COMMON86_AX, dividend, REG_SIZE);
+		common86_cdq(jit->ip);
+		if (dest != COMMON86_BX) common86_push_reg(jit->ip, COMMON86_BX);
+		common86_mov_reg_imm_size(jit->ip, COMMON86_BX, divisor, REG_SIZE);
+		common86_div_reg(jit->ip, COMMON86_BX, sign);
+		if (dest != COMMON86_BX) common86_pop_reg(jit->ip, COMMON86_BX);
+	} else {
+		if ((divisor == COMMON86_AX) || (divisor == COMMON86_DX)) {
+			common86_push_reg(jit->ip, divisor);
+		}
+
+		if (dividend != COMMON86_AX) common86_mov_reg_reg(jit->ip, COMMON86_AX, dividend, REG_SIZE);
+
+		common86_cdq(jit->ip);
+
+		if ((divisor == COMMON86_AX) || (divisor == COMMON86_DX)) {
+			common86_div_membase(jit->ip, COMMON86_SP, 0, sign);
+			common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, 8);
+		} else {
+			common86_div_reg(jit->ip, divisor, sign);
+		}
+	}
+
+	if (!modulo) {
+		if (dest != COMMON86_AX) common86_mov_reg_reg(jit->ip, dest, COMMON86_AX, REG_SIZE);
+	} else {
+		if (dest != COMMON86_DX) common86_mov_reg_reg(jit->ip, dest, COMMON86_DX, REG_SIZE);
+	}
+
+	if ((dest != COMMON86_DX) && dx_in_use) common86_pop_reg(jit->ip, COMMON86_DX);
+	if ((dest != COMMON86_AX) && ax_in_use) common86_pop_reg(jit->ip, COMMON86_AX);
+}
+
+static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
+{
+	if (imm) { 
+		if (op->r_arg[0] != op->r_arg[1]) common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
+		common86_shift_reg_imm(jit->ip, shift_op, op->r_arg[0], op->r_arg[2]);
+	} else {
+		int destreg = op->r_arg[0];
+		int valreg = op->r_arg[1];
+		int shiftreg = op->r_arg[2];
+		int cx_pathology = 0; // shifting content in the ECX register
+
+		int cx_in_use = jit_reg_in_use(op, COMMON86_CX, 0);
+		int dx_in_use = jit_reg_in_use(op, COMMON86_DX, 0);
+
+		if (destreg == COMMON86_CX) {
+			cx_pathology = 1;
+			if (dx_in_use) common86_push_reg(jit->ip, COMMON86_DX); 
+			destreg = COMMON86_DX;
+		}
+
+		if (shiftreg != COMMON86_CX) {
+			if (cx_in_use) common86_push_reg(jit->ip, COMMON86_CX); 
+			common86_mov_reg_reg(jit->ip, COMMON86_CX, shiftreg, REG_SIZE);
+		}
+		if (destreg != valreg) common86_mov_reg_reg(jit->ip, destreg, valreg, REG_SIZE); 
+		common86_shift_reg(jit->ip, shift_op, destreg);
+		if (cx_pathology) {
+			common86_mov_reg_reg(jit->ip, COMMON86_CX, COMMON86_DX, REG_SIZE);
+			if ((shiftreg != COMMON86_CX) && cx_in_use) common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, REG_SIZE);
+			if (dx_in_use) common86_pop_reg(jit->ip, COMMON86_DX);
+		} else {
+			if ((shiftreg != COMMON86_CX) && cx_in_use) common86_pop_reg(jit->ip, COMMON86_CX);
+		}
+	}
+}
+
+/*
+static inline void __cond_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
+{
+	if (imm) amd64_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	else amd64_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	if ((op->r_arg[0] != AMD64_RSI) && (op->r_arg[0] != AMD64_RDI)) {
+		amd64_mov_reg_imm(jit->ip, op->r_arg[0], 0);
+		amd64_set_reg(jit->ip, amd64_cond, op->r_arg[0], sign);
+	} else {
+		amd64_xchg_reg_reg(jit->ip, AMD64_RAX, op->r_arg[0], REG_SIZE);
+		amd64_mov_reg_imm(jit->ip, AMD64_RAX, 0);
+		amd64_set_reg(jit->ip, amd64_cond, AMD64_RAX, sign);
+		amd64_xchg_reg_reg(jit->ip, AMD64_RAX, op->r_arg[0], REG_SIZE);
+	}
+}
+
+static inline void __branch_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
+{
+	if (imm) amd64_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	else amd64_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+
+	op->patch_addr = __PATCH_ADDR(jit);
+
+	amd64_branch_disp32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+}
+
+static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm)
+{
+	if (imm) amd64_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
+	else amd64_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
+
+	op->patch_addr = __PATCH_ADDR(jit);
+
+	amd64_branch_disp32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+}
+
+static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
+{
+	if (imm) amd64_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
+	else amd64_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
+
+	op->patch_addr = __PATCH_ADDR(jit);
+
+	amd64_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+}
+*/
 //
 //
 // Registers

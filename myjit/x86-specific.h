@@ -25,8 +25,8 @@
 #define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
 #define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
 
-#include "x86-common-stuff.c"
 #include "common86-codegen.h"
+#include "x86-common-stuff.c"
 
 static inline int jit_allocai(struct jit * jit, int size)
 {
@@ -70,67 +70,7 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-
-static void __sub_op(struct jit * jit, struct jit_op * op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) x86_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
-		else x86_alu_reg_imm(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-		return;
-
-	}
-	if (op->r_arg[0] == op->r_arg[1]) {
-		x86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		x86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-		x86_neg_reg(jit->ip, op->r_arg[0]);
-	} else {
-		x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		x86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-	}	
-}
-
-static void __subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] != op->r_arg[1]) x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		x86_alu_reg_imm(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
-		return;
-
-	}
-	if (op->r_arg[0] == op->r_arg[1]) {
-		x86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
-	} else if (op->r_arg[0] == op->r_arg[2]) {
-		x86_push_reg(jit->ip, op->r_arg[2]);
-		x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		x86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], X86_ESP, 0);
-		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
-	} else {
-		x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		x86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
-	}	
-}
-
-static void __rsb_op(struct jit * jit, struct jit_op * op, int imm)
-{
-	if (imm) {
-		if (op->r_arg[0] == op->r_arg[1]) x86_alu_reg_imm(jit->ip, X86_ADD, op->r_arg[0], -op->r_arg[2]);
-		else x86_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
-		x86_neg_reg(jit->ip, op->r_arg[0]);
-		return;
-	}
-
-	if (op->r_arg[0] == op->r_arg[1]) { // O1 = O3 - O1
-		x86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
-		x86_neg_reg(jit->ip, op->r_arg[0]);
-	} else if (op->r_arg[0] == op->r_arg[2]) { // O1 = O1 - O2
-		x86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-	} else {
-		x86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[2], REG_SIZE);
-		x86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[1]);
-	}
-}
-
+/*
 static void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
 {
 	if (imm) { 
@@ -166,7 +106,7 @@ static void __shift_op(struct jit * jit, struct jit_op * op, int shift_op, int i
 		}
 	}
 }
-
+*/
 static void __cond_op(struct jit * jit, struct jit_op * op, int x86_cond, int imm, int sign)
 {
 	if (imm) x86_cmp_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -315,129 +255,6 @@ static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	JIT_FREE(jit->prepared_args.args);
 
 	jit->push_count -= __pop_caller_saved_regs(jit, op);
-}
-
-static void __mul(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
-{
-	jit_value dest = op->r_arg[0];
-	jit_value factor1 = op->r_arg[1];
-	jit_value factor2 = op->r_arg[2];
-
-	/* optimization for special cases */
-	if ((!high_bytes) && (imm)) {
-		switch (factor2) {
-			case 2: if (factor1 == dest) x86_shift_reg_imm(jit->ip, X86_SHL, dest, 1);
-				else x86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 0);
-				return;
-
-			case 3: x86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 1); return;
-
-			case 4: if (factor1 != dest) x86_mov_reg_reg(jit->ip, dest, factor1, REG_SIZE);
-				x86_shift_reg_imm(jit->ip, X86_SHL, dest, 2);
-				return;
-			case 5: x86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 2);
-				return;
-			case 8: if (factor1 != dest) x86_mov_reg_reg(jit->ip, dest, factor1, REG_SIZE);
-				x86_shift_reg_imm(jit->ip, X86_SHL, dest, 3);
-				return;
-			case 9: x86_lea_memindex(jit->ip, dest, factor1, 0, factor1, 3);
-				return;
-		}
-	}
-
-	int eax_in_use = jit_reg_in_use(op, X86_EAX, 0);
-	int edx_in_use = jit_reg_in_use(op, X86_EDX, 0);
-
-	/* generic multiplication */
-
-	if ((dest != X86_EAX) && eax_in_use) x86_push_reg(jit->ip, X86_EAX);
-	if ((dest != X86_EDX) && edx_in_use) x86_push_reg(jit->ip, X86_EDX);
-
-	if (imm) {
-		if (factor1 != X86_EAX) x86_mov_reg_reg(jit->ip, X86_EAX, factor1, REG_SIZE);
-		x86_mov_reg_imm(jit->ip, X86_EDX, factor2);
-		x86_mul_reg(jit->ip, X86_EDX, sign);
-	} else {
-		if (factor1 == X86_EAX) x86_mul_reg(jit->ip, factor2, sign);
-		else if (factor2 == X86_EAX) x86_mul_reg(jit->ip, factor1, sign);
-		else {
-			x86_mov_reg_reg(jit->ip, X86_EAX, factor1, REG_SIZE);
-			x86_mul_reg(jit->ip, factor2, sign);
-		}
-	}
-
-	if (!high_bytes) {
-		if (dest != X86_EAX) x86_mov_reg_reg(jit->ip, dest, X86_EAX, REG_SIZE);
-	} else {
-		if (dest != X86_EDX) x86_mov_reg_reg(jit->ip, dest, X86_EDX, REG_SIZE);
-	}
-
-	if ((dest != X86_EDX) && edx_in_use) x86_pop_reg(jit->ip, X86_EDX);
-	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
-}
-
-static void __div(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
-{
-	jit_value dest = op->r_arg[0];
-	jit_value dividend = op->r_arg[1];
-	jit_value divisor = op->r_arg[2];
-
-	if (imm && ((divisor == 2) || (divisor == 4) || (divisor == 8))) {
-		if (dest != dividend) x86_mov_reg_reg(jit->ip, dest, dividend, REG_SIZE);
-		if (!modulo) {
-			switch (divisor) {
-				case 2: x86_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 1); break;
-				case 4: x86_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 2); break;
-				case 8: x86_shift_reg_imm(jit->ip, sign ? X86_SAR : X86_SHR, dest, 3); break;
-			}
-		} else {
-			switch (divisor) {
-				case 2: x86_alu_reg_imm(jit->ip, X86_AND, dest, 0x1); break;
-				case 4: x86_alu_reg_imm(jit->ip, X86_AND, dest, 0x3); break;
-				case 8: x86_alu_reg_imm(jit->ip, X86_AND, dest, 0x7); break;
-			}
-		}
-		return;
-	}
-
-	int eax_in_use = jit_reg_in_use(op, X86_EAX, 0);
-	int edx_in_use = jit_reg_in_use(op, X86_EDX, 0);
-
-	if ((dest != X86_EAX) && eax_in_use) x86_push_reg(jit->ip, X86_EAX);
-	if ((dest != X86_EDX) && edx_in_use) x86_push_reg(jit->ip, X86_EDX);
-
-	if (imm) {
-		if (dividend != X86_EAX) x86_mov_reg_reg(jit->ip, X86_EAX, dividend, REG_SIZE);
-		x86_cdq(jit->ip);
-		if (dest != X86_EBX) x86_push_reg(jit->ip, X86_EBX);
-		x86_mov_reg_imm(jit->ip, X86_EBX, divisor);
-		x86_div_reg(jit->ip, X86_EBX, sign);
-		if (dest != X86_EBX) x86_pop_reg(jit->ip, X86_EBX);
-	} else {
-		if ((divisor == X86_EAX) || (divisor == X86_EDX)) {
-			x86_push_reg(jit->ip, divisor);
-		}
-
-		if (dividend != X86_EAX) x86_mov_reg_reg(jit->ip, X86_EAX, dividend, REG_SIZE);
-
-		x86_cdq(jit->ip);
-
-		if ((divisor == X86_EAX) || (divisor == X86_EDX)) {
-			x86_div_membase(jit->ip, X86_ESP, 0, sign);
-			x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
-		} else {
-			x86_div_reg(jit->ip, divisor, sign);
-		}
-	}
-
-	if (!modulo) {
-		if (dest != X86_EAX) x86_mov_reg_reg(jit->ip, dest, X86_EAX, REG_SIZE);
-	} else {
-		if (dest != X86_EDX) x86_mov_reg_reg(jit->ip, dest, X86_EDX, REG_SIZE);
-	}
-
-	if ((dest != X86_EDX) && edx_in_use) x86_pop_reg(jit->ip, X86_EDX);
-	if ((dest != X86_EAX) && eax_in_use) x86_pop_reg(jit->ip, X86_EAX);
 }
 
 static void __sse_change_sign(struct jit * jit, int reg)
