@@ -35,6 +35,7 @@
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	x86_mov_reg_reg(ptr, reg1, reg2, size)
 #define common86_mov_reg_imm(ptr, reg, imm) 		x86_mov_reg_imm(ptr, reg, imm)
 #define common86_mov_reg_imm_size(ptr, reg, imm, size)	x86_mov_reg_imm(ptr, reg, imm)
+#define common86_xchg_reg_reg(ptr, reg1, reg2, size) 	x86_xchg_reg_reg(ptr, reg1, reg2, size)
 
 #define common86_alu_reg_reg(ptr, op, reg1, reg2) 	x86_alu_reg_reg(ptr, op, reg1, reg2)
 #define common86_alu_reg_imm(ptr, op, reg, imm) 	x86_alu_reg_imm(ptr, op, reg, imm)
@@ -46,11 +47,18 @@
 #define common86_div_reg(ptr, reg, sign) 		x86_div_reg(ptr, reg, sign)
 #define common86_div_membase(ptr, basereg, disp, sign) 	x86_div_membase(ptr, basereg, disp, sign)
 #define common86_cdq(ptr) 				x86_cdq(ptr)
-
-
 #define common86_neg_reg(ptr, reg) 			x86_neg_reg(ptr, reg)
+
+
+#define common86_set_reg(ptr, cond, reg, size) 		x86_set_reg(ptr, cond, reg, size)
+#define common86_test_reg_reg(ptr, reg1, reg2) 		x86_test_reg_reg(ptr, reg1, reg2)
+#define common86_test_reg_imm(ptr, reg, imm) 		x86_test_reg_imm(ptr, reg, imm)
+#define common86_branch_disp32(ptr, cond, addr, sign)	x86_branch_disp32(ptr, cond, addr, sign)
+
+
 #define common86_lea_membase(ptr, reg, basereg, disp)	x86_lea_membase(ptr, reg, basereg, disp)
 #define common86_lea_memindex(ptr, reg, basereg, disp, indexreg, shift)	x86_lea_memindex(ptr, reg, basereg, disp, indexreg, shift)
+
 #define common86_push_reg(ptr, reg) 			x86_push_reg(ptr, reg)
 #define common86_pop_reg(ptr, reg) 			x86_pop_reg(ptr, reg)
 

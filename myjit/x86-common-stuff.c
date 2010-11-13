@@ -265,52 +265,51 @@ static inline void __shift_op(struct jit * jit, struct jit_op * op, int shift_op
 	}
 }
 
-/*
 static inline void __cond_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
 {
-	if (imm) amd64_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-	else amd64_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-	if ((op->r_arg[0] != AMD64_RSI) && (op->r_arg[0] != AMD64_RDI)) {
-		amd64_mov_reg_imm(jit->ip, op->r_arg[0], 0);
-		amd64_set_reg(jit->ip, amd64_cond, op->r_arg[0], sign);
+	if (imm) common86_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	else common86_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	if ((op->r_arg[0] != COMMON86_SI) && (op->r_arg[0] != COMMON86_DI)) {
+		common86_mov_reg_imm(jit->ip, op->r_arg[0], 0);
+		common86_set_reg(jit->ip, amd64_cond, op->r_arg[0], sign);
 	} else {
-		amd64_xchg_reg_reg(jit->ip, AMD64_RAX, op->r_arg[0], REG_SIZE);
-		amd64_mov_reg_imm(jit->ip, AMD64_RAX, 0);
-		amd64_set_reg(jit->ip, amd64_cond, AMD64_RAX, sign);
-		amd64_xchg_reg_reg(jit->ip, AMD64_RAX, op->r_arg[0], REG_SIZE);
+		common86_xchg_reg_reg(jit->ip, COMMON86_AX, op->r_arg[0], REG_SIZE);
+		common86_mov_reg_imm(jit->ip, COMMON86_AX, 0);
+		common86_set_reg(jit->ip, amd64_cond, COMMON86_AX, sign);
+		common86_xchg_reg_reg(jit->ip, COMMON86_AX, op->r_arg[0], REG_SIZE);
 	}
 }
 
-static inline void __branch_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
+static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, int imm, int sign)
 {
-	if (imm) amd64_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
-	else amd64_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	if (imm) common86_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
+	else common86_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	amd64_branch_disp32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
-static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm)
+static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
-	if (imm) amd64_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
-	else amd64_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
+	if (imm) common86_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
+	else common86_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	amd64_branch_disp32(jit->ip, amd64_cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
 {
-	if (imm) amd64_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
-	else amd64_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
+	if (imm) common86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
+	else common86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	amd64_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	common86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
-*/
+
 //
 //
 // Registers
