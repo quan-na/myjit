@@ -63,25 +63,6 @@ static inline int jit_allocai(struct jit * jit, int size)
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
 /*
-static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
-{
-	if (!r->fp) amd64_push_reg(jit->ip, r->id);
-	else {
-		amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, 8);
-		amd64_sse_movlpd_membase_xreg(jit->ip, r->id, AMD64_RSP, 0);
-	}
-}
-
-static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
-{
-	if (!r->fp) amd64_pop_reg(jit->ip, r->id);
-	else {
-		amd64_sse_movlpd_xreg_membase(jit->ip, r->id, AMD64_RSP, 0);
-		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
-	}
-}
-*/
-
 static void __amd64_sse_reg_safeimm(struct jit * jit, long reg, double * imm)
 {
 	if (((unsigned long)imm) > 0xffffffff) {
@@ -135,7 +116,7 @@ static void __amd64_sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, do
 		amd64_sse_alu_sd_reg_mem(jit->ip, op, reg, (long)imm);
 	}
 }
-
+*/
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
 	struct jit_inp_arg * a = &(info->args[p]);
@@ -355,10 +336,12 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 
 /////// SSE -specific
 
+/*
 static void __sse_change_sign(struct jit * jit, int reg)
 {
 	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
 }
+*/
 
 static inline void __sse_round(struct jit * jit, long a1, long a2)
 {

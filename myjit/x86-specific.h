@@ -145,68 +145,6 @@ static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	jit->push_count -= __pop_caller_saved_regs(jit, op);
 }
 
-static void __sse_change_sign(struct jit * jit, int reg)
-{
-	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_XOR, reg, __sse_get_sign_mask());
-}
-
-static void __sse_round(struct jit * jit, jit_value a1, jit_value a2)
-{
-	static const double x0 = 0.0;
-	static const double x05 = 0.5;
-
-	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-
-	x86_sse_alu_pd_reg_mem(jit->ip, X86_SSE_COMI, a2, &x0);
-	
-	unsigned char * branch1 = jit->ip;
-	x86_branch_disp(jit->ip, X86_CC_LT, 0, 0);
-
-	x86_sse_alu_sd_reg_mem(jit->ip, X86_SSE_ADD, a2, &x05);
-
-	unsigned char * branch2 = jit->ip;
-	x86_jump_disp(jit->ip, 0);
-
-	x86_patch(branch1, jit->ip);
-
-	x86_sse_alu_sd_reg_mem(jit->ip, X86_SSE_SUB, a2, &x05);
-	x86_patch(branch2, jit->ip);
-
-	x86_cvttsd2si(jit->ip, a1, a2);
-
-	// returns values back
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-}
-
-static void __sse_floor(struct jit * jit, jit_value a1, jit_value a2, int floor)
-{
-	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
-
-	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-	// TODO: test if the register is in use or not
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 0);
-
-	// truncates the value in a2 and stores it into the a1 and tmp_reg
-	x86_cvttsd2si(jit->ip, a1, a2);
-	x86_cvtsi2sd(jit->ip, tmp_reg, a1);
-
-	if (floor) {
-		// if a2 < tmp_reg, it substracts 1 (using the carry flag)
-		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, tmp_reg);
-		x86_alu_reg_imm(jit->ip, X86_SBB, a1, 0);
-	} else { // ceil
-		// if tmp_reg < a2, it adds 1 (using the carry flag)
-		x86_sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, tmp_reg, a2);
-		x86_alu_reg_imm(jit->ip, X86_ADC, a1, 0);
-	}
-
-	// returns values back
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-	x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
-}
-
 void jit_patch_external_calls(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
