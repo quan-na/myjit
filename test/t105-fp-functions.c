@@ -340,11 +340,11 @@ void test8()
 
 	jit_prolog(p, &f1);
 
-	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
+	jit_ldi(p, R(0), (unsigned char *)&s + offsetof(struct mystruct, count), sizeof(long));	// count
 
 	jit_movi(p, R(1), &s); // struct
 
-	jit_ldi(p, R(2), &s + offsetof(struct mystruct, items), sizeof(void *)); // array
+	jit_ldi(p, R(2), (unsigned char *)&s + offsetof(struct mystruct, items), sizeof(void *)); // array
 	jit_movi(p, R(3), 0); // index
 
 	jit_fmovi(p, FR(5), 0);		// sum
@@ -357,8 +357,8 @@ void test8()
 	jit_subi(p, R(0), R(0), 1);
 
 	jit_bgti(p, loop, R(0), 0);
-	jit_fsti(p, &s + offsetof(struct mystruct, sum), FR(5), sizeof(float));
-	jit_ldi(p, R(0), &s + offsetof(struct mystruct, count), sizeof(long));	// count
+	jit_fsti(p, (unsigned char *)&s + offsetof(struct mystruct, sum), FR(5), sizeof(float));
+	jit_ldi(p, R(0), (unsigned char *)&s + offsetof(struct mystruct, count), sizeof(long));	// count
 
 	jit_extr(p, FR(0), R(0));
 	jit_fdivr(p, FR(5), FR(5), FR(0));
@@ -368,8 +368,8 @@ void test8()
 	jit_fstxi(p, &s, R(1), FR(5), sizeof(double));
 	//jit_fstxr(p, R(0), R(1), FR(5), sizeof(double));
 
-	jit_fldi(p, FR(0), &s + offsetof(struct mystruct, avg), sizeof(double));
-	jit_fldi(p, FR(1), &s + offsetof(struct mystruct, sum), sizeof(float));
+	jit_fldi(p, FR(0), (unsigned char *)&s + offsetof(struct mystruct, avg), sizeof(double));
+	jit_fldi(p, FR(1), (unsigned char *)&s + offsetof(struct mystruct, sum), sizeof(float));
 
 	jit_prepare(p);
 	jit_putargi(p, formatstr);

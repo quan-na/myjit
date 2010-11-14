@@ -1,3 +1,8 @@
+Version 0.5.2.2
+===============
++ proper parenthesis inside API macros (this has (slightly) changed the semantics of ld, st,
+fld, fst operations which have an expression as an immediate value)
+
 Version 0.5.2.1
 ===============
 + AMD64: fixed number of integer overflows preventing to run MyJIT on MacOS X

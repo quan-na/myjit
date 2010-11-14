@@ -22,6 +22,23 @@
 #define JIT_X86_STI     (0x0100 << 3)
 #define JIT_X86_STXI    (0x0101 << 3)
 
+
+#ifdef JIT_ARCH_AMD64
+#define sse_alu_sd_reg_reg(ip,op,r1,r2) amd64_sse_alu_sd_reg_reg(ip,op,r1,r2)
+#define sse_alu_pd_reg_reg(ip,op,r1,r2) amd64_sse_alu_pd_reg_reg(ip,op,r1,r2)
+#define sse_movsd_reg_reg(ip,r1,r2) amd64_sse_movsd_reg_reg(ip,r1,r2)
+#define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) amd64_sse_movlpd_membase_xreg(ip,dreg,basereg,disp)
+#define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) amd64_sse_movlpd_xreg_membase(ip,dreg,basereg,disp)
+#else
+#define sse_alu_sd_reg_reg(ip,op,r1,r2) x86_sse_alu_sd_reg_reg(ip,op,r1,r2)
+#define sse_movsd_reg_reg(ip,r1,r2) x86_movsd_reg_reg(ip,r1,r2)
+#define sse_alu_pd_reg_reg(ip,op,r1,r2) x86_sse_alu_pd_reg_reg(ip,op,r1,r2)
+#define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) x86_movlpd_membase_xreg(ip,dreg,basereg,disp)
+#define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) x86_movlpd_xreg_membase(ip,dreg,basereg,disp)
+#endif
+
+
+
 //
 //
 // Common function which generates general operations
@@ -310,14 +327,45 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	common86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
+/* determines whether the argument value was spilled out or not,
+ * if the register is associated with the hardware register
+ * it is returned through the reg argument
+ */
+// FIXME: reports as spilled also argument which contains appropriate value
+static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
+{
+        struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
+
+        if (hreg) {
+                *reg = hreg->id;
+                return 0;
+        } else return 1;
+}
+
+
 //
 //
 // Registers
 //
 //
 
-static inline void __push_reg(struct jit * jit, struct __hw_reg * r);
-static inline void __pop_reg(struct jit * jit, struct __hw_reg * r);
+static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
+{
+	if (!r->fp) common86_push_reg(jit->ip, r->id);
+	else {
+		common86_alu_reg_imm(jit->ip, X86_SUB, COMMON86_SP, 8);
+		sse_movlpd_membase_xreg(jit->ip, r->id, COMMON86_SP, 0);
+	}
+}
+
+static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
+{
+	if (!r->fp) common86_pop_reg(jit->ip, r->id);
+	else {
+		sse_movlpd_xreg_membase(jit->ip, r->id, COMMON86_SP, 0);
+		common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, 8);
+	}
+}
 
 static inline int __uses_hw_reg(struct jit_op * op, long reg, int fp)
 {
@@ -417,17 +465,6 @@ static int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 // SSE2 
 //
 //
-
-#ifdef JIT_ARCH_AMD64
-#define sse_alu_sd_reg_reg(ip,op,r1,r2) amd64_sse_alu_sd_reg_reg(ip,op,r1,r2)
-#define sse_alu_pd_reg_reg(ip,op,r1,r2) amd64_sse_alu_pd_reg_reg(ip,op,r1,r2)
-#define sse_movsd_reg_reg(ip,r1,r2) amd64_sse_movsd_reg_reg(ip,r1,r2)
-#else
-#define sse_alu_sd_reg_reg(ip,op,r1,r2) x86_sse_alu_sd_reg_reg(ip,op,r1,r2)
-#define sse_movsd_reg_reg(ip,r1,r2) x86_movsd_reg_reg(ip,r1,r2)
-#define sse_alu_pd_reg_reg(ip,op,r1,r2) x86_sse_alu_pd_reg_reg(ip,op,r1,r2)
-#endif
-
 static void __sse_change_sign(struct jit * jit, int reg);
 
 static void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)

@@ -52,37 +52,6 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	a->overflow = 0;
 }
 
-static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
-{
-	if (!r->fp) x86_push_reg(jit->ip, r->id);
-	else {
-		x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 8);
-		x86_movlpd_membase_xreg(jit->ip, r->id, X86_ESP, 0);
-	}
-}
-
-static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
-{
-	if (!r->fp) x86_pop_reg(jit->ip, r->id);
-	else {
-		x86_movlpd_xreg_membase(jit->ip, r->id, X86_ESP, 0);
-		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
-	}
-}
-
-/* determines whether the argument value was spilled out or not,
- * if the register is associated with the hardware register
- * it is returned through the reg argument
- */
-static inline int __is_spilled(struct jit * jit, int arg_id, int * reg)
-{
-	struct __hw_reg * hreg = rmap_get(jit->prepared_args.op->regmap, arg_id);
-	if (hreg) {
-		*reg = hreg->id;
-		return 0;
-	} else return 1;
-}
-
 static int __configure_args(struct jit * jit)
 {
 	int stack_correction = 0;
@@ -100,10 +69,11 @@ static int __configure_args(struct jit * jit)
 
 	int sreg;
 	for (int i = jit->prepared_args.ready - 1; i >= 0; i--) {
+		long value = args[i].value.generic;
 		if (!args[i].isfp) { // integers
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
-				if (__is_spilled(jit, args[i].value.generic, &sreg))
+				if (__is_spilled(value, jit->prepared_args.op, &sreg)) 
 					x86_push_membase(jit->ip, X86_EBP, __GET_REG_POS(jit, args[i].value.generic));
 				else x86_push_reg(jit->ip, sreg);
 			}
@@ -114,7 +84,7 @@ static int __configure_args(struct jit * jit)
 		// 
 		if (args[i].size == sizeof(double)) {
 			if (args[i].isreg) { // doubles
-				if (__is_spilled(jit, args[i].value.generic, &sreg)) {
+				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 					int pos = __GET_FPREG_POS(jit, args[i].value.generic);
 					x86_push_membase(jit->ip, X86_EBP, pos + 4);
 					x86_push_membase(jit->ip, X86_EBP, pos);
@@ -135,7 +105,7 @@ static int __configure_args(struct jit * jit)
 		// single prec. floats
 		//
 		if (args[i].isreg) { 
-			if (__is_spilled(jit, args[i].value.generic, &sreg)) {
+			if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 				int pos = __GET_FPREG_POS(jit, args[i].value.generic);
 				x86_fld_membase(jit->ip, X86_EBP, pos, 1); 
 				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 4);

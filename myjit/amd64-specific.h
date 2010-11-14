@@ -62,7 +62,7 @@ static inline int jit_allocai(struct jit * jit, int size)
 	jit_current_func_info(jit)->allocai_mem += real_size;
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
-
+/*
 static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
 {
 	if (!r->fp) amd64_push_reg(jit->ip, r->id);
@@ -80,6 +80,7 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 		amd64_alu_reg_imm(jit->ip, X86_ADD, AMD64_RSP, 8);
 	}
 }
+*/
 
 static void __amd64_sse_reg_safeimm(struct jit * jit, long reg, double * imm)
 {
