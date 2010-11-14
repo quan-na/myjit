@@ -104,6 +104,10 @@
 #define common86_test_reg_reg(ptr, reg1, reg2) 		amd64_test_reg_reg(ptr, reg1, reg2)
 #define common86_test_reg_imm(ptr, reg, imm) 		amd64_test_reg_imm(ptr, reg, imm)
 #define common86_branch_disp32(ptr, cond, addr, sign)	amd64_branch_disp32(ptr, cond, addr, sign)
+#define common86_branch_disp(ptr, cond, addr, sign)	amd64_branch_disp(ptr, cond, addr, sign)
+
+#define common86_patch(op, ptr) 			amd64_patch(op, ptr)
+#define common86_jump_disp(op, disp) 			amd64_jump_disp(op, disp)
 
 #define common86_lea_membase(ptr, reg, basereg, disp)	amd64_lea_membase(ptr, reg, basereg, disp)
 #define common86_lea_memindex(ptr, reg, basereg, disp, indexreg, shift)	amd64_lea_memindex(ptr, reg, basereg, disp, indexreg, shift)

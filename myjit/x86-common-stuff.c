@@ -30,12 +30,18 @@
 #define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) amd64_sse_movlpd_membase_xreg(ip,dreg,basereg,disp)
 #define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) amd64_sse_movlpd_xreg_membase(ip,dreg,basereg,disp)
 
+#define sse_comisd_reg_reg(ip, r1, r2)                  amd64_sse_comisd_reg_reg(ip, r1, r2)
+#define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)     amd64_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)
+
+#define sse_cvttsd2si_reg_reg(ip, r1, r2) 		amd64_sse_cvttsd2si_reg_reg(ip, r1, r2)
+#define sse_cvtsi2sd_reg_reg(ip, r1, r2) 		amd64_sse_cvtsi2sd_reg_reg(ip, r1, r2)
+
 /**
  * This function emits SSE code which assigns value value which resides in the memory
  * in to the XMM register If the value is not addressable with 32bit address, unused 
  * register from the register pool is used to access this value.
  */
-static void __amd64_sse_reg_safeimm(struct jit * jit, jit_value reg, double * imm)
+static void sse_reg_safeimm(struct jit * jit, jit_value reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
 		if (jit->reg_al->gp_regpool->pos >= 0) {

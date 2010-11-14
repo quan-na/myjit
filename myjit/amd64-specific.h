@@ -62,61 +62,7 @@ static inline int jit_allocai(struct jit * jit, int size)
 	jit_current_func_info(jit)->allocai_mem += real_size;
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
-/*
-static void __amd64_sse_reg_safeimm(struct jit * jit, long reg, double * imm)
-{
-	if (((unsigned long)imm) > 0xffffffff) {
-		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0]->id;
-			amd64_mov_reg_imm(jit->ip, r, (long)imm);
-			amd64_movsd_reg_membase(jit->ip, reg, r, 0);
-		} else {
-			amd64_push_reg(jit->ip, AMD64_RAX);
-			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
-			amd64_movsd_reg_membase(jit->ip, reg, AMD64_RAX, 0);
-			amd64_pop_reg(jit->ip, AMD64_RAX);
-		}
-	} else {
-		amd64_movsd_reg_mem(jit->ip, reg, (long)imm);
-	}
-}
 
-static void __amd64_sse_alu_pd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
-{
-	if (((unsigned long)imm) > 0xffffffff) {
-		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0]->id;
-			amd64_mov_reg_imm(jit->ip, r, (long)imm);
-			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, r, 0);
-		} else {
-			amd64_push_reg(jit->ip, AMD64_RAX);
-			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
-			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
-			amd64_pop_reg(jit->ip, AMD64_RAX);
-		}
-	} else {
-		amd64_sse_alu_pd_reg_mem(jit->ip, op, reg, (long)imm);
-	}
-}
-
-static void __amd64_sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
-{
-	if (((unsigned long)imm) > 0xffffffff) {
-		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0]->id;
-			amd64_mov_reg_imm(jit->ip, r, (long)imm);
-			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, r, 0);
-		} else {
-			amd64_push_reg(jit->ip, AMD64_RAX);
-			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
-			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
-			amd64_pop_reg(jit->ip, AMD64_RAX);
-		}
-	} else {
-		amd64_sse_alu_sd_reg_mem(jit->ip, op, reg, (long)imm);
-	}
-}
-*/
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
 	struct jit_inp_arg * a = &(info->args[p]);
@@ -152,21 +98,6 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 		a->passed_by_reg = 0;
 	}
 	a->overflow = 0;
-}
-
-/* determines whether the argument value was spilled out or not,
- * if the register is associated with the hardware register
- * it is returned through the reg argument
- */
-// FIXME: reports as spilled also argument which contains appropriate value
-static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
-{
-	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
-
-	if (hreg) {
-		*reg = hreg->id;
-		return 0;
-	} else return 1;
 }
 
 /**
@@ -332,72 +263,6 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	JIT_FREE(jit->prepared_args.args);
 
 	jit->push_count -= __pop_caller_saved_regs(jit, op);
-}
-
-/////// SSE -specific
-
-/*
-static void __sse_change_sign(struct jit * jit, int reg)
-{
-	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
-}
-*/
-
-static inline void __sse_round(struct jit * jit, long a1, long a2)
-{
-	static const double x0 = 0.0;
-	static const double x05 = 0.5;
-
-	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-
-	__amd64_sse_alu_pd_reg_safeimm(jit, X86_SSE_COMI, a2, (double *)&x0);
-
-	unsigned char * branch1 = jit->ip;
-	amd64_branch_disp(jit->ip, X86_CC_LT, 0, 0);
-
-	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_ADD, a2, (double *)&x05);
-
-	unsigned char * branch2 = jit->ip;
-	amd64_jump_disp(jit->ip, 0);
-
-	amd64_patch(branch1, jit->ip);
-
-	__amd64_sse_alu_sd_reg_safeimm(jit, X86_SSE_SUB, a2, (double *)&x05);
-	amd64_patch(branch2, jit->ip);
-
-	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
-
-	// returns values back
-	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-}
-
-static inline void __sse_floor(struct jit * jit, long a1, long a2, int floor)
-{
-	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
-
-	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
-	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-	// TODO: test if the register is in use or not
-	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 0);
-
-	// truncates the value in a2 and stores it into the a1 and tmp_reg
-	amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
-	amd64_sse_cvtsi2sd_reg_reg(jit->ip, tmp_reg, a1);
-
-	if (floor) {
-		// if a2 < tmp_reg, it substracts 1 (using the carry flag)
-		amd64_sse_comisd_reg_reg(jit->ip, a2, tmp_reg);
-		amd64_alu_reg_imm(jit->ip, X86_SBB, a1, 0);
-	} else { // ceil
-		// if tmp_reg < a2, it adds 1 (using the carry flag)
-		amd64_sse_comisd_reg_reg(jit->ip, tmp_reg, a2);
-		amd64_alu_reg_imm(jit->ip, X86_ADC, a1, 0);
-	}
-
-	// returns values back
-	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-	amd64_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
 }
 
 void __get_arg(struct jit * jit, jit_op * op)
@@ -682,7 +547,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		// Floating-point operations;
 		//
 		case (JIT_FMOV | REG): amd64_sse_movsd_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_FMOV | IMM): __amd64_sse_reg_safeimm(jit, a1, &op->flt_imm); break; 
+		case (JIT_FMOV | IMM): sse_reg_safeimm(jit, a1, &op->flt_imm); break; 
 		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
 		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
