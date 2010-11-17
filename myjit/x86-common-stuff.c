@@ -27,15 +27,31 @@
 #define sse_alu_sd_reg_reg(ip,op,r1,r2) amd64_sse_alu_sd_reg_reg(ip,op,r1,r2)
 #define sse_alu_pd_reg_reg(ip,op,r1,r2) amd64_sse_alu_pd_reg_reg(ip,op,r1,r2)
 #define sse_movsd_reg_reg(ip,r1,r2) amd64_sse_movsd_reg_reg(ip,r1,r2)
+#define sse_movsd_reg_mem(ip, r1, mem) amd64_movsd_reg_mem(ip,r1,mem)
 #define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) amd64_sse_movlpd_membase_xreg(ip,dreg,basereg,disp)
 #define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) amd64_sse_movlpd_xreg_membase(ip,dreg,basereg,disp)
+#define sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  amd64_sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)
 
+
+#define sse_movlpd_mem_reg(ip, mem, reg) 			amd64_movlpd_mem_reg(ip, mem, reg)
+#define sse_movlpd_xreg_memindex(ip, dreg, basereg, disp, indexreg, shift) 	amd64_sse_movlpd_xreg_memindex(ip, dreg, basereg, disp, indexreg, shift)
+
+#define sse_movss_membase_reg(ip, basereg, disp, reg)		amd64_movss_membase_reg(ip, basereg, disp, reg)
+#define sse_movss_mem_reg(ip, mem, reg)				amd64_movss_mem_reg(ip, mem, reg)
+#define sse_movss_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  x86_movss_memindex_xreg(ip, reg, basereg, disp, indexreg, shift)
 
 #define sse_comisd_reg_reg(ip, r1, r2)                  amd64_sse_comisd_reg_reg(ip, r1, r2)
 #define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)     amd64_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)
 
 #define sse_cvttsd2si_reg_reg(ip, r1, r2) 		amd64_sse_cvttsd2si_reg_reg(ip, r1, r2)
 #define sse_cvtsi2sd_reg_reg(ip, r1, r2) 		amd64_sse_cvtsi2sd_reg_reg(ip, r1, r2)
+#define sse_cvtsd2ss_reg_reg(ip, r1, r2) 		amd64_sse_cvtsd2ss_reg_reg(ip, r1, r2)
+#define sse_cvtss2sd_reg_reg(ip, r1, r2) 		amd64_sse_cvtss2sd_reg_mem(ip, r1, r2)
+#define sse_cvtss2sd_reg_mem(ip, r1, mem) 		amd64_sse_cvtss2sd_reg_mem(ip, r1, mem)
+#define sse_cvtss2sd_reg_membase(ip, r1, basereg, disp)	amd64_sse_cvtss2sd_reg_membase(ip, r1, basereg, disp)
+#define sse_cvtss2sd_reg_memindex(ip, r1, basereg, disp, indexreg, shift)	amd64_sse_cvtss2sd_reg_memindex(ip, r1, basereg, disp, indexreg, shift)
+
+
 /**
  * This function emits SSE code which assigns value value which resides in the memory
  * in to the XMM register If the value is not addressable with 32bit address, unused 
