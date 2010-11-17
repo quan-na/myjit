@@ -269,6 +269,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			      x86_popad(jit->ip);
 			      break; 
 		case JIT_ALLOCA: break;
+		case JIT_FST: emit_sse_fst_op(jit, op, a1, a2); break;
+		case JIT_FSTX: emit_sse_fstx_op(jit, op, a1, a2, a3); break;
+		case JIT_FLD: emit_sse_fld_op(jit, op, a1, a2); break;
+		case JIT_FLDX: emit_sse_fldx_op(jit, op, a1, a2, a3); break;
+			  
 		default: found = 0;
 	}
 
@@ -397,62 +402,6 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
 		case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
 		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
-
-		case (JIT_FST | IMM):
-			if (op->arg_size == 4) {
-				int live = jitset_get(op->live_out, op->arg[1]);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-				x86_cvtsd2ss(jit->ip, a2, a2);
-				x86_movss_mem_xreg(jit->ip, a2, a1);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-			} else x86_movlpd_mem_xreg(jit->ip, a2, a1);
-			break;		 
-
-		case (JIT_FST | REG):
-			if (op->arg_size == 4) {
-				int live = jitset_get(op->live_out, op->arg[1]);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
-				x86_cvtsd2ss(jit->ip, a2, a2);
-				x86_movss_membase_xreg(jit->ip, a2, a1, 0);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
-			} else x86_movlpd_membase_xreg(jit->ip, a2, a1, 0);
-			break;
-
-		case (JIT_FSTX | IMM):
-			if (op->arg_size == 4) {
-				int live = jitset_get(op->live_out, op->arg[2]);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
-				x86_cvtsd2ss(jit->ip, a3, a3);
-				x86_movss_membase_xreg(jit->ip, a3, a2, a1);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
-			} else x86_movlpd_membase_xreg(jit->ip, a3, a2, a1);
-			break;
-
-		case (JIT_FSTX | REG):
-			if (op->arg_size == 4) {
-				int live = jitset_get(op->live_out, op->arg[2]);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
-				x86_cvtsd2ss(jit->ip, a3, a3);
-				x86_movss_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
-				if (live) x86_sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
-			} else x86_movlpd_memindex_xreg(jit->ip, a3, a2, 0, a1, 0);
-			break;
-
-		case (JIT_FLD | IMM): if (op->arg_size == 4) x86_cvtss2sd_reg_mem(jit->ip, a1, a2);
-				      else x86_movlpd_xreg_mem(jit->ip, a1, a2);
-				      break;
-
-		case (JIT_FLD | REG): if (op->arg_size == 4) x86_cvtss2sd_reg_membase(jit->ip, a1, a2, 0);
-				      else x86_movlpd_xreg_membase(jit->ip, a1, a2, 0);
-				      break;
-
-		case (JIT_FLDX | IMM): 	if (op->arg_size == 4) x86_cvtss2sd_reg_membase(jit->ip, a1, a2, a3);
-				 	else x86_movlpd_xreg_membase(jit->ip, a1, a2, a3);
-				      	break;
-
-		case (JIT_FLDX | REG): if (op->arg_size == 4) x86_cvtss2sd_reg_memindex(jit->ip, a1, a2, 0, a3, 0);
-				      else x86_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
-				      break;
 
 		case (JIT_FRET | REG): x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, -8); // pushes the value beyond the top of the stack
 				       x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)

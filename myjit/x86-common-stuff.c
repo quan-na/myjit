@@ -30,12 +30,12 @@
 #define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) amd64_sse_movlpd_membase_xreg(ip,dreg,basereg,disp)
 #define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) amd64_sse_movlpd_xreg_membase(ip,dreg,basereg,disp)
 
+
 #define sse_comisd_reg_reg(ip, r1, r2)                  amd64_sse_comisd_reg_reg(ip, r1, r2)
 #define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)     amd64_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)
 
 #define sse_cvttsd2si_reg_reg(ip, r1, r2) 		amd64_sse_cvttsd2si_reg_reg(ip, r1, r2)
 #define sse_cvtsi2sd_reg_reg(ip, r1, r2) 		amd64_sse_cvtsi2sd_reg_reg(ip, r1, r2)
-
 /**
  * This function emits SSE code which assigns value value which resides in the memory
  * in to the XMM register If the value is not addressable with 32bit address, unused 
@@ -108,21 +108,33 @@ static void sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * i
 }
 
 #else
-#define sse_movsd_reg_reg(ip,r1,r2) 			x86_movsd_reg_reg(ip,r1,r2)
-#define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) 	x86_movlpd_membase_xreg(ip,dreg,basereg,disp)
-#define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) 	x86_movlpd_xreg_membase(ip,dreg,basereg,disp)
+#define sse_movsd_reg_reg(ip, r1, r2) 				x86_movsd_reg_reg(ip, r1, r2)
+#define sse_movsd_reg_mem(ip, r1, mem) 				x86_movsd_reg_mem(ip, r1, mem)
+#define sse_movlpd_membase_xreg(ip, dreg, basereg, disp) 	x86_movlpd_membase_xreg(ip, dreg, basereg, disp)
+#define sse_movlpd_xreg_membase(ip, dreg, basereg, disp) 	x86_movlpd_xreg_membase(ip, dreg, basereg, disp)
+#define sse_movlpd_mem_reg(ip, mem, reg) 			x86_movlpd_mem_xreg(ip, mem, reg)
+#define sse_movlpd_xreg_memindex(ip, dreg, basereg, disp, indexreg, shift) 	x86_movlpd_xreg_memindex(ip, dreg, basereg, disp, indexreg, shift)
+#define sse_movss_membase_reg(ip, basereg, disp, reg)		x86_movss_membase_xreg(ip, reg, basereg, disp)
+#define sse_movss_mem_reg(ip, mem, reg)				x86_movss_mem_xreg(ip, reg, mem)
+#define sse_movss_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  x86_movss_memindex_xreg(ip, reg, basereg, disp, indexreg, shift)
+#define sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  x86_movlpd_memindex_xreg(ip, reg, basereg, disp, indexreg, shift)
 
-#define sse_alu_sd_reg_reg(ip,op,r1,r2) 		x86_sse_alu_sd_reg_reg(ip,op,r1,r2)
+#define sse_alu_sd_reg_reg(ip, op, r1, r2) 		x86_sse_alu_sd_reg_reg(ip, op, r1, r2)
 #define sse_alu_sd_reg_safeimm(jit, op, reg, imm) 	x86_sse_alu_sd_reg_mem(jit->ip, op, reg, imm)
 
-#define sse_alu_pd_reg_reg(ip,op,r1,r2) 		x86_sse_alu_pd_reg_reg(ip,op,r1,r2)
+#define sse_alu_pd_reg_reg(ip, op, r1, r2) 		x86_sse_alu_pd_reg_reg(ip, op, r1, r2)
 #define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm) 	x86_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)
 #define sse_alu_pd_reg_safeimm(jit, op, reg, imm) 	x86_sse_alu_pd_reg_mem(jit->ip, op, reg, imm)
 
-#define sse_comisd_reg_reg(ip, r1, r2)			x86_sse_alu_pd_reg_reg(ip, X86_SSE_COMI, r1, r2)
+#define sse_comisd_reg_reg(ip, r1, r2)			x86_sse_alu_sd_reg_reg(ip, X86_SSE_COMI, r1, r2)
 
 #define sse_cvttsd2si_reg_reg(ip, r1, r2) 		x86_cvttsd2si(ip, r1, r2)
 #define sse_cvtsi2sd_reg_reg(ip, r1, r2) 		x86_cvtsi2sd(ip, r1, r2)
+#define sse_cvtsd2ss_reg_reg(ip, r1, r2)		x86_cvtsd2ss(ip, r1, r2)
+#define sse_cvtss2sd_reg_mem(ip, r1, mem) 		x86_cvtss2sd_reg_mem(ip, r1, mem)
+#define sse_cvtss2sd_reg_membase(ip, r1, basereg, disp)	x86_cvtss2sd_reg_membase(ip, r1, basereg, disp)
+#define sse_cvtss2sd_reg_memindex(ip, r1, basereg, disp, indexreg, shift)	x86_cvtss2sd_reg_memindex(ip, r1, basereg, disp, indexreg, shift)
+
 #endif
 
 
@@ -687,6 +699,80 @@ static inline void __sse_floor(struct jit * jit, jit_value a1, jit_value a2, int
 	// returns values back
 	sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 	sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, tmp_reg, tmp_reg, 1);
+}
+
+
+/**
+ * Emits SSE instructions representing FST operation
+ */
+static void emit_sse_fst_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
+{
+	if (op->arg_size == sizeof(float)) {
+		// the value has to be converted from double to float
+		// we are using the given XMM register for this.
+		// however, if the value in the register is supposed to be used later,
+		// i.e., it's `live', we store it for a while into the upper half of the XMM register
+		int live = jitset_get(op->live_out, op->arg[1]);
+		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
+		sse_cvtsd2ss_reg_reg(jit->ip, a2, a2);
+
+		if (IS_IMM(op)) sse_movss_mem_reg(jit->ip, a1, a2);
+		else sse_movss_membase_reg(jit->ip, a1, 0, a2);
+ 
+		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
+
+	} else {
+		if (IS_IMM(op)) sse_movlpd_mem_reg(jit->ip, a1, a2);
+		else sse_movlpd_membase_xreg(jit->ip, a2, a1, 0);
+	}
+}
+
+static void emit_sse_fld_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
+{
+	if (op->arg_size == sizeof(float)) {
+		if (IS_IMM(op)) sse_cvtss2sd_reg_mem(jit->ip, a1, a2);
+		else sse_cvtss2sd_reg_membase(jit->ip, a1, a2, 0);
+	} else {
+		if (IS_IMM(op)) sse_movsd_reg_mem(jit->ip, a1, a2);
+		else sse_movlpd_xreg_membase(jit->ip, a1, a2, 0);
+	}
+}
+
+static void emit_sse_fldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2, jit_value a3)
+{
+	if (op->arg_size == sizeof(float)) {
+		if (IS_IMM(op)) sse_cvtss2sd_reg_membase(jit->ip, a1, a2, a3);
+		else sse_cvtss2sd_reg_memindex(jit->ip, a1, a2, 0, a3, 0);
+	} else {
+		if (IS_IMM(op)) sse_movlpd_xreg_membase(jit->ip, a1, a2, a3);
+		else sse_movlpd_xreg_memindex(jit->ip, a1, a2, 0, a3, 0);
+	}
+}
+
+/**
+ * Emits SSE instructions representing FSTX operation
+ */
+static void emit_sse_fstx_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2, jit_value a3)
+{
+	if (op->arg_size == sizeof(float)) {
+		// the value has to be converted from double to float
+		// we are using the given XMM register for this.
+		// however, if the value in the register is supposed to be used later,
+		// i.e., it's `live', we store it for a while into the upper half of the XMM register
+
+		int live = jitset_get(op->live_out, op->arg[2]);
+		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
+		sse_cvtsd2ss_reg_reg(jit->ip, a3, a3);
+
+		if (IS_IMM(op)) sse_movss_membase_reg(jit->ip, a2, a1, a3);
+		else sse_movss_memindex_xreg(jit->ip, a1, 0, a2, 0, a3);
+
+		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 1);
+
+	} else {
+		if (IS_IMM(op)) sse_movlpd_membase_xreg(jit->ip, a3, a2, a1);
+		else sse_movlpd_memindex_xreg(jit->ip, a1, 0, a2, 0, a3);
+	}
 }
 
 //
