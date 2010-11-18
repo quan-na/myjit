@@ -137,6 +137,7 @@ static void sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * i
 #define sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  x86_movlpd_memindex_xreg(ip, reg, basereg, disp, indexreg, shift)
 
 #define sse_alu_sd_reg_reg(ip, op, r1, r2) 		x86_sse_alu_sd_reg_reg(ip, op, r1, r2)
+#define sse_reg_safeimm(jit, reg, imm)			x86_movsd_reg_mem(jit->ip, reg, imm)
 #define sse_alu_sd_reg_safeimm(jit, op, reg, imm) 	x86_sse_alu_sd_reg_mem(jit->ip, op, reg, imm)
 
 #define sse_alu_pd_reg_reg(ip, op, r1, r2) 		x86_sse_alu_pd_reg_reg(ip, op, r1, r2)

@@ -155,6 +155,90 @@ void jit_patch_external_calls(struct jit * jit)
 	}
 }
 
+static void __get_arg(struct jit * jit, jit_op * op)
+{
+	jit_value a1 = op->r_arg[0];
+	jit_value a2 = op->r_arg[1];
+
+	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[a2]);
+	int stack_pos = arg->location.stack_pos;
+	if (arg->type != JIT_FLOAT_NUM) {
+		if (arg->size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, stack_pos, REG_SIZE); 
+		else if (arg->type == JIT_SIGNED_NUM) x86_movsx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
+		else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
+	} else {
+		if (arg->size == sizeof(double)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
+		else if (arg->size == sizeof(float))
+			x86_cvtss2sd_reg_membase(jit->ip, a1, X86_EBP, stack_pos);
+		else assert(0);
+	}
+}
+
+static void __ureg(struct jit * jit, long vreg, long hreg_id)
+{		
+	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
+		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, hreg_id, X86_EBP, __GET_FPREG_POS(jit, vreg));
+		else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, vreg), hreg_id, REG_SIZE);
+	}
+}
+
+static void __lreg(struct jit * jit, jit_value a1, jit_value a2)
+{
+	if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
+	else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(jit, a2), REG_SIZE);
+}
+
+static void emit_prolog_op(struct jit * jit, jit_op * op)
+{
+	jit->current_func = op;
+	struct jit_func_info * info = jit_current_func_info(jit);
+	while ((long)jit->ip % 8) 
+		x86_nop(jit->ip);
+
+	op->patch_addr = __PATCH_ADDR(jit);
+	x86_push_reg(jit->ip, X86_EBP);
+	x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
+	int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
+
+#ifdef __APPLE__
+	stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
+#endif
+	x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
+	jit->push_count = __push_callee_saved_regs(jit, op);
+}
+
+static void emit_msg_op(struct jit * jit, jit_op * op)
+{
+	x86_pushad(jit->ip);
+	if (!IS_IMM(op)) x86_push_reg(jit->ip, op->r_arg[1]);
+	x86_push_imm(jit->ip, op->r_arg[0]);
+	op->patch_addr = __PATCH_ADDR(jit); 
+	x86_call_imm(jit->ip, printf);
+	if (IS_IMM(op)) x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
+	else x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
+	x86_popad(jit->ip);
+}
+
+static void emit_fret_op(struct jit * jit, jit_op * op)
+{
+	jit_value arg = op->r_arg[0];
+
+	x86_movlpd_membase_xreg(jit->ip, arg, X86_ESP, -8); // pushes the value beyond the top of the stack
+	x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)
+
+	// common epilogue
+	jit->push_count -= __pop_callee_saved_regs(jit);
+	x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
+	x86_pop_reg(jit->ip, X86_EBP);
+	x86_ret(jit->ip);
+}
+
+static void emit_fretval_op(struct jit * jit, jit_op * op)
+{
+	x86_fst_membase(jit->ip, X86_ESP, -8, 1, 1);
+	x86_movlpd_xreg_membase(jit->ip, op->r_arg[0], X86_ESP, -8);
+}
+
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
 	jit_value a1 = op->r_arg[0];
@@ -166,8 +250,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 	switch (GET_OP(op)) {
 		case JIT_ADD: 
 			if ((a1 != a2) && (a1 != a3)) {
-				if (IS_IMM(op)) x86_lea_membase(jit->ip, a1, a2, a3);
-				else x86_lea_memindex(jit->ip, a1, a2, 0, a3, 0);
+				if (IS_IMM(op)) common86_lea_membase(jit->ip, a1, a2, a3);
+				else common86_lea_memindex(jit->ip, a1, a2, 0, a3, 0);
 			} else __alu_op(jit, op, X86_ADD, IS_IMM(op)); 
 			break;
 
@@ -177,14 +261,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_SUBC: __subx_op(jit, op, X86_SUB, IS_IMM(op)); break; 
 		case JIT_SUBX: __subx_op(jit, op, X86_SBB, IS_IMM(op)); break; 
 		case JIT_RSB: __rsb_op(jit, op, IS_IMM(op)); break; 
-		case JIT_NEG: if (a1 != a2) x86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
-			      x86_neg_reg(jit->ip, a1); 
+		case JIT_NEG: if (a1 != a2) common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
+			      common86_neg_reg(jit->ip, a1); 
 			      break;
 		case JIT_OR: __alu_op(jit, op, X86_OR, IS_IMM(op)); break; 
 		case JIT_XOR: __alu_op(jit, op, X86_XOR, IS_IMM(op)); break; 
 		case JIT_AND: __alu_op(jit, op, X86_AND, IS_IMM(op)); break; 
-		case JIT_NOT: if (a1 != a2) x86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
-			      x86_not_reg(jit->ip, a1);
+		case JIT_NOT: if (a1 != a2) common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
+			      common86_not_reg(jit->ip, a1);
 			      break;
 		case JIT_LSH: __shift_op(jit, op, X86_SHL, IS_IMM(op)); break;
 		case JIT_RSH: __shift_op(jit, op, IS_SIGNED(op) ? X86_SAR : X86_SHR, IS_IMM(op)); break;
@@ -215,67 +299,42 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_MOD: __div(jit, op, IS_IMM(op), IS_SIGNED(op), 1); break;
 
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
-
-		//case JIT_PATCH: x86_patch(((struct jit_op *)a1)->patch_addr, jit->ip); break;
 		case JIT_PATCH: do {
-					long pa = ((struct jit_op *)a1)->patch_addr;
-					x86_patch(jit->buf + pa, jit->ip);
+					jit_value pa = ((struct jit_op *)a1)->patch_addr;
+					common86_patch(jit->buf + pa, jit->ip);
 				} while (0);
 				break;
 		case JIT_JMP:
-			op->patch_addr = __PATCH_ADDR(jit); 
-			if (op->code & REG) x86_jump_reg(jit->ip, a1);
-			//else x86_jump_disp(jit->ip, __JIT_GET_ADDR(jit, a1));
-			else x86_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
+			op->patch_addr = __PATCH_ADDR(jit);
+			if (op->code & REG) common86_jump_reg(jit->ip, a1);
+			else common86_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
-
 		case JIT_RET:
-			if (!IS_IMM(op) && (a1 != X86_EAX)) x86_mov_reg_reg(jit->ip, X86_EAX, a1, 4);
-			if (IS_IMM(op)) x86_mov_reg_imm(jit->ip, X86_EAX, a1);
+			if (!IS_IMM(op) && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
+			if (IS_IMM(op)) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
 			__pop_callee_saved_regs(jit);
-			x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
-			x86_pop_reg(jit->ip, X86_EBP);
-			x86_ret(jit->ip);
+			common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
+			common86_pop_reg(jit->ip, COMMON86_BP);
+			common86_ret(jit->ip);
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
 		case JIT_FPUTARG: __fput_arg(jit, op); break;
+		case JIT_GETARG: __get_arg(jit, op); break;
+		case JIT_MSG: emit_msg_op(jit, op); break;
 
-		case JIT_GETARG:
-			do {
-				struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[a2]);
-				int stack_pos = arg->location.stack_pos;
-				if (arg->type != JIT_FLOAT_NUM) {
-					if (arg->size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, stack_pos, REG_SIZE); 
-					else if (arg->type == JIT_SIGNED_NUM) x86_movsx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
-					else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
-				} else {
-					if (arg->size == sizeof(double)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
-					else if (arg->size == sizeof(float))
-						x86_cvtss2sd_reg_membase(jit->ip, a1, X86_EBP, stack_pos);
-					else assert(0);
-				}
-
-			} while (0);
-			break;
-			
-		case JIT_MSG: x86_pushad(jit->ip);
-			      if (!IS_IMM(op)) x86_push_reg(jit->ip, a2);
-			      x86_push_imm(jit->ip, a1);
-			      op->patch_addr = __PATCH_ADDR(jit); 
-			      x86_call_imm(jit->ip, printf);
-			      if (IS_IMM(op)) x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
-			      else x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);
-			      x86_popad(jit->ip);
-			      break; 
-		case JIT_ALLOCA: break;
 		case JIT_LD: emit_ld_op(jit, op, a1, a2); break;
 		case JIT_LDX: emit_ldx_op(jit, op, a1, a2, a3); break;
 		case JIT_FST: emit_sse_fst_op(jit, op, a1, a2); break;
 		case JIT_FSTX: emit_sse_fstx_op(jit, op, a1, a2, a3); break;
 		case JIT_FLD: emit_sse_fld_op(jit, op, a1, a2); break;
 		case JIT_FLDX: emit_sse_fldx_op(jit, op, a1, a2, a3); break;
-			  
+
+		case JIT_ALLOCA: break;
+		case JIT_DECL_ARG: break;
+		case JIT_RETVAL: break; // reg. allocator takes care of the proper register assignment
+		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
+
 		default: found = 0;
 	}
 
@@ -283,109 +342,64 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 
 	switch (op->code) {
-		case (JIT_MOV | REG): if (a1 != a2) x86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
+		case (JIT_MOV | REG): if (a1 != a2) common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
 		case (JIT_MOV | IMM):
-			if (a2 == 0) x86_alu_reg_reg(jit->ip, X86_XOR, a1, a1);
-			else x86_mov_reg_imm(jit->ip, a1, a2); 
+			if (a2 == 0) common86_alu_reg_reg(jit->ip, X86_XOR, a1, a1);
+			else common86_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
-		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); 
+		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2);
 				  jit->push_count += __push_caller_saved_regs(jit, op);
 				  break;
-		case JIT_PROLOG:
-			do {
-				jit->current_func = op;
-				struct jit_func_info * info = jit_current_func_info(jit);
-				while ((long)jit->ip % 8) 
-					x86_nop(jit->ip);
 
-				op->patch_addr = __PATCH_ADDR(jit);
-				x86_push_reg(jit->ip, X86_EBP);
-				x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
-				int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
-				
-#ifdef __APPLE__
-				stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
-#endif
-				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
-				jit->push_count = __push_callee_saved_regs(jit, op);
-			} while(0);
-			break;
+		case JIT_PROLOG: emit_prolog_op(jit, op); break;
+		case (JIT_ST | IMM): common86_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
+		case (JIT_ST | REG): common86_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
+		case (JIT_STX | IMM): common86_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
+		case (JIT_STX | REG): common86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
-		case JIT_DECL_ARG: break;
-
-		case JIT_RETVAL: // reg. allocator takes care of the proper register assignment 
-			//if (a1 != X86_EAX) x86_mov_reg_reg(jit->ip, a1, X86_EAX, REG_SIZE);
-			break;
-
-		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break;
-
-		case (JIT_ST | IMM): x86_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
-		case (JIT_ST | REG): x86_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
-		case (JIT_STX | IMM): x86_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
-		case (JIT_STX | REG): x86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
-
-		case (JIT_UREG):
-			if (JIT_REG(a1).spec == JIT_RTYPE_REG) {
-				if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
-				else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
-			}
-			break;
-		case (JIT_LREG): 
-			if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
-			else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(jit, a2), REG_SIZE);
-			break;
-		case (JIT_SYNCREG):
-			if (JIT_REG(a1).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, a2, X86_EBP, __GET_FPREG_POS(jit, a1));
-			else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, a1), a2, REG_SIZE);
-			break;
-		case JIT_RENAMEREG: x86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
-
-		case JIT_CODESTART: break;
-		case JIT_NOP: break;
-
+		//
 		// Floating-point operations;
-		case (JIT_FMOV | REG): x86_movsd_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_FMOV | IMM): x86_movsd_reg_mem(jit->ip, a1, &op->flt_imm); break;
+		//
+		case (JIT_FMOV | REG): sse_movsd_reg_reg(jit->ip, a1, a2); break;
+		case (JIT_FMOV | IMM): sse_reg_safeimm(jit, a1, &op->flt_imm); break; 
 		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
 		case (JIT_FRSB | REG): __sse_sub_op(jit, a1, a3, a2); break;
 		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
 		case (JIT_FDIV | REG): __sse_div_op(jit, a1, a2, a3); break;
-		case (JIT_FNEG | REG): __sse_neg_op(jit, a1, a2); break;
+                case (JIT_FNEG | REG): __sse_neg_op(jit, a1, a2); break;
 		case (JIT_FBLT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_LT); break;
-		case (JIT_FBGT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
-		case (JIT_FBGE | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
-		case (JIT_FBLE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
-		case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
-		case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
+                case (JIT_FBGT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
+                case (JIT_FBGE | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
+                case (JIT_FBLE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
+                case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
+                case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
 
-		case (JIT_EXT | REG): x86_cvtsi2sd(jit->ip, a1, a2); break;
-		case (JIT_TRUNC | REG): x86_cvttsd2si(jit->ip, a1, a2); break;
+		case (JIT_EXT | REG): sse_cvtsi2sd_reg_reg(jit->ip, a1, a2); break;
+                case (JIT_TRUNC | REG): sse_cvttsd2si_reg_reg(jit->ip, a1, a2); break;
 		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
-		case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
+                case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
 		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
 
-		case (JIT_FRET | REG): x86_movlpd_membase_xreg(jit->ip, a1, X86_ESP, -8); // pushes the value beyond the top of the stack
-				       x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)
+		case (JIT_FRET | REG): emit_fret_op(jit, op); break;
+		case JIT_FRETVAL: emit_fretval_op(jit, op); break;
 
-				       // common epilogue
-				       jit->push_count -= __pop_callee_saved_regs(jit);
-				       x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
-				       x86_pop_reg(jit->ip, X86_EBP);
-				       x86_ret(jit->ip);
-				       break;
-		case JIT_FRETVAL: x86_fst_membase(jit->ip, X86_ESP, -8, 1, 1);
-				  x86_movlpd_xreg_membase(jit->ip, a1, X86_ESP, -8);
-				  break;
+		case (JIT_UREG): __ureg(jit, a1, a2); break;
+		case (JIT_LREG): __lreg(jit, a1, a2); break;
+		case (JIT_SYNCREG):  __ureg(jit, a1, a2); break;
+		case JIT_RENAMEREG: common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
 
-		// platform specific opcodes; used byt optimizer
-		case (JIT_X86_STI | IMM): x86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
-		case (JIT_X86_STI | REG): x86_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
-		case (JIT_X86_STXI | IMM): x86_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;
-		case (JIT_X86_STXI | REG): x86_mov_memindex_imm(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+		case JIT_CODESTART: break;
+		case JIT_NOP: break;
 
-		default: printf("x86: unknown operation (opcode: %i)\n", GET_OP(op));
+		// platform specific opcodes; used by the optimizer
+		case (JIT_X86_STI | IMM): common86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
+		case (JIT_X86_STI | REG): common86_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
+		case (JIT_X86_STXI | IMM): common86_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;
+		case (JIT_X86_STXI | REG): common86_mov_memindex_imm(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+
+		default: printf("x86: unknown operation (opcode: 0x%x)\n", GET_OP(op) >> 3);
 	}
 }
 
