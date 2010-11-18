@@ -142,7 +142,7 @@ static void sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * i
 #define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm) 	x86_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)
 #define sse_alu_pd_reg_safeimm(jit, op, reg, imm) 	x86_sse_alu_pd_reg_mem(jit->ip, op, reg, imm)
 
-#define sse_comisd_reg_reg(ip, r1, r2)			x86_sse_alu_sd_reg_reg(ip, X86_SSE_COMI, r1, r2)
+#define sse_comisd_reg_reg(ip, r1, r2)			x86_sse_alu_pd_reg_reg(ip, X86_SSE_COMI, r1, r2)
 
 #define sse_cvttsd2si_reg_reg(ip, r1, r2) 		x86_cvttsd2si(ip, r1, r2)
 #define sse_cvtsi2sd_reg_reg(ip, r1, r2) 		x86_cvtsi2sd(ip, r1, r2)
@@ -455,6 +455,46 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
                 *reg = hreg->id;
                 return 0;
         } else return 1;
+}
+
+/**
+ * Emits all LD operations
+ */
+static inline void emit_ld_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
+{
+	if (op->arg_size == REG_SIZE) {
+		if (IS_IMM(op)) common86_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
+		else common86_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
+		return;
+	} 
+
+	switch (op->code) {
+		case (JIT_LD | IMM | SIGNED): common86_movsx_reg_mem(jit->ip, a1, a2, op->arg_size); break;
+		case (JIT_LD | IMM | UNSIGNED): common86_movzx_reg_mem(jit->ip, a1, a2, op->arg_size); break;
+		case (JIT_LD | REG | SIGNED): common86_movsx_reg_membase(jit->ip, a1, a2, 0, op->arg_size); break;
+		case (JIT_LD | REG | UNSIGNED): common86_movzx_reg_membase(jit->ip, a1, a2, 0, op->arg_size); break;
+		default: assert(0);
+	}
+}
+
+/**
+ * Emits all LD operations
+ */
+static inline void emit_ldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2, jit_value a3)
+{
+	if (op->arg_size == REG_SIZE) {
+		if (IS_IMM(op)) common86_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
+		else common86_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
+		return;
+	} 
+	
+	switch (op->code) {
+		case (JIT_LDX | IMM | SIGNED): common86_movsx_reg_membase(jit->ip, a1, a2, a3, op->arg_size); break;
+		case (JIT_LDX | IMM | UNSIGNED): common86_movzx_reg_membase(jit->ip, a1, a2, a3, op->arg_size); break;
+		case (JIT_LDX | REG | SIGNED): common86_movsx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); break;
+		case (JIT_LDX | REG | UNSIGNED): common86_movzx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); break;
+		default: assert(0);
+	}
 }
 
 //

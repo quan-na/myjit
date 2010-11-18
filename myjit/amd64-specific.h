@@ -441,6 +441,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			      break;
 
 		case JIT_ALLOCA: break;
+//		case JIT_LD: emit_ld_op(jit, op, a1, a2); break;
+//		case JIT_LDX: emit_ldx_op(jit, op, a1, a2, a3); break;
 		case JIT_FST: emit_sse_fst_op(jit, op, a1, a2); break;
 		case JIT_FSTX: emit_sse_fstx_op(jit, op, a1, a2, a3); break;
 		case JIT_FLD: emit_sse_fld_op(jit, op, a1, a2); break;
@@ -542,6 +544,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				amd64_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size);
 			}
 			break;
+
 		case (JIT_ST | IMM): amd64_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
 		case (JIT_ST | REG): amd64_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
 		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
