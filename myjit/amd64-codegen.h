@@ -301,7 +301,6 @@ typedef union {
 #define amd64_movzx_reg_reg(inst,dreg,reg,size)	\
 	do {	\
 		if ((size) == 4) { \
-			amd64_alu_reg_reg(inst, X86_XOR, dreg, dreg); \
 			amd64_mov_reg_reg(inst, dreg, reg, 4); \
 			break; \
 		} \
@@ -316,6 +315,59 @@ typedef union {
 		x86_reg_emit ((inst), (dreg), (reg));	\
 	} while (0)
 
+#define amd64_movzx_reg_mem(inst,reg,mem,size) \
+	do {    \
+		if ((size) == 4) { \
+			amd64_mov_reg_mem(inst,reg,mem,size); \
+			break; \
+		} \
+		amd64_emit_rex(inst,8,(reg),0,0); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		switch ((size)) {       \
+			case 1: *(inst)++ = (unsigned char)0xb6; break; \
+			case 2: *(inst)++ = (unsigned char)0xb7; break; \
+			default: assert (0);    \
+		}       \
+		/*x86_mem_emit ((inst), (reg), (mem));  */  \
+		x86_address_byte ((inst), 0, (reg), 4); \
+		x86_address_byte ((inst), 0, 4, 5); \
+		x86_imm_emit32 ((inst), (mem)); \
+	} while (0)
+
+#define amd64_movzx_reg_memindex(inst,reg,basereg,disp,indexreg,shift,size)       \
+	do {    \
+		if ((size) == 4) { \
+			amd64_mov_reg_memindex(inst,reg,basereg,disp,indexreg,shift,size); \
+			break; \
+		} \
+		amd64_emit_rex ((inst),8,(reg),(indexreg),(basereg));\
+		*(inst)++ = (unsigned char)0x0f;        \
+		switch ((size)) {       \
+			case 1: *(inst)++ = (unsigned char)0xb6; break; \
+			case 2: *(inst)++ = (unsigned char)0xb7; break; \
+			default: assert (0);    \
+		}       \
+		x86_memindex_emit ((inst), (reg)&0x7, (basereg)&0x7, (disp), (indexreg)&0x7, (shift));      \
+	} while (0)
+
+
+#define amd64_movzx_reg_membase(inst,reg,basereg,disp,size)       \
+	do {    \
+		if ((size) == 4) { \
+			amd64_mov_reg_membase(inst, reg, basereg, disp,size); \
+			break; \
+		} \
+		amd64_emit_rex(inst,8,(reg),0,(basereg)); \
+		*(inst)++ = (unsigned char)0x0f;        \
+		switch (size) {\
+			case 1: *(inst)++ = (unsigned char)0xb6; break; \
+			case 2: *(inst)++ = (unsigned char)0xb7; break; \
+			default: assert(0);\
+		}\
+		x86_membase_emit ((inst), (reg), (basereg), (disp));    \
+	} while (0)
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 #define amd64_movsx_reg_reg(inst,dreg,reg,size)	\
 	do {	\
 		if ((size) == 4) { \

@@ -94,6 +94,16 @@
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	amd64_mov_reg_reg(ptr, reg1, reg2, size)
 #define common86_mov_reg_imm_size(ptr, reg, imm, size)	amd64_mov_reg_imm_size(ptr, reg, imm, size)
 #define common86_mov_reg_imm(ptr, reg, imm)	amd64_mov_reg_imm_size(ptr, reg, imm, sizeof(void *))
+#define common86_mov_reg_mem(ptr, reg, mem, size) 	amd64_mov_reg_mem(ptr, reg, mem, size)
+#define common86_movsx_reg_mem(ptr, reg, mem, size) 	amd64_movsx_reg_mem(ptr, reg, mem, size)
+#define common86_movzx_reg_mem(ptr, reg, mem, size) 	amd64_movzx_reg_mem(ptr, reg, mem, size)
+#define common86_mov_reg_membase(ptr, reg, basereg, disp, size) 	amd64_mov_reg_membase(ptr, reg, basereg, disp, size)
+#define common86_movsx_reg_membase(ptr, reg, basereg, disp, size) 	amd64_movsx_reg_membase(ptr, reg, basereg, disp, size)
+#define common86_movzx_reg_membase(ptr, reg, basereg, disp, size) 	amd64_movzx_reg_membase(ptr, reg, basereg, disp, size)
+#define common86_mov_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)	amd64_mov_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)
+#define common86_movsx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)	amd64_movsx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)
+#define common86_movzx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)	amd64_movzx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)
+
 #define common86_xchg_reg_reg(ptr, reg1, reg2, size) 	amd64_xchg_reg_reg(ptr, reg1, reg2, size)
 
 #define common86_alu_reg_reg(ptr, op, reg1, reg2) 	amd64_alu_reg_reg(ptr, op, reg1, reg2)

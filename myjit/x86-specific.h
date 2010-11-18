@@ -319,46 +319,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break;
-/*
-		case (JIT_LD | IMM | SIGNED): 
-			if (op->arg_size == REG_SIZE) x86_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
-			else x86_movsx_reg_mem(jit->ip, a1, a2, op->arg_size);
-			break;
 
-		case (JIT_LD | IMM | UNSIGNED): 
-			if (op->arg_size == REG_SIZE) x86_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
-			else x86_movzx_reg_mem(jit->ip, a1, a2, op->arg_size);
-			break;
-
-		case (JIT_LD | REG | SIGNED):
-			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			else x86_movsx_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			break;
-
-		case (JIT_LD | REG | UNSIGNED):
-			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			else  x86_movzx_reg_membase(jit->ip, a1, a2, 0, op->arg_size); 
-			break;
-
-		case (JIT_LDX | IMM | SIGNED): 
-			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			else x86_movsx_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			break;
-
-		case (JIT_LDX | IMM | UNSIGNED): 
-			if (op->arg_size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			else x86_movzx_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
-			break;
-
-		case (JIT_LDX | REG | SIGNED): 
-			if (op->arg_size == REG_SIZE) x86_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			else x86_movsx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			break;
-		case (JIT_LDX | REG | UNSIGNED): 
-			if (op->arg_size == REG_SIZE) x86_mov_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			else x86_movzx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); 
-			break;
-*/
 		case (JIT_ST | IMM): x86_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
 		case (JIT_ST | REG): x86_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
 		case (JIT_STX | IMM): x86_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
