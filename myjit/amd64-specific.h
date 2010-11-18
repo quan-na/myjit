@@ -334,6 +334,79 @@ static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 	}
 }
 
+static void __lreg(struct jit * jit, jit_value a1, jit_value a2)
+{
+	if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
+	if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_xreg_membase(jit->ip, a1, AMD64_RBP, __GET_FPREG_POS(jit, a2));
+	else amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE);
+}
+
+static void emit_prolog_op(struct jit * jit, jit_op * op)
+{
+	jit->current_func = op;
+	struct jit_func_info * info = jit_current_func_info(jit);
+
+	while ((jit_value)jit->ip % 16)
+		amd64_nop(jit->ip);
+
+	op->patch_addr = __PATCH_ADDR(jit);
+	amd64_push_reg(jit->ip, AMD64_RBP);
+	amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
+
+	int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(jit_float) + info->general_arg_cnt * REG_SIZE + info->float_arg_cnt * sizeof(jit_float);
+
+	stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
+
+	amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
+	jit->push_count = __push_callee_saved_regs(jit, op);
+}
+
+static void emit_msg_op(struct jit * jit, jit_op * op)
+{
+	struct jit_reg_allocator * al = jit->reg_al;
+	for (int i = 0; i < al->gp_reg_cnt; i++)
+		if (!al->gp_regs[i].callee_saved)
+			amd64_push_reg(jit->ip, al->gp_regs[i].id);
+
+	if (!IS_IMM(op)) amd64_mov_reg_reg_size(jit->ip, AMD64_RSI, op->r_arg[1], 8);
+	amd64_mov_reg_imm_size(jit->ip, AMD64_RDI, op->r_arg[0], 8);
+	amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
+	amd64_mov_reg_imm(jit->ip, AMD64_RDX, printf);
+	amd64_call_reg(jit->ip, AMD64_RDX);
+
+	for (int i = al->gp_reg_cnt - 1; i >= 0; i--)
+		if (!al->gp_regs[i].callee_saved)
+			amd64_pop_reg(jit->ip, al->gp_regs[i].id);
+
+}
+
+static void emit_fret_op(struct jit * jit, jit_op * op)
+{
+	jit_value arg = op->r_arg[0];
+
+	if (op->arg_size == sizeof(float)) 
+		sse_cvtsd2ss_reg_reg(jit->ip, arg, arg);
+
+	// pushes the value beyond the top of the stack
+	sse_movlpd_membase_xreg(jit->ip, arg, COMMON86_SP, -8); 
+	common86_mov_reg_membase(jit->ip, COMMON86_AX, COMMON86_SP, -8, 8);
+	// transfers the value from the stack to RAX
+	sse_movsd_reg_membase(jit->ip, COMMON86_XMM0, COMMON86_SP, -8);
+
+	// common epilogue
+	jit->push_count -= __pop_callee_saved_regs(jit);
+	common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, 8);
+	common86_pop_reg(jit->ip, COMMON86_BP);
+	common86_ret(jit->ip);
+}
+
+static void emit_fretval_op(struct jit * jit, jit_op * op)
+{
+	jit_value arg = op->r_arg[0];
+	if (op->arg_size == sizeof(float)) sse_cvtss2sd_reg_reg(jit->ip, arg, COMMON86_XMM0);
+	else if (arg != COMMON86_XMM0) sse_movsd_reg_reg(jit->ip, arg, COMMON86_XMM0);
+}
+
 void jit_patch_external_calls(struct jit * jit)
 {
 	// On AMD64 called function can be anywhere in the memory, even so far that its address won't fit into
@@ -342,17 +415,17 @@ void jit_patch_external_calls(struct jit * jit)
 
 void jit_gen_op(struct jit * jit, struct jit_op * op)
 {
-	long a1 = op->r_arg[0];
-	long a2 = op->r_arg[1];
-	long a3 = op->r_arg[2];
+	jit_value a1 = op->r_arg[0];
+	jit_value a2 = op->r_arg[1];
+	jit_value a3 = op->r_arg[2];
 
 	int found = 1;
 	
 	switch (GET_OP(op)) {
 		case JIT_ADD: 
 			if ((a1 != a2) && (a1 != a3)) {
-				if (IS_IMM(op)) amd64_lea_membase(jit->ip, a1, a2, a3);
-				else amd64_lea_memindex(jit->ip, a1, a2, 0, a3, 0);
+				if (IS_IMM(op)) common86_lea_membase(jit->ip, a1, a2, a3);
+				else common86_lea_memindex(jit->ip, a1, a2, 0, a3, 0);
 			} else __alu_op(jit, op, X86_ADD, IS_IMM(op)); 
 			break;
 
@@ -362,14 +435,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_SUBC: __subx_op(jit, op, X86_SUB, IS_IMM(op)); break; 
 		case JIT_SUBX: __subx_op(jit, op, X86_SBB, IS_IMM(op)); break; 
 		case JIT_RSB: __rsb_op(jit, op, IS_IMM(op)); break; 
-		case JIT_NEG: if (a1 != a2) amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
-			      amd64_neg_reg(jit->ip, a1); 
+		case JIT_NEG: if (a1 != a2) common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
+			      common86_neg_reg(jit->ip, a1); 
 			      break;
 		case JIT_OR: __alu_op(jit, op, X86_OR, IS_IMM(op)); break; 
 		case JIT_XOR: __alu_op(jit, op, X86_XOR, IS_IMM(op)); break; 
 		case JIT_AND: __alu_op(jit, op, X86_AND, IS_IMM(op)); break; 
-		case JIT_NOT: if (a1 != a2) amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
-			      amd64_not_reg(jit->ip, a1);
+		case JIT_NOT: if (a1 != a2) common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE);
+			      common86_not_reg(jit->ip, a1);
 			      break;
 		case JIT_LSH: __shift_op(jit, op, X86_SHL, IS_IMM(op)); break;
 		case JIT_RSH: __shift_op(jit, op, IS_SIGNED(op) ? X86_SAR : X86_SHR, IS_IMM(op)); break;
@@ -401,52 +474,40 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
 		case JIT_PATCH: do {
-					long pa = ((struct jit_op *)a1)->patch_addr;
-					amd64_patch(jit->buf + pa, jit->ip);
+					jit_value pa = ((struct jit_op *)a1)->patch_addr;
+					common86_patch(jit->buf + pa, jit->ip);
 				} while (0);
 				break;
 		case JIT_JMP:
 			op->patch_addr = __PATCH_ADDR(jit);
-			if (op->code & REG) amd64_jump_reg(jit->ip, a1);
-			else amd64_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
+			if (op->code & REG) common86_jump_reg(jit->ip, a1);
+			else common86_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
 			break;
 		case JIT_RET:
-			if (!IS_IMM(op) && (a1 != AMD64_RAX)) amd64_mov_reg_reg(jit->ip, AMD64_RAX, a1, 8);
-			if (IS_IMM(op)) amd64_mov_reg_imm(jit->ip, AMD64_RAX, a1);
+			if (!IS_IMM(op) && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
+			if (IS_IMM(op)) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
 			__pop_callee_saved_regs(jit);
-			amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
-			amd64_pop_reg(jit->ip, AMD64_RBP);
-			amd64_ret(jit->ip);
+			common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
+			common86_pop_reg(jit->ip, COMMON86_BP);
+			common86_ret(jit->ip);
 			break;
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
 		case JIT_FPUTARG: __fput_arg(jit, op); break;
 		case JIT_GETARG: __get_arg(jit, op); break;
-		case JIT_MSG: do {
-				      struct jit_reg_allocator * al = jit->reg_al;
-				      for (int i = 0; i < al->gp_reg_cnt; i++)
-				      if (!al->gp_regs[i].callee_saved)
-					      amd64_push_reg(jit->ip, al->gp_regs[i].id);
+		case JIT_MSG: emit_msg_op(jit, op); break;
 
-			      	      if (!IS_IMM(op)) amd64_mov_reg_reg_size(jit->ip, AMD64_RSI, a2, 8);
-				      amd64_mov_reg_imm_size(jit->ip, AMD64_RDI, a1, 8);
-				      amd64_alu_reg_reg(jit->ip, X86_XOR, AMD64_RAX, AMD64_RAX);
-				      amd64_mov_reg_imm(jit->ip, AMD64_RDX, printf);
-				      amd64_call_reg(jit->ip, AMD64_RDX);
-
-				      for (int i = al->gp_reg_cnt - 1; i >= 0; i--)
-				      if (!al->gp_regs[i].callee_saved)
-					      amd64_pop_reg(jit->ip, al->gp_regs[i].id);
-			      } while (0);
-			      break;
-
-		case JIT_ALLOCA: break;
 		case JIT_LD: emit_ld_op(jit, op, a1, a2); break;
 		case JIT_LDX: emit_ldx_op(jit, op, a1, a2, a3); break;
 		case JIT_FST: emit_sse_fst_op(jit, op, a1, a2); break;
 		case JIT_FSTX: emit_sse_fstx_op(jit, op, a1, a2, a3); break;
 		case JIT_FLD: emit_sse_fld_op(jit, op, a1, a2); break;
 		case JIT_FLDX: emit_sse_fldx_op(jit, op, a1, a2, a3); break;
+
+		case JIT_ALLOCA: break;
+		case JIT_DECL_ARG: break;
+		case JIT_RETVAL: break; // reg. allocator takes care of the proper register assignment
+		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 
 		default: found = 0;
 	}
@@ -455,53 +516,26 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 
 	switch (op->code) {
-		case (JIT_MOV | REG): if (a1 != a2) amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
+		case (JIT_MOV | REG): if (a1 != a2) common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
 		case (JIT_MOV | IMM):
-			if (a2 == 0) amd64_alu_reg_reg(jit->ip, X86_XOR, a1, a1);
-			else amd64_mov_reg_imm_size(jit->ip, a1, a2, 8); 
+			if (a2 == 0) common86_alu_reg_reg(jit->ip, X86_XOR, a1, a1);
+			else common86_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
 		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2);
 				  jit->push_count += __push_caller_saved_regs(jit, op);
 				  break;
 
-		case JIT_PROLOG:
-			  do {
-				  jit->current_func = op;
-				  struct jit_func_info * info = jit_current_func_info(jit);
-
-				  while ((long)jit->ip % 16)
-					  amd64_nop(jit->ip);
-
-				  op->patch_addr = __PATCH_ADDR(jit);
-				  amd64_push_reg(jit->ip, AMD64_RBP);
-				  amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
-
-				  int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(jit_float) + info->general_arg_cnt * REG_SIZE + info->float_arg_cnt * sizeof(jit_float);
-
-				  stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
-
-				  amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
-				  jit->push_count = __push_callee_saved_regs(jit, op);
-			  } while (0);
-			break;
-		
-		case JIT_DECL_ARG: break;
-
-		case JIT_RETVAL: // reg. allocator takes care of the proper register assignment
-			break;
-
-		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
-
-		case (JIT_ST | IMM): amd64_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
-		case (JIT_ST | REG): amd64_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
-		case (JIT_STX | IMM): amd64_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
-		case (JIT_STX | REG): amd64_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+		case JIT_PROLOG: emit_prolog_op(jit, op); break;
+		case (JIT_ST | IMM): common86_mov_mem_reg(jit->ip, a1, a2, op->arg_size); break;
+		case (JIT_ST | REG): common86_mov_membase_reg(jit->ip, a1, 0, a2, op->arg_size); break;
+		case (JIT_STX | IMM): common86_mov_membase_reg(jit->ip, a2, a1, a3, op->arg_size); break;
+		case (JIT_STX | REG): common86_mov_memindex_reg(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
 		//
 		// Floating-point operations;
 		//
-		case (JIT_FMOV | REG): amd64_sse_movsd_reg_reg(jit->ip, a1, a2); break;
+		case (JIT_FMOV | REG): sse_movsd_reg_reg(jit->ip, a1, a2); break;
 		case (JIT_FMOV | IMM): sse_reg_safeimm(jit, a1, &op->flt_imm); break; 
 		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
 		case (JIT_FSUB | REG): __sse_sub_op(jit, a1, a2, a3); break;
@@ -516,53 +550,28 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
                 case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
                 case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
 
-		case (JIT_EXT | REG): amd64_sse_cvtsi2sd_reg_reg(jit->ip, a1, a2); break;
-                case (JIT_TRUNC | REG): amd64_sse_cvttsd2si_reg_reg(jit->ip, a1, a2); break;
+		case (JIT_EXT | REG): sse_cvtsi2sd_reg_reg(jit->ip, a1, a2); break;
+                case (JIT_TRUNC | REG): sse_cvttsd2si_reg_reg(jit->ip, a1, a2); break;
 		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
                 case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
 		case (JIT_ROUND | REG): __sse_round(jit, a1, a2); break;
 
-		case (JIT_FRET | REG):
-			if (op->arg_size == sizeof(float)) 
-				amd64_sse_cvtsd2ss_reg_reg(jit->ip, a1, a1);
-
-			// pushes the value beyond the top of the stack
-			amd64_sse_movlpd_membase_xreg(jit->ip, a1, AMD64_RSP, -8); 
-			amd64_mov_reg_membase(jit->ip, AMD64_RAX, AMD64_RSP, -8, 8);
-			// transfers the value from the stack to RAX
-			amd64_sse_movsd_reg_membase(jit->ip, AMD64_XMM0, AMD64_RSP, -8);
-
-			// common epilogue
-			jit->push_count -= __pop_callee_saved_regs(jit);
-			amd64_mov_reg_reg(jit->ip, AMD64_RSP, AMD64_RBP, 8);
-			amd64_pop_reg(jit->ip, AMD64_RBP);
-			amd64_ret(jit->ip);
-			break;
-
-		case JIT_FRETVAL:
-			if (op->arg_size == sizeof(float)) amd64_sse_cvtss2sd_reg_reg(jit->ip, a1, AMD64_XMM0);
-			else if (a1 != AMD64_XMM0) amd64_sse_movsd_reg_reg(jit->ip, a1, AMD64_XMM0);
-			break;
+		case (JIT_FRET | REG): emit_fret_op(jit, op); break;
+		case JIT_FRETVAL: emit_fretval_op(jit, op); break;
 
 		case (JIT_UREG): __ureg(jit, a1, a2); break;
-
-		case (JIT_LREG): 
-			if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
-			if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_xreg_membase(jit->ip, a1, AMD64_RBP, __GET_FPREG_POS(jit, a2));
-			else amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE);
-			break;
-
+		case (JIT_LREG): __lreg(jit, a1, a2); break;
 		case (JIT_SYNCREG):  __ureg(jit, a1, a2); break;
-		case JIT_RENAMEREG: amd64_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
+		case JIT_RENAMEREG: common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
 
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
 
 		// platform specific opcodes; used by the optimizer
-		case (JIT_X86_STI | IMM): amd64_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
-		case (JIT_X86_STI | REG): amd64_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
-		case (JIT_X86_STXI | IMM): amd64_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;
-		case (JIT_X86_STXI | REG): amd64_mov_memindex_imm(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+		case (JIT_X86_STI | IMM): common86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;
+		case (JIT_X86_STI | REG): common86_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
+		case (JIT_X86_STXI | IMM): common86_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;
+		case (JIT_X86_STXI | REG): common86_mov_memindex_imm(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
 
 		default: printf("amd64: unknown operation (opcode: 0x%x)\n", GET_OP(op) >> 3);
 	}

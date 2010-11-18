@@ -31,6 +31,7 @@
 #define COMMON86_DI	X86_EDI
 #define COMMON86_SP	X86_ESP
 #define COMMON86_BP	X86_EBP
+#define COMMON86_XMM0	X86_XMM0
 
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	x86_mov_reg_reg(ptr, reg1, reg2, size)
 #define common86_mov_reg_imm(ptr, reg, imm) 		x86_mov_reg_imm(ptr, reg, imm)
@@ -57,6 +58,7 @@
 #define common86_div_membase(ptr, basereg, disp, sign) 	x86_div_membase(ptr, basereg, disp, sign)
 #define common86_cdq(ptr) 				x86_cdq(ptr)
 #define common86_neg_reg(ptr, reg) 			x86_neg_reg(ptr, reg)
+#define common86_not_reg(ptr, reg) 			x86_not_reg(ptr, reg)
 
 
 #define common86_set_reg(ptr, cond, reg, size) 		x86_set_reg(ptr, cond, reg, size)
@@ -90,6 +92,7 @@
 #define COMMON86_DI	AMD64_RDI
 #define COMMON86_SP	AMD64_RSP
 #define COMMON86_BP	AMD64_RBP
+#define COMMON86_XMM0	AMD64_XMM0
 
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	amd64_mov_reg_reg(ptr, reg1, reg2, size)
 #define common86_mov_reg_imm_size(ptr, reg, imm, size)	amd64_mov_reg_imm_size(ptr, reg, imm, size)
@@ -100,9 +103,19 @@
 #define common86_mov_reg_membase(ptr, reg, basereg, disp, size) 	amd64_mov_reg_membase(ptr, reg, basereg, disp, size)
 #define common86_movsx_reg_membase(ptr, reg, basereg, disp, size) 	amd64_movsx_reg_membase(ptr, reg, basereg, disp, size)
 #define common86_movzx_reg_membase(ptr, reg, basereg, disp, size) 	amd64_movzx_reg_membase(ptr, reg, basereg, disp, size)
+
 #define common86_mov_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)	amd64_mov_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)
 #define common86_movsx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)	amd64_movsx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)
 #define common86_movzx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)	amd64_movzx_reg_memindex(ptr, reg, basereg, disp, indexreg, shift, size)
+
+#define common86_mov_mem_reg(ptr, mem, reg, size) 			amd64_mov_mem_reg(ptr, mem, reg, size)
+#define common86_mov_mem_imm(ptr, mem, imm, size)			amd64_mov_mem_imm(ptr, mem, imm, size)
+#define common86_mov_membase_imm(ptr, basereg, disp, imm, size)		amd64_mov_membase_imm(ptr, basereg, disp, imm, size)
+#define common86_mov_membase_reg(ptr, basereg, disp, reg, size)		amd64_mov_membase_reg(ptr, basereg, disp, reg, size)
+#define common86_mov_memindex_reg(ptr, basereg, disp, indexreg, shift, reg, size) amd64_mov_memindex_reg(ptr, basereg, disp, indexreg, shift, reg, size)
+#define common86_mov_memindex_imm(ptr, basereg, disp, indexreg, shift, imm, size) amd64_mov_memindex_imm(ptr, basereg, disp, indexreg, shift, imm, size)
+
+
 
 #define common86_xchg_reg_reg(ptr, reg1, reg2, size) 	amd64_xchg_reg_reg(ptr, reg1, reg2, size)
 
@@ -117,6 +130,7 @@
 #define common86_div_membase(ptr, basereg, disp, sign) 	amd64_div_membase(ptr, basereg, disp, sign)
 #define common86_cdq(ptr) 				amd64_cdq(ptr)
 #define common86_neg_reg(ptr, reg) 			amd64_neg_reg(ptr, reg)
+#define common86_not_reg(ptr, reg) 			amd64_not_reg(ptr, reg)
 
 
 #define common86_set_reg(ptr, cond, reg, size) 		amd64_set_reg(ptr, cond, reg, size)
@@ -127,6 +141,9 @@
 
 #define common86_patch(op, ptr) 			amd64_patch(op, ptr)
 #define common86_jump_disp(op, disp) 			amd64_jump_disp(op, disp)
+#define common86_jump_disp32(op, disp) 			amd64_jump_disp32(op, disp)
+#define common86_jump_reg(op, reg) 			amd64_jump_reg(op, reg)
+#define common86_ret(ptr)				amd64_ret(ptr)
 
 #define common86_lea_membase(ptr, reg, basereg, disp)	amd64_lea_membase(ptr, reg, basereg, disp)
 #define common86_lea_memindex(ptr, reg, basereg, disp, indexreg, shift)	amd64_lea_memindex(ptr, reg, basereg, disp, indexreg, shift)

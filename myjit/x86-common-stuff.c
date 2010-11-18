@@ -28,8 +28,9 @@
 #define sse_alu_pd_reg_reg(ip,op,r1,r2) amd64_sse_alu_pd_reg_reg(ip,op,r1,r2)
 #define sse_movsd_reg_reg(ip,r1,r2) amd64_sse_movsd_reg_reg(ip,r1,r2)
 #define sse_movsd_reg_mem(ip, r1, mem) amd64_movsd_reg_mem(ip,r1,mem)
-#define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) amd64_sse_movlpd_membase_xreg(ip,dreg,basereg,disp)
-#define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) amd64_sse_movlpd_xreg_membase(ip,dreg,basereg,disp)
+#define sse_movsd_reg_membase(ip, r1, basereg, disp) 	amd64_movsd_reg_membase(ip, r1, basereg, disp)
+#define sse_movlpd_membase_xreg(ip,dreg,basereg,disp) 	amd64_sse_movlpd_membase_xreg(ip,dreg,basereg,disp)
+#define sse_movlpd_xreg_membase(ip,dreg,basereg,disp) 	amd64_sse_movlpd_xreg_membase(ip,dreg,basereg,disp)
 #define sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  amd64_sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)
 
 
