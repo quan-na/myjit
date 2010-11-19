@@ -33,7 +33,6 @@ static inline int __GET_REG_POS(struct jit * jit, int r)
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
 	struct jit_inp_arg * a = &(info->args[p]);
-	a->passed_by_reg = 0;
 
 	if (p == 0) a->location.stack_pos = 8;
 	else {
@@ -43,6 +42,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	}
 
 	a->spill_pos = a->location.stack_pos; 
+	a->passed_by_reg = 0;
 	a->overflow = 0;
 }
 
@@ -146,25 +146,6 @@ void jit_patch_external_calls(struct jit * jit)
 			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)op->arg[0]);
 		if (GET_OP(op) == JIT_MSG)
 			x86_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
-	}
-}
-
-static void __get_arg(struct jit * jit, jit_op * op)
-{
-	jit_value a1 = op->r_arg[0];
-	jit_value a2 = op->r_arg[1];
-
-	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[a2]);
-	int stack_pos = arg->location.stack_pos;
-	if (arg->type != JIT_FLOAT_NUM) {
-		if (arg->size == REG_SIZE) x86_mov_reg_membase(jit->ip, a1, X86_EBP, stack_pos, REG_SIZE); 
-		else if (arg->type == JIT_SIGNED_NUM) x86_movsx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
-		else x86_movzx_reg_membase(jit->ip, a1, X86_EBP, stack_pos, arg->size); 
-	} else {
-		if (arg->size == sizeof(double)) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, stack_pos);
-		else if (arg->size == sizeof(float))
-			x86_cvtss2sd_reg_membase(jit->ip, a1, X86_EBP, stack_pos);
-		else assert(0);
 	}
 }
 

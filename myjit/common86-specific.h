@@ -190,27 +190,70 @@ static void emit_lreg(struct jit * jit, int hreg_id, jit_value vreg)
  * This operation unloads value of the virtual register on the stack
  * from its hardware counterpart
  */
-static inline void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
+static void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
 {
-	/*
-	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
-
-		struct jit_func_info * info = jit_current_func_info(jit);
-		int pos =  __GET_ARG_SPILL_POS(jit, info, JIT_REG(vreg).id);
-
-		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, pos);
-		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, pos, hreg_id, REG_SIZE);
-	}
-	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
-		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, __GET_FPREG_POS(jit, vreg));
-		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, vreg), hreg_id, REG_SIZE);
-	}
-	*/
-
 	int stack_pos = __GET_REG_POS(jit, vreg);
 
 	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_membase_xreg(jit->ip, hreg_id, COMMON86_BP, stack_pos);
 	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
+}
+
+/**
+ * Emits GETARG operation
+ *
+ * This function is slightly larger since it takes into account for various calling
+ * including that one which is used on AMD64.
+ * Information on location of arguments is provided in the jit_init_arg_params function.
+ */
+static void emit_get_arg(struct jit * jit, jit_op * op)
+{
+	struct jit_func_info * info = jit_current_func_info(jit);
+
+	int dreg = op->r_arg[0];
+	int arg_id = op->r_arg[1];
+
+	struct jit_inp_arg * arg = &(info->args[arg_id]);
+
+	int size = arg->size;
+	int type = arg->type;
+	int reg_id = __mkreg(type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+
+	int read_from_stack = 0;
+	int stack_pos;
+
+	if (!arg->passed_by_reg) {
+		read_from_stack = 1;
+		stack_pos = arg->location.stack_pos;
+	}
+	
+	if (arg->passed_by_reg && rmap_get(op->regmap, reg_id) == NULL) {
+		// the register is not associated and the value has to be read from the memory
+		read_from_stack = 1;
+		stack_pos = arg->spill_pos;
+	}
+
+	if (read_from_stack) {
+		if (type != JIT_FLOAT_NUM) {
+			if (size == REG_SIZE) common86_mov_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos, REG_SIZE);
+			else if (type == JIT_SIGNED_NUM)
+				common86_movsx_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos, size);
+			else common86_movzx_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos, size);
+		} else {
+			if (size == sizeof(float)) sse_cvtss2sd_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos);
+			else sse_movlpd_xreg_membase(jit->ip, dreg, COMMON86_BP, stack_pos);
+		}
+		return;
+	} 
+
+	int reg = arg->location.reg;
+	if (type != JIT_FLOAT_NUM) {
+		if (size == REG_SIZE) common86_mov_reg_reg(jit->ip, dreg, reg, REG_SIZE);
+		else if (type == JIT_SIGNED_NUM) common86_movsx_reg_reg(jit->ip, dreg, reg, size);
+		else common86_movzx_reg_reg(jit->ip, dreg, reg, size);
+	} else {
+		if (size == sizeof(float)) sse_cvtss2sd_reg_reg(jit->ip, dreg, reg);
+		else sse_movsd_reg_reg(jit->ip, dreg, reg);
+	}
 }
 
 //
@@ -710,7 +753,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_PUTARG: __put_arg(jit, op); break;
 		case JIT_FPUTARG: __fput_arg(jit, op); break;
-		case JIT_GETARG: __get_arg(jit, op); break;
+		case JIT_GETARG: emit_get_arg(jit, op); break;
 		case JIT_MSG: 	emit_msg_op(jit, op); break;
 
 		case JIT_LD: 	emit_ld_op(jit, op, a1, a2); break;
