@@ -26,6 +26,13 @@ static int __push_caller_saved_regs(struct jit * jit, jit_op * op);
 static int __pop_callee_saved_regs(struct jit * jit);
 static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
 
+#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
+		(((jit_value)jit->buf + ((jit_label *)(imm))->pos - (jit_value)jit->ip)))
+#define __PATCH_ADDR(jit)       ((jit_value)jit->ip - (jit_value)jit->buf)
+
+
+#include "sse2-specific.h"
+
 #ifdef JIT_ARCH_I386
 #include "x86-specific.h"
 #endif
@@ -33,9 +40,6 @@ static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
 #ifdef JIT_ARCH_AMD64
 #include "amd64-specific.h"
 #endif
-
-#include "sse2-specific.h"
-
 
 //
 //
@@ -538,21 +542,21 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			      	common86_not_reg(jit->ip, a1);
 			      	break;
 		case JIT_LSH: 	emit_shift_op(jit, op, X86_SHL, imm); break;
-		case JIT_RSH: 	emit_shift_op(jit, op, IS_SIGNED(op) ? X86_SAR : X86_SHR, imm); break;
+		case JIT_RSH: 	emit_shift_op(jit, op, sign ? X86_SAR : X86_SHR, imm); break;
 
-		case JIT_LT: 	emit_cond_op(jit, op, X86_CC_LT, imm, IS_SIGNED(op)); break;
-		case JIT_LE: 	emit_cond_op(jit, op, X86_CC_LE, imm, IS_SIGNED(op)); break;
-		case JIT_GT: 	emit_cond_op(jit, op, X86_CC_GT, imm, IS_SIGNED(op)); break;
-		case JIT_GE: 	emit_cond_op(jit, op, X86_CC_GE, imm, IS_SIGNED(op)); break;
-		case JIT_EQ: 	emit_cond_op(jit, op, X86_CC_EQ, imm, IS_SIGNED(op)); break;
-		case JIT_NE: 	emit_cond_op(jit, op, X86_CC_NE, imm, IS_SIGNED(op)); break;
+		case JIT_LT: 	emit_cond_op(jit, op, X86_CC_LT, imm, sign); break;
+		case JIT_LE: 	emit_cond_op(jit, op, X86_CC_LE, imm, sign); break;
+		case JIT_GT: 	emit_cond_op(jit, op, X86_CC_GT, imm, sign); break;
+		case JIT_GE: 	emit_cond_op(jit, op, X86_CC_GE, imm, sign); break;
+		case JIT_EQ: 	emit_cond_op(jit, op, X86_CC_EQ, imm, sign); break;
+		case JIT_NE: 	emit_cond_op(jit, op, X86_CC_NE, imm, sign); break;
 
-		case JIT_BLT: 	emit_branch_op(jit, op, X86_CC_LT, imm, IS_SIGNED(op)); break;
-		case JIT_BLE: 	emit_branch_op(jit, op, X86_CC_LE, imm, IS_SIGNED(op)); break;
-		case JIT_BGT: 	emit_branch_op(jit, op, X86_CC_GT, imm, IS_SIGNED(op)); break;
-		case JIT_BGE: 	emit_branch_op(jit, op, X86_CC_GE, imm, IS_SIGNED(op)); break;
-		case JIT_BEQ: 	emit_branch_op(jit, op, X86_CC_EQ, imm, IS_SIGNED(op)); break;
-		case JIT_BNE: 	emit_branch_op(jit, op, X86_CC_NE, imm, IS_SIGNED(op)); break;
+		case JIT_BLT: 	emit_branch_op(jit, op, X86_CC_LT, imm, sign); break;
+		case JIT_BLE: 	emit_branch_op(jit, op, X86_CC_LE, imm, sign); break;
+		case JIT_BGT: 	emit_branch_op(jit, op, X86_CC_GT, imm, sign); break;
+		case JIT_BGE: 	emit_branch_op(jit, op, X86_CC_GE, imm, sign); break;
+		case JIT_BEQ: 	emit_branch_op(jit, op, X86_CC_EQ, imm, sign); break;
+		case JIT_BNE: 	emit_branch_op(jit, op, X86_CC_NE, imm, sign); break;
 
 		case JIT_BMS: 	emit_branch_mask_op(jit, op, X86_CC_NZ, imm); break;
 		case JIT_BMC: 	emit_branch_mask_op(jit, op, X86_CC_Z, imm); break;
@@ -560,10 +564,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BOADD: emit_branch_overflow_op(jit, op, X86_ADD, imm); break;
 		case JIT_BOSUB: emit_branch_overflow_op(jit, op, X86_SUB, imm); break;
 
-		case JIT_MUL: 	emit_mul_op(jit, op, imm, IS_SIGNED(op), 0); break;
-		case JIT_HMUL: 	emit_mul_op(jit, op, imm, IS_SIGNED(op), 1); break;
-		case JIT_DIV: 	emit_div_op(jit, op, imm, IS_SIGNED(op), 0); break;
-		case JIT_MOD: 	emit_div_op(jit, op, imm, IS_SIGNED(op), 1); break;
+		case JIT_MUL: 	emit_mul_op(jit, op, imm, sign, 0); break;
+		case JIT_HMUL: 	emit_mul_op(jit, op, imm, sign, 1); break;
+		case JIT_DIV: 	emit_div_op(jit, op, imm, sign, 0); break;
+		case JIT_MOD: 	emit_div_op(jit, op, imm, sign, 1); break;
 
 		case JIT_CALL: 	__funcall(jit, op, imm); break;
 		case JIT_PATCH: do {

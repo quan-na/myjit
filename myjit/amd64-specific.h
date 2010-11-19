@@ -33,10 +33,6 @@
  * RPB - l  +--------------+
  */
 
-
-#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
-		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-
 #define __GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 #define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
 
@@ -50,9 +46,6 @@ static inline int __GET_REG_POS(struct jit * jit, int r)
 	} else return __GET_ARG_SPILL_POS(jit, jit_current_func_info(jit), JIT_REG(r).id);
 }
 
-#define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
-
-#include "common86-codegen.h"
 #include "x86-common-stuff.c"
 
 static inline int jit_allocai(struct jit * jit, int size)
