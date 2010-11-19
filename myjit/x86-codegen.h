@@ -2310,6 +2310,28 @@ typedef enum {
  * MOVSX, MOVZX
  */
 
+#define x86_movzx_reg_reg(inst,dreg,reg,size)	\
+	do {	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		switch ((size)) {	\
+		case 1: *(inst)++ = (unsigned char)0xb6; break;	\
+		case 2: *(inst)++ = (unsigned char)0xb7; break; \
+		default: assert (0);	\
+		}	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
+	} while (0)
+
+#define x86_movsx_reg_reg(inst,dreg,reg,size)	\
+	do {	\
+		*(inst)++ = (unsigned char)0x0f;	\
+		switch ((size)) {	\
+		case 1: *(inst)++ = (unsigned char)0xbe; break;	\
+		case 2: *(inst)++ = (unsigned char)0xbf; break; \
+		default: assert (0);	\
+		}	\
+		x86_reg_emit ((inst), (dreg), (reg));	\
+	} while (0)
+
 #define x86_movsx_reg_mem(inst,reg,mem,size)	\
 	do {	\
 		*(inst)++ = (unsigned char)0x0f;	\
