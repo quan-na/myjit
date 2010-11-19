@@ -26,12 +26,14 @@
 
 // pretty lousy processor detection
 #ifdef __i386__
-#define JIT_ARCH_I386
+	#define JIT_ARCH_I386
+	#define JIT_ARCH_COMMON86
 #else
 	#ifdef __sparc__
 		#define JIT_ARCH_SPARC
 	#else
 		#define JIT_ARCH_AMD64
+		#define JIT_ARCH_COMMON86
 	#endif
 #endif
 

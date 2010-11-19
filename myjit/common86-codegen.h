@@ -88,10 +88,9 @@
 #define common86_push_reg(ptr, reg) 			x86_push_reg(ptr, reg)
 #define common86_pop_reg(ptr, reg) 			x86_pop_reg(ptr, reg)
 
-
-
-
 #endif
+
+
 
 #ifdef JIT_ARCH_AMD64
 #include "amd64-codegen.h"

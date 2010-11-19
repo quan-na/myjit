@@ -25,12 +25,8 @@
 #include "set.h"
 #include "rmap.h"
 
-#ifdef JIT_ARCH_I386
-#include "x86-specific.h"
-#endif
-
-#ifdef JIT_ARCH_AMD64
-#include "amd64-specific.h"
+#ifdef JIT_ARCH_COMMON86
+#include "common86-specific.h"
 #endif
 
 #ifdef JIT_ARCH_SPARC
