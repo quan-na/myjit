@@ -49,7 +49,7 @@ static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
 /**
  * Emits PUSH instruction for the given GP or FP register
  */
-static inline void emit_push_reg(struct jit * jit, jit_hw_reg * r)
+static void emit_push_reg(struct jit * jit, jit_hw_reg * r)
 {
 	if (!r->fp) common86_push_reg(jit->ip, r->id);
 	else {
@@ -61,7 +61,7 @@ static inline void emit_push_reg(struct jit * jit, jit_hw_reg * r)
 /**
  * Emits PUSH instruction for the given GP or FP register
  */
-static inline void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
+static void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
 {
 	if (!r->fp) common86_pop_reg(jit->ip, r->id);
 	else {
@@ -70,7 +70,7 @@ static inline void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
 	}
 }
 
-static inline int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
+static int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 {
 	for (int i = 0; i < 3; i++)
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
@@ -287,7 +287,7 @@ static void emit_alu_op(struct jit * jit, struct jit_op * op, int x86_op, int im
  * Emits the SUB operation, since it is not a commutative operation
  * it needs some extra care for some types of operands
  */
-static inline void emit_sub_op(struct jit * jit, struct jit_op * op, int imm)
+static void emit_sub_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] != op->r_arg[1]) common86_lea_membase(jit->ip, op->r_arg[0], op->r_arg[1], -op->r_arg[2]);
@@ -310,7 +310,7 @@ static inline void emit_sub_op(struct jit * jit, struct jit_op * op, int imm)
  * it needs some extra care for some types of operands
  */
 
-static inline void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
+static void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] != op->r_arg[1]) common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
@@ -334,7 +334,7 @@ static inline void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op
  * Emits the RSB operation, since it is not a commutative operation
  * it needs some extra care for some types of operands
  */
-static inline void emit_rsb_op(struct jit * jit, struct jit_op * op, int imm)
+static void emit_rsb_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
 		if (op->r_arg[0] == op->r_arg[1]) common86_alu_reg_imm(jit->ip, X86_ADD, op->r_arg[0], -op->r_arg[2]);
@@ -371,7 +371,7 @@ static inline void emit_rsb_op(struct jit * jit, struct jit_op * op, int imm)
  * TODO: Register allocator should be aware of this issues and should take care
  * of this. 
  */
-static inline void emit_mul_op(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
+static void emit_mul_op(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
 {
 	jit_value dest = op->r_arg[0];
 	jit_value factor1 = op->r_arg[1];
@@ -447,7 +447,7 @@ static inline void emit_mul_op(struct jit * jit, struct jit_op * op, int imm, in
  * of this. 
  */
 
-static inline void emit_div_op(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
+static void emit_div_op(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
 	jit_value dest = op->r_arg[0];
 	jit_value dividend = op->r_arg[1];
@@ -518,7 +518,7 @@ static inline void emit_div_op(struct jit * jit, struct jit_op * op, int imm, in
  * In that case, the value from EDX is pushed on the stack and contents from
  * ECX is moved to EDX and EDX is used instead.
  */
-static inline void emit_shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
+static void emit_shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
 {
 	if (imm) { 
 		if (op->r_arg[0] != op->r_arg[1]) common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
@@ -554,7 +554,7 @@ static inline void emit_shift_op(struct jit * jit, struct jit_op * op, int shift
 	}
 }
 
-static inline void emit_cond_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
+static void emit_cond_op(struct jit * jit, struct jit_op * op, int amd64_cond, int imm, int sign)
 {
 	if (imm) common86_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
@@ -569,7 +569,7 @@ static inline void emit_cond_op(struct jit * jit, struct jit_op * op, int amd64_
 	}
 }
 
-static inline void emit_branch_op(struct jit * jit, struct jit_op * op, int cond, int imm, int sign)
+static void emit_branch_op(struct jit * jit, struct jit_op * op, int cond, int imm, int sign)
 {
 	if (imm) common86_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
@@ -579,7 +579,7 @@ static inline void emit_branch_op(struct jit * jit, struct jit_op * op, int cond
 	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
-static inline void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
+static void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
 	if (imm) common86_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else common86_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -589,7 +589,7 @@ static inline void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int
 	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
-static inline void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
+static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
 {
 	if (imm) common86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
@@ -604,7 +604,7 @@ static inline void emit_branch_overflow_op(struct jit * jit, struct jit_op * op,
  * it is returned through the reg argument
  */
 // FIXME: reports as spilled also argument which contains appropriate value
-static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
+static int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
         jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 
@@ -617,7 +617,7 @@ static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 /**
  * Emits all LD operations
  */
-static inline void emit_ld_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
+static void emit_ld_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
 {
 	if (op->arg_size == REG_SIZE) {
 		if (IS_IMM(op)) common86_mov_reg_mem(jit->ip, a1, a2, op->arg_size);
@@ -637,7 +637,7 @@ static inline void emit_ld_op(struct jit * jit, jit_op * op, jit_value a1, jit_v
 /**
  * Emits all LD operations
  */
-static inline void emit_ldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2, jit_value a3)
+static void emit_ldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a2, jit_value a3)
 {
 	if (op->arg_size == REG_SIZE) {
 		if (IS_IMM(op)) common86_mov_reg_membase(jit->ip, a1, a2, a3, op->arg_size);
@@ -654,7 +654,7 @@ static inline void emit_ldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_
 	}
 }
 
-static inline int jit_allocai(struct jit * jit, int size)
+static int jit_allocai(struct jit * jit, int size)
 {                                      
 	jit_value real_size = jit_value_align(size, JIT_STACK_ALIGNMENT);
 

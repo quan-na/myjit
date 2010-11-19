@@ -34,6 +34,8 @@
 #define COMMON86_XMM0	X86_XMM0
 
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	x86_mov_reg_reg(ptr, reg1, reg2, size)
+#define common86_movsx_reg_reg(ptr, reg1, reg2, size) 	x86_movsx_reg_reg(ptr, reg1, reg2, size)
+#define common86_movzx_reg_reg(ptr, reg1, reg2, size) 	x86_movzx_reg_reg(ptr, reg1, reg2, size)
 #define common86_mov_reg_imm(ptr, reg, imm) 		x86_mov_reg_imm(ptr, reg, imm)
 #define common86_mov_reg_imm_size(ptr, reg, imm, size)	x86_mov_reg_imm(ptr, reg, imm)
 #define common86_xchg_reg_reg(ptr, reg1, reg2, size) 	x86_xchg_reg_reg(ptr, reg1, reg2, size)
@@ -106,6 +108,8 @@
 #define COMMON86_XMM0	AMD64_XMM0
 
 #define common86_mov_reg_reg(ptr, reg1, reg2, size) 	amd64_mov_reg_reg(ptr, reg1, reg2, size)
+#define common86_movsx_reg_reg(ptr, reg1, reg2, size) 	amd64_movsx_reg_reg(ptr, reg1, reg2, size)
+#define common86_movzx_reg_reg(ptr, reg1, reg2, size) 	amd64_movzx_reg_reg(ptr, reg1, reg2, size)
 #define common86_mov_reg_imm_size(ptr, reg, imm, size)	amd64_mov_reg_imm_size(ptr, reg, imm, size)
 #define common86_mov_reg_imm(ptr, reg, imm)	amd64_mov_reg_imm_size(ptr, reg, imm, sizeof(void *))
 #define common86_mov_reg_mem(ptr, reg, mem, size) 	amd64_mov_reg_mem(ptr, reg, mem, size)
