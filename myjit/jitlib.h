@@ -20,6 +20,8 @@
 #ifndef JITLIB_H
 #define JITLIB_H
 
+#define _XOPEN_SOURCE 600
+
 #include "cpu-detect.h"
 
 #include "set.h"

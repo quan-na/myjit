@@ -17,21 +17,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
-		(((long)jit->buf + ((jit_label *)(imm))->pos - (long)jit->ip)))
-#define __GET_REG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define __GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
 #define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
-#define __PATCH_ADDR(jit)	((long)jit->ip - (long)jit->buf)
+
+static inline int __GET_REG_POS(struct jit * jit, int r)
+{
+	if (JIT_REG(r).spec == JIT_RTYPE_REG) {
+		if (JIT_REG(r). type == JIT_RTYPE_INT) return __GET_GPREG_POS(jit, r);
+		else return __GET_FPREG_POS(jit, r);
+	} else assert(0); 
+}
 
 #include "x86-common-stuff.c"
-
-static inline int jit_allocai(struct jit * jit, int size)
-{
-	int real_size = (size + 3) & 0xfffffffc; // 4-bytes aligned
-	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
-	jit_current_func_info(jit)->allocai_mem += real_size;	
-	return -(jit_current_func_info(jit)->allocai_mem);
-}
 
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
@@ -41,7 +38,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	if (p == 0) a->location.stack_pos = 8;
 	else {
 		struct jit_inp_arg * prev_a = &(info->args[p - 1]);
-		int stack_shift = (prev_a->size + 3) & 0xfffffffc; // 4-bytes aligned
+		int stack_shift = jit_value_align(prev_a->size, 4); // 4-bytes aligned
 		a->location.stack_pos = prev_a->location.stack_pos + stack_shift;
 	}
 
@@ -171,20 +168,6 @@ static void __get_arg(struct jit * jit, jit_op * op)
 	}
 }
 
-static void __ureg(struct jit * jit, long vreg, long hreg_id)
-{		
-	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
-		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) x86_movlpd_membase_xreg(jit->ip, hreg_id, X86_EBP, __GET_FPREG_POS(jit, vreg));
-		else x86_mov_membase_reg(jit->ip, X86_EBP, __GET_REG_POS(jit, vreg), hreg_id, REG_SIZE);
-	}
-}
-
-static void __lreg(struct jit * jit, jit_value a1, jit_value a2)
-{
-	if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) x86_movlpd_xreg_membase(jit->ip, a1, X86_EBP, __GET_FPREG_POS(jit, a2));
-	else x86_mov_reg_membase(jit->ip, a1, X86_EBP, __GET_REG_POS(jit, a2), REG_SIZE);
-}
-
 static void emit_prolog_op(struct jit * jit, jit_op * op)
 {
 	jit->current_func = op;
@@ -198,7 +181,7 @@ static void emit_prolog_op(struct jit * jit, jit_op * op)
 	int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
 
 #ifdef __APPLE__
-	stack_mem = (stack_mem + 15) & 0xfffffff0; // 16-bytes aligned
+	stack_mem = jit_value_align(stack_mem, 16);
 #endif
 	x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
 	jit->push_count = __push_callee_saved_regs(jit, op);

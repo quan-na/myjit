@@ -48,14 +48,6 @@ static inline int __GET_REG_POS(struct jit * jit, int r)
 
 #include "x86-common-stuff.c"
 
-static inline int jit_allocai(struct jit * jit, int size)
-{
-	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
-	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
-	jit_current_func_info(jit)->allocai_mem += real_size;
-	return -(jit_current_func_info(jit)->allocai_mem);
-}
-
 void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, int * phys_reg)
 {
 	struct jit_inp_arg * a = &(info->args[p]);
@@ -310,7 +302,7 @@ void __get_arg(struct jit * jit, jit_op * op)
 		else amd64_sse_movsd_reg_reg(jit->ip, dreg, reg);
 	}
 }
-
+/*
 static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 {
 	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
@@ -333,7 +325,7 @@ static void __lreg(struct jit * jit, jit_value a1, jit_value a2)
 	if (JIT_REG(a2).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_xreg_membase(jit->ip, a1, AMD64_RBP, __GET_FPREG_POS(jit, a2));
 	else amd64_mov_reg_membase(jit->ip, a1, AMD64_RBP, __GET_REG_POS(jit, a2), REG_SIZE);
 }
-
+*/
 static void emit_prolog_op(struct jit * jit, jit_op * op)
 {
 	jit->current_func = op;

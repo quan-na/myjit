@@ -49,6 +49,10 @@
 // maximum size of value (in bits) that can be used as an immediate value without the ``sign bit''
 // (i386 does not need to transform large immediates values)
 #define JIT_IMM_BITS	(-1)
+
+// stack alignment (in bytes)
+#define JIT_STACK_ALIGNMENT	(4)
+
 #endif
 
 /*
@@ -59,6 +63,10 @@
 // maximum size of value (in bits) that can be used as an immediate value without the ``sign bit''
 // (i386 does not need to transform large immediates values)
 #define JIT_IMM_BITS	(31)
+
+// stack alignment (in bytes)
+#define JIT_STACK_ALIGNMENT	(16)
+
 #endif
 
 /*

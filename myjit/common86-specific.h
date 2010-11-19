@@ -19,7 +19,6 @@
 
 #include "common86-codegen.h"
 
-
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg);
 static int __push_callee_saved_regs(struct jit * jit, jit_op * op);
 static int __push_caller_saved_regs(struct jit * jit, jit_op * op);
@@ -47,7 +46,10 @@ static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
 //
 //
 
-static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
+/**
+ * Emits PUSH instruction for the given GP or FP register
+ */
+static inline void emit_push_reg(struct jit * jit, jit_hw_reg * r)
 {
 	if (!r->fp) common86_push_reg(jit->ip, r->id);
 	else {
@@ -56,7 +58,10 @@ static inline void __push_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
+/**
+ * Emits PUSH instruction for the given GP or FP register
+ */
+static inline void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
 {
 	if (!r->fp) common86_pop_reg(jit->ip, r->id);
 	else {
@@ -65,7 +70,7 @@ static inline void __pop_reg(struct jit * jit, struct __hw_reg * r)
 	}
 }
 
-static inline int __uses_hw_reg(struct jit_op * op, long reg, int fp)
+static inline int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 {
 	for (int i = 0; i < 3; i++)
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
@@ -80,12 +85,12 @@ static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count = 0;
 	for (int i = 0; i < jit->reg_al->gp_reg_cnt; i++) {
-		struct __hw_reg * r = &(jit->reg_al->gp_regs[i]);
+		jit_hw_reg * r = &(jit->reg_al->gp_regs[i]);
 		if (r->callee_saved) 
 			for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 				if (GET_OP(o) == JIT_PROLOG) break;
 				if (__uses_hw_reg(o, r->id, 0)) {
-					__push_reg(jit, r);
+					emit_push_reg(jit, r);
 					count++;
 					break;
 				}
@@ -100,12 +105,12 @@ static int __pop_callee_saved_regs(struct jit * jit)
 	struct jit_op * op = jit->current_func;
 
 	for (int i = jit->reg_al->gp_reg_cnt - 1; i >= 0; i--) {
-		struct __hw_reg * r = &(jit->reg_al->gp_regs[i]);
+		jit_hw_reg * r = &(jit->reg_al->gp_regs[i]);
 		if (r->callee_saved) 
 			for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 				if (GET_OP(o) == JIT_PROLOG) break;
 				if (__uses_hw_reg(o, r->id, 0)) {
-					__pop_reg(jit, r);
+					emit_pop_reg(jit, r);
 					count++;
 					break;
 				}
@@ -115,49 +120,98 @@ static int __pop_callee_saved_regs(struct jit * jit)
 }
 
 static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
-						    struct __hw_reg * regs, int fp, int skip_reg)
+		jit_hw_reg * regs, int fp, int skip_reg)
 {
 	int reg;
 	int count = 0;
 	for (int i = 0; i < reg_count; i++) {
 		if ((regs[i].id == skip_reg) || (regs[i].callee_saved)) continue;
-		struct __hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) __push_reg(jit, hreg), count++;
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
+		if (hreg && jitset_get(op->live_in, reg)) emit_push_reg(jit, hreg), count++;
 	}
 	return count;
 }
 
 static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
+	int count = 0;
+	struct jit_reg_allocator * al = jit->reg_al;
 	while (op) {
 		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
-	int count = __generic_push_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
-	count += __generic_push_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
+	count += __generic_push_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
+	count += __generic_push_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
 	return count;
 }
 
 static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
-						    struct __hw_reg * regs, int fp, int skip_reg)
+						    jit_hw_reg * regs, int fp, int skip_reg)
 {
 	int reg;
 	int count = 0;
 	for (int i = reg_count - 1; i >= 0; i--) {
 		if ((regs[i].id == skip_reg) || (regs[i].callee_saved)) continue;
-		struct __hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) __pop_reg(jit, hreg), count++;
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
+		if (hreg && jitset_get(op->live_in, reg)) emit_pop_reg(jit, hreg), count++;
 	}
 	return count;
 }
 
 static int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 {
-	int count = __generic_pop_caller_saved_regs(jit, op, jit->reg_al->fp_reg_cnt, jit->reg_al->fp_regs, 1, jit->reg_al->fpret_reg);
-	count += __generic_pop_caller_saved_regs(jit, op, jit->reg_al->gp_reg_cnt, jit->reg_al->gp_regs, 0, jit->reg_al->ret_reg);
+	int count  = 0;
+	struct jit_reg_allocator * al = jit->reg_al;
+
+	count += __generic_pop_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
+	count += __generic_pop_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
 	return count;
 }
 
+/**
+ * Emits LREG operation
+ *
+ * This operation loads value of the virtual register from the stack
+ * into its hardware counterpart
+ */
+static void emit_lreg(struct jit * jit, int hreg_id, jit_value vreg)
+{
+	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) assert(0);
+
+	int stack_pos = __GET_REG_POS(jit, vreg) ;
+
+	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_xreg_membase(jit->ip, hreg_id, COMMON86_BP, stack_pos);
+	else common86_mov_reg_membase(jit->ip, hreg_id, COMMON86_BP, stack_pos, REG_SIZE);
+}
+
+/**
+ * Emits UREG operation
+ *
+ * This operation unloads value of the virtual register on the stack
+ * from its hardware counterpart
+ */
+static inline void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
+{
+	/*
+	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
+
+		struct jit_func_info * info = jit_current_func_info(jit);
+		int pos =  __GET_ARG_SPILL_POS(jit, info, JIT_REG(vreg).id);
+
+		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) amd64_sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, pos);
+		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, pos, hreg_id, REG_SIZE);
+	}
+	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
+		if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_membase_xreg(jit->ip, hreg_id, AMD64_RBP, __GET_FPREG_POS(jit, vreg));
+		else amd64_mov_membase_reg(jit->ip, AMD64_RBP, __GET_REG_POS(jit, vreg), hreg_id, REG_SIZE);
+	}
+	*/
+
+	int stack_pos = __GET_REG_POS(jit, vreg);
+
+	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_membase_xreg(jit->ip, hreg_id, COMMON86_BP, stack_pos);
+	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
+}
 
 //
 //
@@ -165,6 +219,9 @@ static int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
 //
 //
 
+/**
+ * This function emits majority of ALU operations
+ */
 static void emit_alu_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 {
 	if (imm) {
@@ -183,6 +240,10 @@ static void emit_alu_op(struct jit * jit, struct jit_op * op, int x86_op, int im
 	}
 }
 
+/**
+ * Emits the SUB operation, since it is not a commutative operation
+ * it needs some extra care for some types of operands
+ */
 static inline void emit_sub_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
@@ -201,6 +262,10 @@ static inline void emit_sub_op(struct jit * jit, struct jit_op * op, int imm)
 		common86_alu_reg_reg(jit->ip, X86_SUB, op->r_arg[0], op->r_arg[2]);
 	}	
 }
+/**
+ * Emits the SUBX and SUBC operations, since it is not a commutative operation
+ * it needs some extra care for some types of operands
+ */
 
 static inline void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op, int imm)
 {
@@ -222,7 +287,10 @@ static inline void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op
 		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
 	}	
 }
-
+/**
+ * Emits the RSB operation, since it is not a commutative operation
+ * it needs some extra care for some types of operands
+ */
 static inline void emit_rsb_op(struct jit * jit, struct jit_op * op, int imm)
 {
 	if (imm) {
@@ -243,6 +311,23 @@ static inline void emit_rsb_op(struct jit * jit, struct jit_op * op, int imm)
 	}
 }
 
+/**
+ * Emits operations for multiplications
+ *
+ * @param imm -- indicates whether the multiplier is constant or not
+ * @param sign -- if zero, it considers values to be unsigned
+ * @param high_bytes -- returns higher bytes of the results
+ *
+ * This implementation tries to optimize several cases,
+ * and converts some types of multiplications into the bit shifts
+ * or uses LEA operation to get the result more efficiently
+ *
+ * Unfortunately, x86 assembler assumes that the result value of the MUL operation
+ * is stored into the EDX:EAX pair, and therefore, if these registers are in use,
+ * their value have to be saved on the stack for a while and then returned back.
+ * TODO: Register allocator should be aware of this issues and should take care
+ * of this. 
+ */
 static inline void emit_mul_op(struct jit * jit, struct jit_op * op, int imm, int sign, int high_bytes)
 {
 	jit_value dest = op->r_arg[0];
@@ -301,6 +386,23 @@ static inline void emit_mul_op(struct jit * jit, struct jit_op * op, int imm, in
 	if ((dest != COMMON86_DX) && dx_in_use) common86_pop_reg(jit->ip, COMMON86_DX);
 	if ((dest != COMMON86_AX) && ax_in_use) common86_pop_reg(jit->ip, COMMON86_AX);
 }
+
+/**
+ * Emits operations for multiplications
+ *
+ * @param imm -- indicates whether the divisor is constant or not
+ * @param sign -- if zero, it considers values to be unsigned
+ * @param modulo -- returns modulo 
+ *
+ * This implementation tries to optimize several cases,
+ * and converts some types of multiplications into the bit shifts
+ *
+ * Unfortunately, x86 assembler assumes that the dividend of the DIV operation
+ * is stored into the EDX:EAX pair, and therefore, if these registers are in use,
+ * their value have to be saved on the stack for a while and then returned back.
+ * TODO: Register allocator should be aware of this issues and should take care
+ * of this. 
+ */
 
 static inline void emit_div_op(struct jit * jit, struct jit_op * op, int imm, int sign, int modulo)
 {
@@ -365,7 +467,14 @@ static inline void emit_div_op(struct jit * jit, struct jit_op * op, int imm, in
 	if ((dest != COMMON86_DX) && dx_in_use) common86_pop_reg(jit->ip, COMMON86_DX);
 	if ((dest != COMMON86_AX) && ax_in_use) common86_pop_reg(jit->ip, COMMON86_AX);
 }
-
+/**
+ * Emits bit shift operations
+ *
+ * Unfortunately, only constant or register ECX can be used to shift value.
+ * This leads to a weird situation if the shifted value is in the ECX register.
+ * In that case, the value from EDX is pushed on the stack and contents from
+ * ECX is moved to EDX and EDX is used instead.
+ */
 static inline void emit_shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
 {
 	if (imm) { 
@@ -454,7 +563,7 @@ static inline void emit_branch_overflow_op(struct jit * jit, struct jit_op * op,
 // FIXME: reports as spilled also argument which contains appropriate value
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
-        struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
+        jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 
         if (hreg) {
                 *reg = hreg->id;
@@ -500,6 +609,16 @@ static inline void emit_ldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_
 		case (JIT_LDX | REG | UNSIGNED): common86_movzx_reg_memindex(jit->ip, a1, a2, 0, a3, 0, op->arg_size); break;
 		default: assert(0);
 	}
+}
+
+static inline int jit_allocai(struct jit * jit, int size)
+{                                      
+	jit_value real_size = jit_value_align(size, JIT_STACK_ALIGNMENT);
+
+	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), real_size, 0, 0, 0);
+	jit_current_func_info(jit)->allocai_mem += real_size;   
+	
+	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
 //
@@ -656,9 +775,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_FRET | REG): emit_fret_op(jit, op); break;
 		case JIT_FRETVAL: emit_fretval_op(jit, op); break;
 
-		case (JIT_UREG): __ureg(jit, a1, a2); break;
-		case (JIT_LREG): __lreg(jit, a1, a2); break;
-		case (JIT_SYNCREG):  __ureg(jit, a1, a2); break;
+		case (JIT_UREG): emit_ureg(jit, a1, a2); break;
+		case (JIT_LREG): emit_lreg(jit, a1, a2); break;
+		case (JIT_SYNCREG):  emit_ureg(jit, a1, a2); break;
 		case JIT_RENAMEREG: common86_mov_reg_reg(jit->ip, a1, a2, REG_SIZE); break;
 
 		case JIT_CODESTART: break;

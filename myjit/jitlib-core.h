@@ -130,6 +130,8 @@ struct __hw_reg {
 	short priority;
 };
 
+typedef struct __hw_reg jit_hw_reg;
+
 struct jit_regpool
 {
 	int pos;
@@ -756,5 +758,14 @@ static inline void __fput_arg(struct jit * jit, jit_op * op)
 
 	if (jit->prepared_args.ready >= jit->reg_al->fp_arg_reg_cnt)
 		jit->prepared_args.stack_size += op->arg_size;
+}
+
+/**
+ * Returns number which is a multiple of the alignment and is the closest
+ * greater value than @param value
+ */
+static inline jit_value jit_value_align(jit_value value, jit_value alignment)
+{
+	return (value + (alignment - 1)) & (- alignment);
 }
 #endif
