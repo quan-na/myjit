@@ -654,7 +654,7 @@ static void emit_ldx_op(struct jit * jit, jit_op * op, jit_value a1, jit_value a
 	}
 }
 
-static int jit_allocai(struct jit * jit, int size)
+int jit_allocai(struct jit * jit, int size)
 {                                      
 	jit_value real_size = jit_value_align(size, JIT_STACK_ALIGNMENT);
 

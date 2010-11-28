@@ -28,7 +28,7 @@
 struct jit_regpool * jit_regpool_init(int size)
 {
 	struct jit_regpool * r = JIT_MALLOC(sizeof(struct jit_regpool));
-	r->pool = JIT_MALLOC(sizeof(struct __hw_reg *) * size);
+	r->pool = JIT_MALLOC(sizeof(jit_hw_reg *) * size);
 	r->pos = 0;
 	return r;
 }
@@ -39,7 +39,7 @@ void jit_regpool_free(struct jit_regpool * p)
 	JIT_FREE(p);
 }
 
-static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hreg)
+static inline void jit_regpool_put(struct jit_regpool * rp, jit_hw_reg * hreg)
 {
 	rp->pool[++rp->pos] = hreg;
 	
@@ -48,7 +48,7 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 	int i = rp->pos;
 	while (i > 0) {
 		if (rp->pool[i - 1]->priority <= rp->pool[i]->priority) break;
-		struct __hw_reg * x = rp->pool[i];
+		jit_hw_reg * x = rp->pool[i];
 		rp->pool[i] = rp->pool[i - 1];
 		rp->pool[i - 1] = x;
 		i--;
@@ -61,17 +61,17 @@ static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hr
 #endif
 }
 
-static inline struct __hw_reg * jit_regpool_get(struct jit_regpool * rp)
+static inline jit_hw_reg * jit_regpool_get(struct jit_regpool * rp)
 {
 	if (rp->pos < 0) return NULL;
 	else return rp->pool[rp->pos--];
 }
 
-static inline struct __hw_reg * jit_regpool_get_by_id(struct jit_regpool * rp, int id)
+static inline jit_hw_reg * jit_regpool_get_by_id(struct jit_regpool * rp, int id)
 {
 	for (int i = 0; i <= rp->pos; i++) {
 		if (rp->pool[i]->id == id) {
-			struct __hw_reg * hreg = rp->pool[i];
+			jit_hw_reg * hreg = rp->pool[i];
 			for (int j = i; j < rp->pos; j++)
 				rp->pool[j] = rp->pool[j + 1];
 			rp->pos--;
@@ -84,11 +84,11 @@ static inline struct __hw_reg * jit_regpool_get_by_id(struct jit_regpool * rp, i
 /**
  * Adds all registers which are not used to pass the arguments into the register pool
  */
-static inline void jit_regpool_prepare(struct jit_regpool * rp, struct __hw_reg * regs, int regcnt, int * arg_registers, int arg_registers_cnt)
+static inline void jit_regpool_prepare(struct jit_regpool * rp, jit_hw_reg * regs, int regcnt, int * arg_registers, int arg_registers_cnt)
 {
 	rp->pos = -1;
 	for (int i = 0; i < regcnt; i++) {
-		struct __hw_reg * hreg = &(regs[i]);
+		jit_hw_reg * hreg = &(regs[i]);
 
 		int is_argument = 0;
 		for (int j = 0; j < arg_registers_cnt; j++) {
@@ -101,14 +101,14 @@ static inline void jit_regpool_prepare(struct jit_regpool * rp, struct __hw_reg 
 	}
 }
 
-static inline struct __hw_reg * __get_reg(struct jit_reg_allocator * al, int reg_id)
+static inline jit_hw_reg * __get_reg(struct jit_reg_allocator * al, int reg_id)
 {
 	for (int i = 0; i < al->gp_reg_cnt; i++)
 		if (al->gp_regs[i].id == reg_id) return &(al->gp_regs[i]);
 	return NULL;
 }
 
-static inline struct __hw_reg * __get_fp_reg(struct jit_reg_allocator * al, int reg_id)
+static inline jit_hw_reg * __get_fp_reg(struct jit_reg_allocator * al, int reg_id)
 {
 	for (int i = 0; i < al->fp_reg_cnt; i++)
 		if (al->fp_regs[i].id == reg_id) return &(al->fp_regs[i]);
@@ -117,7 +117,8 @@ static inline struct __hw_reg * __get_fp_reg(struct jit_reg_allocator * al, int 
 
 ///////////////////////////////////////////////////////////////////
 
-static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg)
+/*
+static inline void unload_reg(jit_op * op,  jit_hw_reg * hreg, long virt_reg)
 {
 	jit_op * o = __new_op(JIT_UREG, SPEC(IMM, IMM, NO), virt_reg, hreg->id, 0, 0);
 	o->r_arg[0] = o->arg[0];
@@ -125,27 +126,69 @@ static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_re
 	jit_op_prepend(op, o);
 }
 
-static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg)
+static inline void load_reg(struct jit_op * op, jit_hw_reg * hreg, long reg)
 {
 	struct jit_op * o = __new_op(JIT_LREG, SPEC(IMM, IMM, NO), hreg->id, reg, 0, 0);
 	o->r_arg[0] = o->arg[0];
 	o->r_arg[1] = o->arg[1];
 	jit_op_prepend(op, o);
 }
+*/
 
-static struct __hw_reg * make_free_reg(jit_op * op, int fp)
+///////////////////////////////////////////////////////////////////
+
+
+//
+// Auxiliary functions which are used to insert operations
+// moving values from/to registers
+// 
+
+/**
+ * Prepends given LREG/UREG/etc. operation before `op' operation
+ */
+static void insert_reg_op(int opcode, jit_op * op,  jit_value r1, jit_value r2)
+{
+	jit_op * o = __new_op(opcode, SPEC(IMM, IMM, NO), r1, r2, 0, 0);
+	o->r_arg[0] = o->arg[0];
+	o->r_arg[1] = o->arg[1];
+	jit_op_prepend(op, o);
+}
+static void unload_reg(jit_op * op,  jit_hw_reg * hreg, jit_value virt_reg)
+{
+	insert_reg_op(JIT_UREG, op, virt_reg, hreg->id);
+}
+
+static void sync_reg(jit_op * op,  jit_hw_reg * hreg, jit_value virt_reg)
+{
+	insert_reg_op(JIT_SYNCREG, op, virt_reg, hreg->id);
+}
+
+static void load_reg(jit_op * op, jit_hw_reg * hreg, jit_value reg)
+{
+	insert_reg_op(JIT_LREG, op, hreg->id, reg);
+}
+
+/**
+ * Renames register (actually, it assigns value from r2 to r1) 
+ */
+static void rename_reg(jit_op * op, int r1, int r2)
+{
+	insert_reg_op(JIT_RENAMEREG, op, r1, r2);
+}
+
+static jit_hw_reg * make_free_reg(jit_op * op, int fp)
 {
 	int spill_candidate;
-	struct __hw_reg * hreg = rmap_spill_candidate(op, fp, &spill_candidate);
+	jit_hw_reg * hreg = rmap_spill_candidate(op, fp, &spill_candidate);
 	unload_reg(op, hreg, spill_candidate);
 	rmap_unassoc(op->regmap, spill_candidate, fp);
 	hreg->used = 0;
 	return hreg;
 }
 
-static inline struct __hw_reg * get_free_callee_save_reg(struct jit_regpool * rp)
+static inline jit_hw_reg * get_free_callee_save_reg(struct jit_regpool * rp)
 {
-	struct __hw_reg * result = NULL;
+	jit_hw_reg * result = NULL;
 	for (int i = 0; i <= rp->pos; i++) {
 		if (rp->pool[i]->callee_saved) {
 			result = rp->pool[i];
@@ -157,11 +200,137 @@ static inline struct __hw_reg * get_free_callee_save_reg(struct jit_regpool * rp
 	return result;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+#ifdef JIT_ARCH_COMMON86
+/**
+ * Assigns registers which are used to pass arguments
+ */
+static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
+{
+	struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
+
+	jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt, al->gp_arg_reg_cnt));
+
+	jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
+
+	int assoc_gp_regs = 0;
+	int assoc_fp_regs = 0;
+	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
+		int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
+		if (!isfp_arg && (assoc_gp_regs < al->gp_arg_reg_cnt)) {
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[i]));
+			assoc_gp_regs++;
+		}
+		if (isfp_arg && (assoc_fp_regs < al->fp_arg_reg_cnt)) {
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_fp_reg(al, al->fp_arg_regs[i]));
+			assoc_fp_regs++;
+		}
+	}
+}
+#endif
+
+#ifdef JIT_ARCH_SPARC
+/**
+ * Assigns registers which are used to pass arguments
+ *
+ * This function has to consider that SPARC is using GPR to pass
+ * FP values. Doubles are passed using two GPR's
+ */
+static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
+{
+	// counts howmany registers are really used to pass FP arguments
+	int fp_arg_cnt = 0;
+	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
+		struct jit_inp_arg a = info->args[i];
+		if (a.type == JIT_FLOAT_NUM) fp_arg_cnt += a.size / sizeof(float);
+	}
+
+
+	jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt + fp_arg_cnt, al->gp_arg_reg_cnt));
+
+	jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, NULL, 0);
+
+	int assoc_gp_regs = 0;
+	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
+		if (assoc_gp_regs >= al->gp_arg_reg_cnt) break;
+		int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
+
+		if (!isfp_arg) {
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+			assoc_gp_regs++;
+		}
+		if (isfp_arg) {
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+			assoc_gp_regs++;
+			// initializes the second part of the register
+			if ((info->args[i].size == sizeof(double)) && (assoc_gp_regs < al->gp_reg_cnt)) {
+				jit_value r = __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i);
+				rmap_assoc(op->regmap, (int)r, __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+				assoc_gp_regs++;
+			}
+		}
+	}
+
+}
+#endif
+
+
+static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * op)
+{
+	int r, reg;
+	jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
+	if (hreg) {
+		// checks whether there is a free callee-saved register
+		// that can be used to store the eax register
+		jit_hw_reg * freereg = get_free_callee_save_reg(al->gp_regpool);
+		if (freereg) {
+			rename_reg(op, freereg->id, al->ret_reg);
+
+			jit_regpool_put(al->gp_regpool, hreg);
+
+			rmap_unassoc(op->regmap, r, 0);
+			rmap_assoc(op->regmap, r, freereg);
+		} else {
+			sync_reg(op, hreg, r);
+		}
+	}
+
+	// synchronizes fp-register which can be used to return the value
+	if (al->fpret_reg >= 0) {
+		hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
+		if (hreg) sync_reg(op, hreg, r);
+	}
+
+	// spills registers which are used to pass the arguments
+	// FIXME: duplicities
+	int args = MIN(op->arg[0], al->gp_arg_reg_cnt);
+	for (int q = 0; q < args; q++) {
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
+		if (hreg) {
+			unload_reg(op, hreg, reg);
+			jit_regpool_put(al->gp_regpool, hreg);
+			rmap_unassoc(op->regmap, reg, 0);
+		}
+	}
+	args = MIN(op->arg[1], al->fp_arg_reg_cnt);
+	for (int q = 0; q < args; q++) {
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 1, &reg);
+		if (hreg) {
+			if (hreg->id != al->fpret_reg) {
+				unload_reg(op, hreg, reg);
+				jit_regpool_put(al->fp_regpool, hreg);
+			}
+			rmap_unassoc(op->regmap, reg, 1);
+		}
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static inline void assign_regs(struct jit * jit, struct jit_op * op)
 {
-	int i, r, reg;
+	int i, r;
 	struct jit_reg_allocator * al = jit->reg_al;
 
 	// initialize mappings
@@ -172,137 +341,20 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 		al->current_func_info = info;
 
 		op->regmap = rmap_init();
-#if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
-		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt, al->gp_arg_reg_cnt));
 
-		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
-
-		int assoc_gp_regs = 0;
-		int assoc_fp_regs = 0;
-		for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
-			int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
-			if (!isfp_arg && (assoc_gp_regs < al->gp_arg_reg_cnt)) {
-				rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[i]));
-				assoc_gp_regs++;
-			}
-			if (isfp_arg && (assoc_fp_regs < al->fp_arg_reg_cnt)) {
-				rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_fp_reg(al, al->fp_arg_regs[i]));
-				assoc_fp_regs++;
-			}
-		}
-#endif
-#if defined(JIT_ARCH_SPARC)
-		// sparc uses GP registers to pass FP values
-		// doubles are passed using two registers. grrrr....
-	
-		// counts howmany registers are really used to pass FP arguments
-		int fp_arg_cnt = 0;
-		for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
-			struct jit_inp_arg a = info->args[i];
-			if (a.type == JIT_FLOAT_NUM) fp_arg_cnt += a.size / sizeof(float);
-		}
-			
-
-		jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt + fp_arg_cnt, al->gp_arg_reg_cnt));
-
-		jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, NULL, 0);
-
-		int assoc_gp_regs = 0;
-		for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
-			if (assoc_gp_regs >= al->gp_arg_reg_cnt) break;
-			int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
-
-			if (!isfp_arg) {
-				rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
-				assoc_gp_regs++;
-			}
-			if (isfp_arg) {
-				rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
-				assoc_gp_regs++;
-				// initializes the second part of the register
-				if ((info->args[i].size == sizeof(double)) && (assoc_gp_regs < al->gp_reg_cnt)) {
-					jit_value r = __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i);
-					rmap_assoc(op->regmap, (int)r, __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
-					assoc_gp_regs++;
-				}
-			}
-		}
-
-#endif
+		assign_regs_for_args(al, op);
 	} else {
 		// initializes register mappings for standard operations
 		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
 	}
 
-	if (GET_OP(op) == JIT_PREPARE) {
-		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
-		if (hreg) {
-			// checks whether there is a free callee-saved register
-			// that can be used to store the eax register
-			struct __hw_reg * freereg = get_free_callee_save_reg(al->gp_regpool);
-			if (freereg) {
-				// should have its own name
-				jit_op * o = __new_op(JIT_RENAMEREG, SPEC(IMM, IMM, NO), freereg->id, al->ret_reg, 0, 0);
-
-				o->r_arg[0] = o->arg[0];
-				o->r_arg[1] = o->arg[1];
-
-				jit_op_prepend(op, o);
-
-				jit_regpool_put(al->gp_regpool, hreg);
-				rmap_unassoc(op->regmap, r, 0);
-
-				rmap_assoc(op->regmap, r, freereg);
-			} else {
-				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
-				o->r_arg[0] = o->arg[0];
-				o->r_arg[1] = o->arg[1];
-
-				jit_op_prepend(op, o);
-			}
-		}
-
-		// synchronizes fp-register which can be used to return the value
-		if (al->fpret_reg >= 0) {
-			hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
-			if (hreg) {
-				jit_op * o = __new_op(JIT_SYNCREG, SPEC(IMM, IMM, NO), r, hreg->id, 0, 0);
-				o->r_arg[0] = o->arg[0];
-				o->r_arg[1] = o->arg[1];
-
-				jit_op_prepend(op, o);
-			}
-		}
-
-		// spills registers which are used to pass the arguments
-		// FIXME: duplicities
-		int args = MIN(op->arg[0], al->gp_arg_reg_cnt);
-		for (int q = 0; q < args; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
-			if (hreg) {
-				unload_reg(op, hreg, reg);
-				jit_regpool_put(al->gp_regpool, hreg);
-				rmap_unassoc(op->regmap, reg, 0);
-			}
-		}
-		args = MIN(op->arg[1], al->fp_arg_reg_cnt);
-		for (int q = 0; q < args; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 1, &reg);
-			if (hreg) {
-				if (hreg->id != al->fpret_reg) {
-					unload_reg(op, hreg, reg);
-					jit_regpool_put(al->fp_regpool, hreg);
-				}
-				rmap_unassoc(op->regmap, reg, 1);
-			}
-		}
-	}
+	if (GET_OP(op) == JIT_PREPARE) prepare_registers_for_call(al, op);
 
 	// PUTARG have to take care of the register allocation by itself
 	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
 
 	if (GET_OP(op) == JIT_RETVAL) {
-		struct __hw_reg * hreg = jit_regpool_get_by_id(al->gp_regpool, al->ret_reg);
+		jit_hw_reg * hreg = jit_regpool_get_by_id(al->gp_regpool, al->ret_reg);
 		if (hreg) {
 			rmap_assoc(op->regmap, op->arg[0], hreg);
 			return;
@@ -320,7 +372,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))
 #endif
 			) {
-				struct __hw_reg * hreg = rmap_get(op->regmap, reg_id);
+				jit_hw_reg * hreg = rmap_get(op->regmap, reg_id);
 				if (hreg) {
 					   rmap_unassoc(op->regmap, reg_id, arg->type == JIT_FLOAT_NUM);
 					   rmap_assoc(op->regmap, op->arg[0], hreg);
@@ -336,7 +388,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 
 #ifdef JIT_ARCH_SPARC
 	if (GET_OP(op) == JIT_FRETVAL) {
-		struct __hw_reg * hreg = jit_regpool_get_by_id(al->fp_regpool, al->fpret_reg);
+		jit_hw_reg * hreg = jit_regpool_get_by_id(al->fp_regpool, al->fpret_reg);
 		if (hreg) {
 			rmap_assoc(op->regmap, op->arg[0], hreg);
 			return;
@@ -347,7 +399,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	if (GET_OP(op) == JIT_CALL) {
 
 		// spills register which are used to return value
-		struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 		if (hreg) {
 			jit_regpool_put(al->gp_regpool, hreg);
 			rmap_unassoc(op->regmap, r, hreg->fp);
@@ -362,7 +414,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 #ifdef JIT_ARCH_SPARC
 		// unloads all FP registers
 		for (int q = 0; q < al->fp_reg_cnt; q++) {
-			struct __hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
+			jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
 			if (hreg) {
 				unload_reg(op, hreg, reg);
 				jit_regpool_put(al->fp_regpool, hreg);
@@ -384,7 +436,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			// in order to eliminate unwanted spilling of registers used
 			// by the current operation, we ``touch'' the registers
 			// which are to be used in this operation
-			struct __hw_reg * hreg = rmap_get(op->regmap, op->arg[i]);
+			jit_hw_reg * hreg = rmap_get(op->regmap, op->arg[i]);
 			if (hreg) hreg->used = 0;
 		}
 
@@ -398,7 +450,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 				continue;
 			}
 
-			struct __hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
+			jit_hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
 			if (reg) op->r_arg[i] = reg->id;
 			else {
 				if (virt_reg.type == JIT_RTYPE_INT) {
@@ -478,18 +530,18 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 		o->jmp_addr = op->jmp_addr;
 
 		if (!jit_is_label(jit, (void *)op->r_arg[0])) {
-			op->jmp_addr->arg[0] = (long)o;
-			op->jmp_addr->r_arg[0] = (long)o;
+			op->jmp_addr->arg[0] = (jit_value) o;
+			op->jmp_addr->r_arg[0] = (jit_value) o;
 		}
 
 		jit_op_append(op, o);
 
-		jit_op * o2 = __new_op(JIT_PATCH, SPEC(IMM, NO, NO), (long)op, 0, 0, 0);
+		jit_op * o2 = __new_op(JIT_PATCH, SPEC(IMM, NO, NO), (jit_value) op, 0, 0, 0);
 		o2->r_arg[0] = o2->arg[0];
 		jit_op_append(o, o2);
 
-		op->arg[0] = (long)o2;
-		op->r_arg[0] = (long)o2;
+		op->arg[0] = (jit_value) o2;
+		op->r_arg[0] = (jit_value) o2;
 		op->jmp_addr = o2;
 	}
 }
