@@ -2,6 +2,8 @@ Version 0.5.2.2
 ===============
 + proper parenthesis inside API macros (this has (slightly) changed the semantics of ld, st,
 fld, fst operations which have an expression as an immediate value)
++ AMD64 and i386 have been merged to one common architecture `common86'
++ AMD64: some MOV's and XOR's were replaced with MOVZX's
 
 Version 0.5.2.1
 ===============

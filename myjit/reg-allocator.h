@@ -241,6 +241,7 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 {
 	// counts howmany registers are really used to pass FP arguments
 	int fp_arg_cnt = 0;
+	struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
 	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
 		struct jit_inp_arg a = info->args[i];
 		if (a.type == JIT_FLOAT_NUM) fp_arg_cnt += a.size / sizeof(float);
@@ -412,6 +413,7 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 			}
 		}
 #ifdef JIT_ARCH_SPARC
+		int reg;
 		// unloads all FP registers
 		for (int q = 0; q < al->fp_reg_cnt; q++) {
 			jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
