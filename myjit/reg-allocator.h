@@ -117,27 +117,6 @@ static inline jit_hw_reg * __get_fp_reg(struct jit_reg_allocator * al, int reg_i
 
 ///////////////////////////////////////////////////////////////////
 
-/*
-static inline void unload_reg(jit_op * op,  jit_hw_reg * hreg, long virt_reg)
-{
-	jit_op * o = __new_op(JIT_UREG, SPEC(IMM, IMM, NO), virt_reg, hreg->id, 0, 0);
-	o->r_arg[0] = o->arg[0];
-	o->r_arg[1] = o->arg[1];
-	jit_op_prepend(op, o);
-}
-
-static inline void load_reg(struct jit_op * op, jit_hw_reg * hreg, long reg)
-{
-	struct jit_op * o = __new_op(JIT_LREG, SPEC(IMM, IMM, NO), hreg->id, reg, 0, 0);
-	o->r_arg[0] = o->arg[0];
-	o->r_arg[1] = o->arg[1];
-	jit_op_prepend(op, o);
-}
-*/
-
-///////////////////////////////////////////////////////////////////
-
-
 //
 // Auxiliary functions which are used to insert operations
 // moving values from/to registers

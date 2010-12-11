@@ -1,16 +1,31 @@
 ROADMAP
 =======
 
-* release 0.5.2
-	* BUG: CALLR -- registers used to pass arguments can overwrite register to which used to set target
-	* BUG: it is impossible to generete two or more functions with one instance of the compiler (see jit_prolog)
-	* arguments passed by registers should not be assigned to other registers if read by GETARG and there is no other GETARG which reads this argument
-
-+ release 0.5.3
-	+ SPARC: vararg stack corruption
-	+ SPARC: get_arg should optimize moves of aligned doubles
-
 + release 0.6.0
+	+ linear-scan reg. allocator (last-to-be-used heuristics)
+	+ reg. allocator should be aware of:
+		+ callee/caller-saved registers
+		+ register which are used to pass/return values
+		+ operations having particular requirements on registers, e.g., MUL, DIV, SHL.
+
++ release 0.7.0
+	+ warnings:
+		+ basic API
+		+ unused assignments
+		+ unused arguments
+		+ uninitialized registers
+		+ register type mismatches
+
++ release 0.8.0
+	+ optimizations
+
++ release 0.9.0
+	+ integrated disassambler
+
++ release 1.0.0
+	+ more testing
+
++ release 1.1.0
 	+ i386 (emulated)
 		+ arithmetics
 		+ conversions
@@ -20,9 +35,7 @@ ROADMAP
 		+ branches
 		+ conditionals
 
-+ generic (release 0.6.x+)
-	+ warnings
-	+ integrated disassambler
-	+ separate test-cases
-	+ optimizations
-	+ linear-scan reg. allocator
+
+Known issues:
+	+ SPARC: vararg stack corruption
+	+ test-cases are not separate and does not cover all lines of code
