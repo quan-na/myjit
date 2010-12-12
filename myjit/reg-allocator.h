@@ -17,6 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#define LTU_ALLOCATOR
 #include <string.h>
 /*
  * Register allocator -- auxiliary functions
@@ -307,7 +308,7 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
+#ifdef LRU_ALLOCATOR
 static inline void assign_regs(struct jit * jit, struct jit_op * op)
 {
 	int i, r;
@@ -457,7 +458,168 @@ static inline void assign_regs(struct jit * jit, struct jit_op * op)
 	// increasing age of each register
 	rmap_make_older(op->regmap);
 }
+#endif
+//////////////////////////////////////////////////////////////////
 
+#ifdef LTU_ALLOCATOR
+static inline void assign_regs(struct jit * jit, struct jit_op * op)
+{
+	int i, r;
+	struct jit_reg_allocator * al = jit->reg_al;
+
+	// initialize mappings
+	// PROLOG needs some special care
+	if (GET_OP(op) == JIT_PROLOG) {
+		
+		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
+		al->current_func_info = info;
+
+		op->regmap = rmap_init();
+
+		assign_regs_for_args(al, op);
+	} else {
+		// initializes register mappings for standard operations
+		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
+	}
+
+	if (GET_OP(op) == JIT_PREPARE) prepare_registers_for_call(al, op);
+
+	// PUTARG have to take care of the register allocation by itself
+	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
+
+	if (GET_OP(op) == JIT_RETVAL) {
+		jit_hw_reg * hreg = jit_regpool_get_by_id(al->gp_regpool, al->ret_reg);
+		if (hreg) {
+			rmap_assoc(op->regmap, op->arg[0], hreg);
+			return;
+		}
+	}
+
+	if (GET_OP(op) == JIT_GETARG) {
+		// optimization which eliminates undesirable assignments
+		int arg_id = op->arg[1];
+		struct jit_inp_arg * arg = &(al->current_func_info->args[arg_id]);
+		int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+		if (!jitset_get(op->live_out, reg_id)) {
+			if (((arg->type != JIT_FLOAT_NUM) && (arg->size == REG_SIZE))
+#ifdef JIT_ARCH_AMD64
+			|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))
+#endif
+			) {
+				jit_hw_reg * hreg = rmap_get(op->regmap, reg_id);
+				if (hreg) {
+					   rmap_unassoc(op->regmap, reg_id, arg->type == JIT_FLOAT_NUM);
+					   rmap_assoc(op->regmap, op->arg[0], hreg);
+					   op->r_arg[0] = hreg->id;
+					   op->r_arg[1] = op->arg[1];
+					   // FIXME: should have its own name
+					   op->code = JIT_NOP;
+					   return;
+				}
+			}
+		}
+	}
+
+#ifdef JIT_ARCH_SPARC
+	if (GET_OP(op) == JIT_FRETVAL) {
+		jit_hw_reg * hreg = jit_regpool_get_by_id(al->fp_regpool, al->fpret_reg);
+		if (hreg) {
+			rmap_assoc(op->regmap, op->arg[0], hreg);
+			return;
+		}
+	}
+#endif
+
+	if (GET_OP(op) == JIT_CALL) {
+
+		// spills register which are used to return value
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
+		if (hreg) {
+			jit_regpool_put(al->gp_regpool, hreg);
+			rmap_unassoc(op->regmap, r, hreg->fp);
+		}
+		if (al->fpret_reg >= 0) {
+			hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
+			if (hreg) {
+				jit_regpool_put(al->fp_regpool, hreg);
+				rmap_unassoc(op->regmap, r, hreg->fp);
+			}
+		}
+#ifdef JIT_ARCH_SPARC
+		int reg;
+		// unloads all FP registers
+		for (int q = 0; q < al->fp_reg_cnt; q++) {
+			jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
+			if (hreg) {
+				unload_reg(op, hreg, reg);
+				jit_regpool_put(al->fp_regpool, hreg);
+				rmap_unassoc(op->regmap, reg, 1);
+			}
+		}
+#endif
+#ifdef JIT_ARCH_AMD64
+		// since the CALLR may use the given register also to pass an argument,
+		// code genarator has to take care of the register value itself
+		return;
+#endif
+
+	}
+
+	// get registers used in the current operation
+	for (i = 0; i < 3; i++)
+		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
+			// in order to eliminate unwanted spilling of registers used
+			// by the current operation, we ``touch'' the registers
+			// which are to be used in this operation
+			jit_hw_reg * hreg = rmap_get(op->regmap, op->arg[i]);
+			if (hreg) hreg->used = 0;
+		}
+
+	for (i = 0; i < 3; i++) {
+		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
+			jit_reg virt_reg = JIT_REG(op->arg[i]);
+			if (virt_reg.spec == JIT_RTYPE_ALIAS) {
+				if ((int)op->arg[i] == (int)R_OUT) op->r_arg[i] = al->ret_reg;
+				else if ((int)op->arg[i] == (int)R_FP) op->r_arg[i] = al->fp_reg;
+				else assert(0);
+				continue;
+			}
+
+			jit_hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
+			if (reg) op->r_arg[i] = reg->id;
+			else {
+				if (virt_reg.type == JIT_RTYPE_INT) {
+					reg = jit_regpool_get(al->gp_regpool);
+					if (reg == NULL) reg = make_free_reg(op, 0);
+				} else {
+					reg = jit_regpool_get(al->fp_regpool);
+					if (reg == NULL) reg = make_free_reg(op, 1);
+				}
+
+				rmap_assoc(op->regmap, op->arg[i], reg);
+
+				op->r_arg[i] = reg->id;
+				if (jitset_get(op->live_in, op->arg[i]))
+					load_reg(op, rmap_get(op->regmap, op->arg[i]), op->arg[i]);
+			}
+		} else if (ARG_TYPE(op, i + 1) == IMM) {
+			// assigns immediate values
+			op->r_arg[i] = op->arg[i];
+		}
+	}
+
+	// increasing age of each register
+	rmap_make_older(op->regmap);
+}
+#endif
+//////////////////////////////////////////////////////////////////
+
+
+/**
+ * This function adjusts state of registers to the state
+ * which is expected at the destination address of the jump
+ * operation
+ */
 static inline void jump_adjustment(struct jit * jit, jit_op * op)
 {
 	if (GET_OP(op) != JIT_JMP) return;
@@ -468,15 +630,22 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 	rmap_sync(op, tgt_regmap, cur_regmap, RMAP_LOAD);
 }
 
+/**
+ * There must be same register mappings at both ends of the conditional jump.
+ * If this condition is not met, contents of registers have to be moved
+ * appropriately. This can be achieved with the jump_adjustment function.
+ * 
+ * This function converts conditional jumps as follows:
+ *	beq(succ, ..., ...);
+ *	fail
+ *	==>
+ *	bne(fail:, ..., ...);
+ *	register reorganization 
+ *	jmp succ
+ *	fail:
+ */
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
 {
-	// beq(succ, ..., ...);
-	// fail
-	// ==>
-	// bne(fail:, ..., ...);
-	// register mangling
-	// jmp succ
-	// fail:
 	if ((GET_OP(op) != JIT_BEQ) && (GET_OP(op) != JIT_BGT) && (GET_OP(op) != JIT_BGE)
 	   && (GET_OP(op) != JIT_BNE) && (GET_OP(op) != JIT_BLT) && (GET_OP(op) != JIT_BLE)) return;
 
