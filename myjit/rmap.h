@@ -187,45 +187,61 @@ static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candida
 #endif
 
 #ifdef LTU_ALLOCATOR
+/**
+ * Looks into the regmap for suitable register to spill out.
+ *
+ * @param op -- operation that requires new register
+ * @param fp -- indicates whether we are looking for floating point register or not
+ * @param live -- indicates whether the given register should be in use or not
+ * @param to_be_used -- auxiliary value used to select appropriate candidate
+ * @param cand_hreg -- returns hardware register which is to be spilled
+ * @candidate -- returns virtual register which is to be spilled
+ */
 static void __spill_candidate(jit_op * op, rb_node * n, int fp, int live, int * to_be_used, jit_hw_reg ** cand_hreg, jit_value * candidate)
 {
 	if (n == NULL) return;
 
 	jit_value virtreg = (jit_value) n->key;
 	jit_hw_reg * hreg = (jit_hw_reg *) n->value; 
+	int reg_liveness = (jitset_get(op->live_in, virtreg) || jitset_get(op->live_out, virtreg));
 	
-	if ((hreg->fp == fp) && ((jitset_get(op->live_in, virtreg) || (jitset_get(op->live_out, virtreg))) == live)
-			) {
+	if ((hreg->fp == fp) && (reg_liveness == live)) {
 		struct jit_allocator_hint * hint = NULL;
 		struct rb_node * node = rb_search(op->allocator_hints, virtreg);
 		if (node) hint = node->value;
-//		printf("%i%i", jitset_get(op->live_in, virtreg), jitset_get(op->live_out, virtreg));
-//		if (hint) printf("::%i:%i:%s\n", virtreg >> 4, hint->to_be_used, hreg->name);
 		if (!hint) {
+			// There's no hint on the given register, so we are expecting
+			// that this register won't be used anymore and so it's suitable
+			// candidate
 			*candidate = n->key;
 			*to_be_used = -1;
 			*cand_hreg = hreg;
-//			printf("X:%i:%i:%s\n", virtreg >> 4, -1, hreg->name);
-		} else
-		if (hint && (hint->to_be_used < *to_be_used)) {
-			*candidate = n->key;
-			*to_be_used = hint->to_be_used;
-			*cand_hreg = hreg;
+		} else {
+			if (hint->to_be_used < *to_be_used) {
+				*candidate = n->key;
+				*to_be_used = hint->to_be_used;
+				*cand_hreg = hreg;
+			}
 		}
 	}
 	__spill_candidate(op, n->left, fp, live, to_be_used, cand_hreg, candidate);
 	__spill_candidate(op, n->right, fp, live, to_be_used, cand_hreg, candidate);
 }
 
+/**
+ * Finds suitable register which can be spilled out.
+ * First, it attempts to spill out some register which is not in use (it's not live),
+ * If there is no such register tries to find register which is to be used in the
+ * furthest future
+ */
 static jit_hw_reg * rmap_spill_candidate(jit_op * op, int fp, jit_value * candidate)
 {
 	int to_be_used = INT_MAX;
 	jit_hw_reg * res = NULL;
-//	printf("-----------\n");
+
 	__spill_candidate(op, op->regmap->map, fp, 0, &to_be_used, &res, candidate);
 	if (!res) __spill_candidate(op, op->regmap->map, fp, 1, &to_be_used, &res, candidate);
-//	if (res) printf("found:%s\n", res->name);
-//	if (!res) printf("not found\n");
+
 	return res;
 }
 #endif
