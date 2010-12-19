@@ -91,6 +91,8 @@ static rmap_t * rmap_clone(rmap_t * rmap)
 static int rmap_equal(rmap_t * r1, rmap_t * r2)
 {
 	return rb_equal(r1->map, r2->map);
+	// FIXME: rb_subset should be fair enough, but i'm not sure
+	//return rb_subset(r1->map, r2->map);
 }
 
 /**
@@ -185,33 +187,45 @@ static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candida
 #endif
 
 #ifdef LTU_ALLOCATOR
-static void __spill_candidate(jit_op * op, rb_node * n, int fp, int * to_be_used, jit_hw_reg ** cand_hreg, jit_value * candidate)
+static void __spill_candidate(jit_op * op, rb_node * n, int fp, int live, int * to_be_used, jit_hw_reg ** cand_hreg, jit_value * candidate)
 {
 	if (n == NULL) return;
 
 	jit_value virtreg = (jit_value) n->key;
 	jit_hw_reg * hreg = (jit_hw_reg *) n->value; 
 	
-	if (hreg->fp == fp) {
+	if ((hreg->fp == fp) && ((jitset_get(op->live_in, virtreg) || (jitset_get(op->live_out, virtreg))) == live)
+			) {
 		struct jit_allocator_hint * hint = NULL;
 		struct rb_node * node = rb_search(op->allocator_hints, virtreg);
 		if (node) hint = node->value;
+//		printf("%i%i", jitset_get(op->live_in, virtreg), jitset_get(op->live_out, virtreg));
 //		if (hint) printf("::%i:%i:%s\n", virtreg >> 4, hint->to_be_used, hreg->name);
+		if (!hint) {
+			*candidate = n->key;
+			*to_be_used = -1;
+			*cand_hreg = hreg;
+//			printf("X:%i:%i:%s\n", virtreg >> 4, -1, hreg->name);
+		} else
 		if (hint && (hint->to_be_used < *to_be_used)) {
 			*candidate = n->key;
 			*to_be_used = hint->to_be_used;
 			*cand_hreg = hreg;
 		}
 	}
-	__spill_candidate(op, n->left, fp, to_be_used, cand_hreg, candidate);
-	__spill_candidate(op, n->right, fp, to_be_used, cand_hreg, candidate);
+	__spill_candidate(op, n->left, fp, live, to_be_used, cand_hreg, candidate);
+	__spill_candidate(op, n->right, fp, live, to_be_used, cand_hreg, candidate);
 }
 
 static jit_hw_reg * rmap_spill_candidate(jit_op * op, int fp, jit_value * candidate)
 {
 	int to_be_used = INT_MAX;
-	jit_hw_reg * res;
-	__spill_candidate(op, op->regmap->map, fp, &to_be_used, &res, candidate);
+	jit_hw_reg * res = NULL;
+//	printf("-----------\n");
+	__spill_candidate(op, op->regmap->map, fp, 0, &to_be_used, &res, candidate);
+	if (!res) __spill_candidate(op, op->regmap->map, fp, 1, &to_be_used, &res, candidate);
+//	if (res) printf("found:%s\n", res->name);
+//	if (!res) printf("not found\n");
 	return res;
 }
 #endif

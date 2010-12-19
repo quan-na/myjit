@@ -159,7 +159,8 @@ static jit_hw_reg * make_free_reg(jit_op * op, int fp)
 {
 	jit_value spill_candidate;
 	jit_hw_reg * hreg = rmap_spill_candidate(op, fp, &spill_candidate);
-	unload_reg(op, hreg, spill_candidate);
+	if (jitset_get(op->live_in, spill_candidate))
+		unload_reg(op, hreg, spill_candidate);
 	rmap_unassoc(op->regmap, spill_candidate, fp);
 	hreg->used = 0;
 	return hreg;
@@ -591,7 +592,8 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 		assign_regs_for_args(al, op);
 	} else {
 		// initializes register mappings for standard operations
-		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
+		//if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
+		if (op->prev) op->regmap = rmap_clone(op->prev->regmap); 
 	}
 
 	// operations reuqiring some special core
@@ -685,7 +687,7 @@ static void collect_statistics(struct jit * jit)
 
 
 /**
- * This function adjusts state of registers to the state
+ * This function adjusts assocaiation of registers to the state
  * which is expected at the destination address of the jump
  * operation
  */
