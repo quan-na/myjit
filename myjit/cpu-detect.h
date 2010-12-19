@@ -40,6 +40,7 @@
 // enable this to test register allocation
 #define JIT_REGISTER_TEST
 //#undef JIT_REGISTER_TEST
+#define LTU_ALLOCATOR
 
 /*
  * i386 related macros
@@ -102,5 +103,7 @@
 #define INT_SIZE (sizeof(int))
 #define PTR_SIZE (sizeof(void *))
 #define REG_SIZE (sizeof(void *))
+
+typedef long jit_value;
 
 #endif

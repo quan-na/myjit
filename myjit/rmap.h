@@ -18,6 +18,7 @@
  */
 
 #include <string.h>
+#include <limits.h>
 /*
  * Register mappings
  */
@@ -157,6 +158,7 @@ static rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_r
 	return op->regmap;
 }
 
+#ifdef LRU_ALLOCATOR
 static void __spill_candidate(rb_node * n, int fp, int * age, struct __hw_reg ** cand_hreg, int * candidate)
 {
 	if (n == NULL) return;
@@ -180,6 +182,39 @@ static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candida
 	__spill_candidate(op->regmap->map, fp, &age, &res, candidate);
 	return res;
 }
+#endif
+
+#ifdef LTU_ALLOCATOR
+static void __spill_candidate(jit_op * op, rb_node * n, int fp, int * to_be_used, jit_hw_reg ** cand_hreg, jit_value * candidate)
+{
+	if (n == NULL) return;
+
+	jit_value virtreg = (jit_value) n->key;
+	jit_hw_reg * hreg = (jit_hw_reg *) n->value; 
+	
+	if (hreg->fp == fp) {
+		struct jit_allocator_hint * hint = NULL;
+		struct rb_node * node = rb_search(op->allocator_hints, virtreg);
+		if (node) hint = node->value;
+//		if (hint) printf("::%i:%i:%s\n", virtreg >> 4, hint->to_be_used, hreg->name);
+		if (hint && (hint->to_be_used < *to_be_used)) {
+			*candidate = n->key;
+			*to_be_used = hint->to_be_used;
+			*cand_hreg = hreg;
+		}
+	}
+	__spill_candidate(op, n->left, fp, to_be_used, cand_hreg, candidate);
+	__spill_candidate(op, n->right, fp, to_be_used, cand_hreg, candidate);
+}
+
+static jit_hw_reg * rmap_spill_candidate(jit_op * op, int fp, jit_value * candidate)
+{
+	int to_be_used = INT_MAX;
+	jit_hw_reg * res;
+	__spill_candidate(op, op->regmap->map, fp, &to_be_used, &res, candidate);
+	return res;
+}
+#endif
 
 static void __make_older(rb_node * n)
 {

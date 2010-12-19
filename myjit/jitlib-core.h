@@ -58,7 +58,6 @@
 
 struct jitset;
 
-typedef long jit_value;
 typedef double jit_float;
 
 typedef struct {
@@ -135,7 +134,7 @@ typedef struct __hw_reg jit_hw_reg;
 struct jit_regpool
 {
 	int pos;
-	struct __hw_reg ** pool;	
+	jit_hw_reg ** pool;	
 };
 
 struct jit_reg_allocator {
@@ -147,8 +146,8 @@ struct jit_reg_allocator {
 	int gp_arg_reg_cnt;			// number of GP registers used to pass arguments
 	int fp_arg_reg_cnt;			// number of FP registers used to pass arguments
 
-	struct __hw_reg * gp_regs;		// array of available GP registers
-	struct __hw_reg * fp_regs;		// array of available floating-point registers
+	jit_hw_reg * gp_regs;			// array of available GP registers
+	jit_hw_reg * fp_regs;			// array of available floating-point registers
 	struct jit_regpool * gp_regpool;	// pool of available general purpose registers
 	struct jit_regpool * fp_regpool;	// pool of available floating-point registers
 	int * gp_arg_regs;			// array of GP registers used to pass arguments (in the given order) 
@@ -162,22 +161,28 @@ typedef struct rmap_t {
 } rmap_t;
 
 typedef struct jit_op {
-	unsigned short code;
-	unsigned char spec;
-	unsigned char arg_size; /* used by ld, st */
+	unsigned short code;		// operation code
+	unsigned char spec;		// argument types, e.g REG+REG+IMM
+	unsigned char arg_size; 	// used by ld, st
 	unsigned char assigned;
-	unsigned char fp;	/* FP if it's an floating-point operation */	
-	double flt_imm;
-	jit_value arg[3];
-	jit_value r_arg[3];
+	unsigned char fp;		// FP if it's an floating-point operation	
+	double flt_imm;			// floating point immediate value
+	jit_value arg[3];		// arguments passed by user
+	jit_value r_arg[3];		// arguments transformed by register allocator
 	long patch_addr;
 	struct jit_op * jmp_addr;
 	struct jit_op * next;
 	struct jit_op * prev;
-	struct jitset * live_in; 
-	struct jitset * live_out; 
-	rmap_t * regmap; 
+	struct jitset * live_in;
+	struct jitset * live_out;
+	rmap_t * regmap;		// register mappings 
+	struct rb_node * allocator_hints; // reg. allocator to collect statistics on used registers
 } jit_op;
+
+struct jit_allocator_hint {
+	int to_be_used;
+	int should_be_calleesaved;
+};
 
 typedef struct jit_label {
 	long pos;

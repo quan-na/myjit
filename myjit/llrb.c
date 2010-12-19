@@ -4,14 +4,14 @@
 #define RED	(1)
 #define BLACK	(0)
 
-typedef int key_t;
+typedef jit_value rb_key_t;
 typedef void * value_t;
 
 typedef struct rb_node {
 	struct rb_node * left;
 	struct rb_node * right;
 	int color;
-	key_t key;
+	rb_key_t key;
 	value_t value;
 } rb_node;
 
@@ -49,7 +49,7 @@ static inline void color_flip(rb_node * h)
 	h->right->color = !h->right->color;
 }
 
-static inline rb_node * node_new(key_t key, value_t value)
+static inline rb_node * node_new(rb_key_t key, value_t value)
 {
 	rb_node * res = malloc(sizeof(rb_node));
 	res->key = key;
@@ -60,7 +60,7 @@ static inline rb_node * node_new(key_t key, value_t value)
 	return res;
 }
 
-static rb_node * node_insert(rb_node * h, key_t key, value_t value, int * found)
+static rb_node * node_insert(rb_node * h, rb_key_t key, value_t value, int * found)
 {
 	if (h == NULL) return node_new(key, value);
 	if (is_red(h->left) && is_red(h->right)) color_flip(h);
@@ -77,7 +77,7 @@ static rb_node * node_insert(rb_node * h, key_t key, value_t value, int * found)
 	return h;
 }
 
-static rb_node * rb_insert(rb_node * root, key_t key, value_t value, int * found)
+static rb_node * rb_insert(rb_node * root, rb_key_t key, value_t value, int * found)
 {
 	if (found) *found = 0;
 	root = node_insert(root, key, value, found);
@@ -86,7 +86,7 @@ static rb_node * rb_insert(rb_node * root, key_t key, value_t value, int * found
 }
 
 
-static rb_node * rb_search(rb_node * h, key_t key)
+static rb_node * rb_search(rb_node * h, rb_key_t key)
 {
 	if ((h == NULL) || (h->key == key)) return h;
 	if (h->key > key) return rb_search(h->left, key);
@@ -128,7 +128,7 @@ static inline rb_node * fixup(rb_node * h)
 	return h;
 }
 
-static inline int node_min(rb_node * x)
+static inline rb_key_t node_min(rb_node * x)
 {
 	if (x->left == NULL) return x->key;
 	else return node_min(x->left);
@@ -150,7 +150,7 @@ static rb_node * delete_min(rb_node * h)
 	return fixup(h);
 }
 
-static rb_node * delete_node(rb_node * h, key_t key, int * found)
+static rb_node * delete_node(rb_node * h, rb_key_t key, int * found)
 {
 	if (h == NULL) {
 		if (found) *found = 0; 
@@ -182,7 +182,7 @@ static rb_node * delete_node(rb_node * h, key_t key, int * found)
 	return fixup(h);
 }
 
-static inline rb_node * rb_delete(rb_node * root, key_t key, int * found)
+static inline rb_node * rb_delete(rb_node * root, rb_key_t key, int * found)
 { 
 	root = delete_node(root, key, found);
 	if (root) root->color = BLACK;
@@ -214,7 +214,7 @@ static inline void rb_print_tree(rb_node * h, int level)
 	for (i = 0; i < level; i++)
 		printf(" ");
 
-	printf("%i:%li\n", h->key, (long)h->value);
+	printf("%i:%li\n", (int)h->key, (long)h->value);
 	rb_print_tree(h->left, level + 1);
 	rb_print_tree(h->right, level + 1);
 }
