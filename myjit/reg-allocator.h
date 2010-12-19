@@ -723,7 +723,8 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	rmap_t * cur_regmap = op->regmap;
 	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
-	if (!rmap_equal(cur_regmap, tgt_regmap)) {
+//	if (!rmap_equal(cur_regmap, tgt_regmap)) {
+	if (!rmap_equal2(op, cur_regmap, tgt_regmap)) {
 		switch (GET_OP(op)) {
 			case JIT_BEQ: op->code = JIT_BNE | (op->code & 0x7); break;
 			case JIT_BGT: op->code = JIT_BLE | (op->code & 0x7); break;

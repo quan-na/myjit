@@ -88,11 +88,34 @@ static rmap_t * rmap_clone(rmap_t * rmap)
 	return res;
 }
 
+/**
+ * Compares whether register mappings in the target destination
+ * are the same as the current
+ */
 static int rmap_equal(rmap_t * r1, rmap_t * r2)
 {
 	return rb_equal(r1->map, r2->map);
-	// FIXME: rb_subset should be fair enough, but i'm not sure
-	//return rb_subset(r1->map, r2->map);
+}
+
+static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
+{
+	if (current == NULL) return 1;
+	jitset * tgt_livein = op->jmp_addr->live_in;
+	if (!jitset_get(tgt_livein, current->key)) return 1;
+
+	rb_node * found = rb_search(target, current->key);
+	if ((!found) || (current->value != found->value)) return 0;
+	return __rmap_equal(op, current->left, target) && __rmap_equal(op, current->right, target);
+}
+
+/**
+ * Compares whether register mappings in the target destination
+ * are the same as the current
+ */
+
+static int rmap_equal2(jit_op * op, rmap_t * current, rmap_t * target)
+{
+	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
 }
 
 /**
@@ -102,7 +125,6 @@ static int rmap_equal(rmap_t * r1, rmap_t * r2)
  * if (mode == UNLOAD): then it unloads registers which are in the current mapping,
  * 			however, which are not in the target mapping
  */
-
 static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
