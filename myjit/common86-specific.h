@@ -122,7 +122,7 @@ static int __pop_callee_saved_regs(struct jit * jit)
 static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 		jit_hw_reg * regs, int fp, int skip_reg)
 {
-	int reg;
+	jit_value reg;
 	int count = 0;
 	for (int i = 0; i < reg_count; i++) {
 		if ((regs[i].id == skip_reg) || (regs[i].callee_saved)) continue;
@@ -148,7 +148,7 @@ static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    jit_hw_reg * regs, int fp, int skip_reg)
 {
-	int reg;
+	jit_value reg;
 	int count = 0;
 	for (int i = reg_count - 1; i >= 0; i--) {
 		if ((regs[i].id == skip_reg) || (regs[i].callee_saved)) continue;

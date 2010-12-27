@@ -122,7 +122,7 @@ static inline jit_reg JIT_REG(jit_value v)
 
 struct __hw_reg {
 	int id;
-	unsigned long used;
+	unsigned long used; // FIXME: unnecessary for LTU allocator
 	char * name;
 	char callee_saved;
 	char fp;
@@ -157,6 +157,7 @@ struct jit_reg_allocator {
 
 typedef struct rmap_t {
 	struct rb_node * map;		// R/B tree which maps virtual registers to hardware registers
+	// FIXME: obsolete
 	struct rb_node * revmap;	// R/B tree which maps hw. registers to virtual registers
 } rmap_t;
 
@@ -176,11 +177,12 @@ typedef struct jit_op {
 	struct jitset * live_in;
 	struct jitset * live_out;
 	rmap_t * regmap;		// register mappings 
+	int normalized_pos;		// number of operations from the end of the function
 	struct rb_node * allocator_hints; // reg. allocator to collect statistics on used registers
 } jit_op;
 
 struct jit_allocator_hint {
-	int to_be_used;
+	int last_pos;
 	int should_be_calleesaved;
 };
 

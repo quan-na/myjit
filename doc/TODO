@@ -2,7 +2,7 @@ ROADMAP
 =======
 
 + release 0.6.0
-	+ linear-scan reg. allocator (last-to-be-used heuristics)
+	* linear-scan reg. allocator (last-to-be-used heuristics)
 	+ reg. allocator should be aware of:
 		+ callee/caller-saved registers
 		+ register which are used to pass/return values

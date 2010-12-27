@@ -155,6 +155,32 @@ static void rename_reg(jit_op * op, int r1, int r2)
 	insert_reg_op(JIT_RENAMEREG, op, r1, r2);
 }
 
+static jit_hw_reg * make_free_reg2(struct jit_reg_allocator * al, jit_op * op, jit_value for_reg)
+{
+	int spill;
+	jit_value spill_candidate;
+#ifdef LTU_ALLOCATOR
+	jit_hw_reg * hregX = rmap_spill_candidate(op, 0, &spill_candidate);
+	jit_hw_reg * hreg = rmap_spill_candidate2(al, op, for_reg, &spill, &spill_candidate);
+#endif
+#ifdef LRU_ALLOCATOR
+	jit_hw_reg * hreg = rmap_spill_candidate(op, 0, &spill_candidate);
+#endif
+
+//	printf("should be:%s\n", hregX->name);
+//	printf("really is:%s\n", hreg->name);
+//	assert(hregX == hreg);
+//	printf("TTTT:%s\n",hreg->name);
+//	printf("spill candidate: %i:%i\n", (int)spill, (int)spill_candidate);
+//	if (spill) {
+		if (jitset_get(op->live_in, spill_candidate))
+			unload_reg(op, hreg, spill_candidate);
+		rmap_unassoc(op->regmap, spill_candidate, JIT_REG(for_reg).type == JIT_RTYPE_FLOAT);
+//	}
+	hreg->used = 0;
+	return hreg;
+}
+
 static jit_hw_reg * make_free_reg(jit_op * op, int fp)
 {
 	jit_value spill_candidate;
@@ -259,7 +285,7 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 
 static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * op)
 {
-	int r, reg;
+	jit_value r, reg;
 	jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
 	if (hreg) {
 		// checks whether there is a free callee-saved register
@@ -510,7 +536,7 @@ static int assign_getarg(jit_op * op, struct jit_reg_allocator * al)
  */
 static void spill_ret_retreg(jit_op * op, struct jit_regpool * regpool, int ret_reg, int fp)
 {
-	int r;
+	jit_value r;
 	if (ret_reg >= 0) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, ret_reg, fp, &r);
 		if (hreg) {
@@ -560,10 +586,17 @@ static void associate_register(struct jit_reg_allocator * al, jit_op * op, int i
 	else {
 		if (virt_reg.type == JIT_RTYPE_INT) {
 			reg = jit_regpool_get(al->gp_regpool);
-			if (reg == NULL) reg = make_free_reg(op, 0);
+			//if (reg == NULL) reg = make_free_reg(op, 0);
+			if (reg == NULL) {
+//				reg = make_free_reg(op, 0);
+				reg = make_free_reg2(al, op, op->arg[i]);
+			}
 		} else {
+			assert(0);
+			/*
 			reg = jit_regpool_get(al->fp_regpool);
 			if (reg == NULL) reg = make_free_reg(op, 1);
+			*/
 		}
 
 		rmap_assoc(op->regmap, op->arg[i], reg);
@@ -631,11 +664,12 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 static void collect_statistics(struct jit * jit)
 {
 	int i, j;
-	int ops_to_return = 0;
+	int ops_from_return = 0;
 	struct rb_node * last_hints = NULL;
 
 	for (jit_op * op = jit_op_last(jit->ops); op != NULL; op = op->prev) {
 		struct rb_node * new_hints = rb_clone(last_hints);
+		op->normalized_pos = ops_from_return;
 	
 	
 		// determines used registers	
@@ -659,26 +693,27 @@ static void collect_statistics(struct jit * jit)
 		for (i = 0; i < found_regs; i++) {
 			jit_value reg = regs[i];
 
-			struct jit_allocator_hint * hint = rb_search(new_hints, reg);
+			rb_node * hint = rb_search(new_hints, reg);
 			struct jit_allocator_hint * new_hint = JIT_MALLOC(sizeof(struct jit_allocator_hint));
-			if (hint) memcpy(new_hint, hint, sizeof(struct jit_allocator_hint));
+			if (hint) memcpy(new_hint, hint->value, sizeof(struct jit_allocator_hint));
 			else {
-				new_hint->to_be_used = 0;
+				new_hint->last_pos = 0;
 				new_hint->should_be_calleesaved = 0;
 			}
 
-			new_hint->to_be_used = ops_to_return;
+			new_hint->last_pos = ops_from_return;
+//			printf("XXX:%i:%i\n", (int)reg,  ops_from_return);
 			new_hints = rb_insert(new_hints, reg, new_hint, NULL);
 		}
 		op->allocator_hints = new_hints;
 
 		if (GET_OP(op) == JIT_PROLOG) {
 			last_hints = NULL;
-			ops_to_return = 0;
+			ops_from_return = 0;
 		}
 		else {
 			last_hints = new_hints;
-			ops_to_return++;
+			ops_from_return++;
 		}
 	}
 }

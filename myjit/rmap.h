@@ -26,6 +26,9 @@
 #define RMAP_UNLOAD (1)
 #define RMAP_LOAD (2)
 
+// FIXME: REMOVEME
+void rb_print_treeX(rb_node * h, int level);
+
 static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg);
 static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg);
 static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hreg);
@@ -40,44 +43,64 @@ static inline rmap_t * rmap_init()
 	return res;
 }
 
-static inline struct __hw_reg * rmap_get(rmap_t * rmap, int reg)
+static inline jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg)
 {
 	rb_node * found = rb_search(rmap->map, reg);
-	if (found) return (struct __hw_reg *) found->value;
+	if (found) return (jit_hw_reg *) found->value;
 
 	return NULL;
 }
 
+static inline jit_hw_reg * __is_associated(rb_node * n, int reg_id, int fp, jit_value * virt_reg)
+{
+	if (n == NULL) return NULL;
+	jit_hw_reg * r = (jit_hw_reg *) n->value;
+
+	if ((r->fp == fp) && (r->id == reg_id)) {
+		if (virt_reg) *virt_reg = (jit_value) n->key;
+		return r;
+	}
+
+	r = __is_associated(n->left, reg_id, fp, virt_reg);
+	if (r) return r;
+	else return __is_associated(n->right, reg_id, fp, virt_reg);
+}
+
 /**
- * Checks whether is hardware register associated to some virtual register
- * If so, returns to pointer to this register and sets the id of the virtual
+ * Checks whether the hardware register reg_is is associated with some virtual register
+ * If so, returns a pointer to this register and sets the id of the virtual
  * register
  */
-static inline struct __hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, int * virt_reg)
+static inline jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg)
 {
+	return __is_associated(rmap->map, reg_id, fp, virt_reg);
+	/*
 	if (fp) reg_id = -reg_id - 1;
 	rb_node * found = rb_search(rmap->revmap, reg_id);
+	if (found) printf("found:%i\n", (int)found->value);
+	else printf("not found\n");
 	if (found) {
-		int r = (long)found->value;
+		jit_value r = (jit_value) found->value;
 		if (virt_reg) *virt_reg = r;
 		return rmap_get(rmap, r);
 	}
 	return NULL;
+	*/
 }
 
-static void rmap_assoc(rmap_t * rmap, int reg, struct __hw_reg * hreg)
+static void rmap_assoc(rmap_t * rmap, jit_value reg, jit_hw_reg * hreg)
 {
 	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
-	if (!hreg->fp) rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(long)reg, NULL);
-	else rmap->revmap = rb_insert(rmap->revmap, - hreg->id - 1, (void *)(long)reg, NULL);
+	if (!hreg->fp) rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(jit_value)reg, NULL);
+	else rmap->revmap = rb_insert(rmap->revmap, - hreg->id - 1, (void *)(jit_value)reg, NULL);
 }
 
-static void rmap_unassoc(rmap_t * rmap, int reg, int fp)
+static void rmap_unassoc(rmap_t * rmap, jit_value reg, int fp)
 {
-	struct __hw_reg * hreg = (struct __hw_reg *)rb_search(rmap->map, reg);
+	jit_hw_reg * hreg = (jit_hw_reg *) rb_search(rmap->map, reg);
 	rmap->map = rb_delete(rmap->map, reg, NULL);
 	if (!fp) rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
-	rmap->revmap = rb_delete(rmap->revmap, - hreg->id - 1, NULL);
+	else rmap->revmap = rb_delete(rmap->revmap, - hreg->id - 1, NULL);
 }
 
 static rmap_t * rmap_clone(rmap_t * rmap)
@@ -100,8 +123,10 @@ static int rmap_equal(rmap_t * r1, rmap_t * r2)
 static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
 {
 	if (current == NULL) return 1;
+
+	// ignores mappings of register which are not live
 	jitset * tgt_livein = op->jmp_addr->live_in;
-	if (!jitset_get(tgt_livein, current->key)) return 1;
+	if (!jitset_get(tgt_livein, current->key) && !jitset_get(op->live_out, current->key)) return 1;
 
 	rb_node * found = rb_search(target, current->key);
 	if ((!found) || (current->value != found->value)) return 0;
@@ -112,7 +137,6 @@ static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
  * Compares whether register mappings in the target destination
  * are the same as the current
  */
-
 static int rmap_equal2(jit_op * op, rmap_t * current, rmap_t * target)
 {
 	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
@@ -129,8 +153,11 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
 
-	jitset * tgt_livein = op->jmp_addr->live_in;
-	if (!jitset_get(tgt_livein, current->key)) return;
+	// if the given register does not have relevant content, then ignore it
+	if ((mode == RMAP_LOAD) && (!jitset_get(op->live_out, current->key))) return;
+
+	// if the register is not used in the destination, then ignore it
+	if ((mode == RMAP_UNLOAD) && (!jitset_get(op->jmp_addr->live_in, current->key))) return;
 
 	rb_node * found = rb_search(target, current->key);
 	int i = current->key;
@@ -209,6 +236,43 @@ static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candida
 #endif
 
 #ifdef LTU_ALLOCATOR
+
+static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, int * spill, jit_value * associated_virtreg)
+{
+	int score = 0;
+//	score -= hreg->priority;
+	
+	jit_value x;
+	int hw_associated = (rmap_is_associated(op->regmap, hreg->id, hreg->fp, &x) != NULL);
+
+	int alive = (jitset_get(op->live_in, x) || jitset_get(op->live_out, x));
+	if (!alive) score += 10000;		// prefers registers which are not live
+
+	*spill = 0;
+	if (hw_associated) {
+
+
+
+		score -= 100000;	// suppress registers which are in use
+		*spill = 1;
+
+		*associated_virtreg = x;
+
+		struct rb_node * hint_node = rb_search(op->allocator_hints, x);
+		int is_to_be_used = (hint_node != NULL);
+
+		if (!is_to_be_used) score += 50000; // if it's not to be used it is not so bad candidate
+
+		if (hint_node) {
+			struct jit_allocator_hint * hint = (struct jit_allocator_hint *)hint_node->value;
+			int used_in_steps = -(hint->last_pos - op->normalized_pos);
+			if (used_in_steps == 0) return INT_MIN; // register is used in the current function (it's not a good candidate for spilling)
+			else score += (used_in_steps * 5);
+		}// else printf("xxxxxxxxx\n");
+	}
+	return score;
+}
+
 /**
  * Looks into the regmap for suitable register to spill out.
  *
@@ -239,9 +303,9 @@ static void __spill_candidate(jit_op * op, rb_node * n, int fp, int live, int * 
 			*to_be_used = -1;
 			*cand_hreg = hreg;
 		} else {
-			if (hint->to_be_used < *to_be_used) {
+			if (hint->last_pos < *to_be_used) {
 				*candidate = n->key;
-				*to_be_used = hint->to_be_used;
+				*to_be_used = hint->last_pos;
 				*cand_hreg = hreg;
 			}
 		}
@@ -265,6 +329,61 @@ static jit_hw_reg * rmap_spill_candidate(jit_op * op, int fp, jit_value * candid
 	if (!res) __spill_candidate(op, op->regmap->map, fp, 1, &to_be_used, &res, candidate);
 
 	return res;
+}
+
+
+void rb_print_treeX(rb_node * h, int level)
+{
+	int i;
+	if (h == NULL) return;
+	for (i = 0; i < level; i++)
+		printf(" ");
+
+	//struct jit_allocator_hint * hx = (struct jit_allocator_hint *)(h->value);
+	jit_hw_reg * hx = (jit_hw_reg *)(h->value);
+	printf("%i:%s\n", (int)h->key, hx->name);
+	rb_print_treeX(h->left, level + 1);
+	rb_print_treeX(h->right, level + 1);
+}
+
+
+jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op * op, jit_value virtreg, int * spill, jit_value * reg_to_spill)
+{
+	jit_reg r = JIT_REG(virtreg);
+	jit_hw_reg * regs;
+	int reg_count;
+	jit_hw_reg * result = NULL;
+	int best_score = INT_MIN;
+
+	if (r.type == JIT_RTYPE_INT) {
+		regs = al->gp_regs;
+		reg_count = al->gp_reg_cnt;
+	} else assert(0);
+
+//	rb_print_treeX(op->allocator_hints, 0);
+	int not_found = 1;
+	int sp = 0;
+	//printf("------------------------\n");
+	for (int i = 0; i < reg_count; i++) {
+		jit_value assoc = 0;
+		int score = candidate_score(op, virtreg, &(regs[i]), &sp, &assoc);
+	//	printf("%s:%i\n", regs[i].name, score);
+		if (score > best_score) {
+			if (sp) {
+				*reg_to_spill = assoc; 
+				*spill = sp;
+			} else {
+				*reg_to_spill = -1;
+				*spill = 0;
+			}
+			result = &(regs[i]);
+			best_score = score;
+			not_found = 0;
+		}
+	}
+	if (not_found) assert(0);
+	if (result == NULL) assert(0);
+	return result;
 }
 #endif
 
