@@ -328,7 +328,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	static int __fp_arg_regs[] = { AMD64_XMM0, AMD64_XMM1, AMD64_XMM2, AMD64_XMM3, AMD64_XMM4, AMD64_XMM5, AMD64_XMM6, AMD64_XMM7 };
 
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
-	a->gp_reg_cnt = 14;
+	a->gp_reg_cnt = 13;
 
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
 	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->gp_reg_cnt);
@@ -344,9 +344,11 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 0, 9 };
 	a->gp_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0, 0, 10 };
 	a->gp_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1, 0, 11 };
-	a->gp_regs[11] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 0, 12 };
-	a->gp_regs[12] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 0, 13 };
-	a->gp_regs[13] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 0, 14 };
+	a->gp_regs[11] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 0, 13 };
+	a->gp_regs[12] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 0, 14 };
+	// R13 has some addressing limitations, therefore it is not used as GPR
+	// since it may lead to unexpected behavior
+//	a->gp_regs[13] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 0, 12 };
 
 
 	a->gp_arg_reg_cnt = 6;

@@ -158,7 +158,7 @@ static void rename_reg(jit_op * op, int r1, int r2)
 static jit_hw_reg * make_free_reg2(struct jit_reg_allocator * al, jit_op * op, jit_value for_reg)
 {
 	int spill;
-	jit_value spill_candidate;
+	jit_value spill_candidate = -1;
 #ifdef LTU_ALLOCATOR
 	jit_hw_reg * hreg = rmap_spill_candidate2(al, op, for_reg, &spill, &spill_candidate);
 #endif
