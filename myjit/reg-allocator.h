@@ -160,23 +160,15 @@ static jit_hw_reg * make_free_reg2(struct jit_reg_allocator * al, jit_op * op, j
 	int spill;
 	jit_value spill_candidate;
 #ifdef LTU_ALLOCATOR
-	jit_hw_reg * hregX = rmap_spill_candidate(op, 0, &spill_candidate);
 	jit_hw_reg * hreg = rmap_spill_candidate2(al, op, for_reg, &spill, &spill_candidate);
 #endif
 #ifdef LRU_ALLOCATOR
 	jit_hw_reg * hreg = rmap_spill_candidate(op, 0, &spill_candidate);
 #endif
 
-//	printf("should be:%s\n", hregX->name);
-//	printf("really is:%s\n", hreg->name);
-//	assert(hregX == hreg);
-//	printf("TTTT:%s\n",hreg->name);
-//	printf("spill candidate: %i:%i\n", (int)spill, (int)spill_candidate);
-//	if (spill) {
-		if (jitset_get(op->live_in, spill_candidate))
-			unload_reg(op, hreg, spill_candidate);
-		rmap_unassoc(op->regmap, spill_candidate, JIT_REG(for_reg).type == JIT_RTYPE_FLOAT);
-//	}
+	if (jitset_get(op->live_in, spill_candidate))
+		unload_reg(op, hreg, spill_candidate);
+	rmap_unassoc(op->regmap, spill_candidate, JIT_REG(for_reg).type == JIT_RTYPE_FLOAT);
 	hreg->used = 0;
 	return hreg;
 }
@@ -586,18 +578,10 @@ static void associate_register(struct jit_reg_allocator * al, jit_op * op, int i
 	else {
 		if (virt_reg.type == JIT_RTYPE_INT) {
 			reg = jit_regpool_get(al->gp_regpool);
-			//if (reg == NULL) reg = make_free_reg(op, 0);
-			if (reg == NULL) {
-//				reg = make_free_reg(op, 0);
-				reg = make_free_reg2(al, op, op->arg[i]);
-			}
 		} else {
-			assert(0);
-			/*
 			reg = jit_regpool_get(al->fp_regpool);
-			if (reg == NULL) reg = make_free_reg(op, 1);
-			*/
 		}
+		if (reg == NULL) reg = make_free_reg2(al, op, op->arg[i]);
 
 		rmap_assoc(op->regmap, op->arg[i], reg);
 

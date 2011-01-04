@@ -26,9 +26,6 @@
 #define RMAP_UNLOAD (1)
 #define RMAP_LOAD (2)
 
-// FIXME: REMOVEME
-void rb_print_treeX(rb_node * h, int level);
-
 static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg);
 static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg);
 static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hreg);
@@ -74,18 +71,6 @@ static inline jit_hw_reg * __is_associated(rb_node * n, int reg_id, int fp, jit_
 static inline jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg)
 {
 	return __is_associated(rmap->map, reg_id, fp, virt_reg);
-	/*
-	if (fp) reg_id = -reg_id - 1;
-	rb_node * found = rb_search(rmap->revmap, reg_id);
-	if (found) printf("found:%i\n", (int)found->value);
-	else printf("not found\n");
-	if (found) {
-		jit_value r = (jit_value) found->value;
-		if (virt_reg) *virt_reg = r;
-		return rmap_get(rmap, r);
-	}
-	return NULL;
-	*/
 }
 
 static void rmap_assoc(rmap_t * rmap, jit_value reg, jit_hw_reg * hreg)
@@ -240,7 +225,7 @@ static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candida
 static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, int * spill, jit_value * associated_virtreg)
 {
 	int score = 0;
-//	score -= hreg->priority;
+	score -= hreg->priority;
 	
 	jit_value x;
 	int hw_associated = (rmap_is_associated(op->regmap, hreg->id, hreg->fp, &x) != NULL);
@@ -250,8 +235,6 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 
 	*spill = 0;
 	if (hw_associated) {
-
-
 
 		score -= 100000;	// suppress registers which are in use
 		*spill = 1;
@@ -268,7 +251,7 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 			int used_in_steps = -(hint->last_pos - op->normalized_pos);
 			if (used_in_steps == 0) return INT_MIN; // register is used in the current function (it's not a good candidate for spilling)
 			else score += (used_in_steps * 5);
-		}// else printf("xxxxxxxxx\n");
+		}
 	}
 	return score;
 }
@@ -331,23 +314,7 @@ static jit_hw_reg * rmap_spill_candidate(jit_op * op, int fp, jit_value * candid
 	return res;
 }
 
-
-void rb_print_treeX(rb_node * h, int level)
-{
-	int i;
-	if (h == NULL) return;
-	for (i = 0; i < level; i++)
-		printf(" ");
-
-	//struct jit_allocator_hint * hx = (struct jit_allocator_hint *)(h->value);
-	jit_hw_reg * hx = (jit_hw_reg *)(h->value);
-	printf("%i:%s\n", (int)h->key, hx->name);
-	rb_print_treeX(h->left, level + 1);
-	rb_print_treeX(h->right, level + 1);
-}
-
-
-jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op * op, jit_value virtreg, int * spill, jit_value * reg_to_spill)
+static jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op * op, jit_value virtreg, int * spill, jit_value * reg_to_spill)
 {
 	jit_reg r = JIT_REG(virtreg);
 	jit_hw_reg * regs;
@@ -358,16 +325,16 @@ jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op * op, j
 	if (r.type == JIT_RTYPE_INT) {
 		regs = al->gp_regs;
 		reg_count = al->gp_reg_cnt;
-	} else assert(0);
+	} else {
+		regs = al->fp_regs;
+		reg_count = al->fp_reg_cnt;
+	}
 
-//	rb_print_treeX(op->allocator_hints, 0);
 	int not_found = 1;
 	int sp = 0;
-	//printf("------------------------\n");
 	for (int i = 0; i < reg_count; i++) {
 		jit_value assoc = 0;
 		int score = candidate_score(op, virtreg, &(regs[i]), &sp, &assoc);
-	//	printf("%s:%i\n", regs[i].name, score);
 		if (score > best_score) {
 			if (sp) {
 				*reg_to_spill = assoc; 
