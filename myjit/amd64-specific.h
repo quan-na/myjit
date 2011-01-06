@@ -333,19 +333,19 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
 	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->gp_reg_cnt);
 
-	a->gp_regs[0] = (struct __hw_reg) { AMD64_RAX, 0, "rax", 0, 0, 7 };
-	a->gp_regs[1] = (struct __hw_reg) { AMD64_RBX, 0, "rbx", 1, 0, 8 };
-	a->gp_regs[2] = (struct __hw_reg) { AMD64_RCX, 0, "rcx", 0, 0, 4 };
-	a->gp_regs[3] = (struct __hw_reg) { AMD64_RDX, 0, "rdx", 0, 0, 3 };
-	a->gp_regs[4] = (struct __hw_reg) { AMD64_RSI, 0, "rsi", 0, 0, 2 };
-	a->gp_regs[5] = (struct __hw_reg) { AMD64_RDI, 0, "rdi", 0, 0, 1 };
-	a->gp_regs[6] = (struct __hw_reg) { AMD64_R8, 0, "r8", 0, 0, 5 };
-	a->gp_regs[7] = (struct __hw_reg) { AMD64_R9, 0, "r9", 0, 0, 6 };
-	a->gp_regs[8] = (struct __hw_reg) { AMD64_R10, 0, "r10", 0, 0, 9 };
-	a->gp_regs[9] = (struct __hw_reg) { AMD64_R11, 0, "r11", 0, 0, 10 };
-	a->gp_regs[10] = (struct __hw_reg) { AMD64_R12, 0, "r12", 1, 0, 11 };
-	a->gp_regs[11] = (struct __hw_reg) { AMD64_R14, 0, "r14", 1, 0, 13 };
-	a->gp_regs[12] = (struct __hw_reg) { AMD64_R15, 0, "r15", 1, 0, 14 };
+	a->gp_regs[0] = (jit_hw_reg) { AMD64_RAX, 0, "rax", 0, 0, 7 };
+	a->gp_regs[1] = (jit_hw_reg) { AMD64_RBX, 0, "rbx", 1, 0, 8 };
+	a->gp_regs[2] = (jit_hw_reg) { AMD64_RCX, 0, "rcx", 0, 0, 4 };
+	a->gp_regs[3] = (jit_hw_reg) { AMD64_RDX, 0, "rdx", 0, 0, 3 };
+	a->gp_regs[4] = (jit_hw_reg) { AMD64_RSI, 0, "rsi", 0, 0, 2 };
+	a->gp_regs[5] = (jit_hw_reg) { AMD64_RDI, 0, "rdi", 0, 0, 1 };
+	a->gp_regs[6] = (jit_hw_reg) { AMD64_R8, 0, "r8", 0, 0, 5 };
+	a->gp_regs[7] = (jit_hw_reg) { AMD64_R9, 0, "r9", 0, 0, 6 };
+	a->gp_regs[8] = (jit_hw_reg) { AMD64_R10, 0, "r10", 0, 0, 9 };
+	a->gp_regs[9] = (jit_hw_reg) { AMD64_R11, 0, "r11", 0, 0, 10 };
+	a->gp_regs[10] = (jit_hw_reg) { AMD64_R12, 0, "r12", 1, 0, 11 };
+	a->gp_regs[11] = (jit_hw_reg) { AMD64_R14, 0, "r14", 1, 0, 13 };
+	a->gp_regs[12] = (jit_hw_reg) { AMD64_R15, 0, "r15", 1, 0, 14 };
 	// R13 has some addressing limitations, therefore it is not used as GPR
 	// since it may lead to unexpected behavior
 //	a->gp_regs[13] = (struct __hw_reg) { AMD64_R13, 0, "r13", 1, 0, 12 };
@@ -354,24 +354,24 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_arg_reg_cnt = 6;
 
 	a->fp_reg = AMD64_RBP;
-	a->ret_reg = AMD64_RAX;
+	a->ret_reg = &(a->gp_regs[0]);
 
 	a->fp_reg_cnt = 10;
 
 	int reg = 0;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
-	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+	a->fp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * a->fp_reg_cnt);
 
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 1 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 2 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM0, 0, "xmm0", 0, 1, 99 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM1, 0, "xmm1", 0, 1, 98 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM2, 0, "xmm2", 0, 1, 97 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM3, 0, "xmm3", 0, 1, 96 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM4, 0, "xmm4", 0, 1, 95 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM5, 0, "xmm5", 0, 1, 94 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM6, 0, "xmm6", 0, 1, 93 };
-	a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM7, 0, "xmm7", 0, 1, 92 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM0, 0, "xmm0", 0, 1, 99 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 1 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 2 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM1, 0, "xmm1", 0, 1, 98 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM2, 0, "xmm2", 0, 1, 97 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM3, 0, "xmm3", 0, 1, 96 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM4, 0, "xmm4", 0, 1, 95 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM5, 0, "xmm5", 0, 1, 94 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM6, 0, "xmm6", 0, 1, 93 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM7, 0, "xmm7", 0, 1, 92 };
 	//a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 3 };
 	//a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 4 };
 	/*
@@ -382,6 +382,8 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM7, 0, "xmm7", 0, 1, 8 };
 #endif
 */
+
+	a->fpret_reg = &(a->fp_regs[0]);
 
 	a->gp_arg_reg_cnt = 6;
 	a->gp_arg_regs = __arg_regs;
