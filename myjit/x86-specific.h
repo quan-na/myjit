@@ -211,22 +211,22 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_reg_cnt = 4;
 #endif
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
-	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->gp_reg_cnt + 1));
+	a->gp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * (a->gp_reg_cnt + 1));
 
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_EAX, 0, "eax", 0, 0, 5 };
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_EBX, 0, "ebx", 1, 0, 0 };
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_ECX, 0, "ecx", 0, 0, 3 };
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_EDX, 0, "edx", 0, 0, 4 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EAX, 0, "eax", 0, 0, 5 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EBX, 0, "ebx", 1, 0, 0 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_ECX, 0, "ecx", 0, 0, 3 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EDX, 0, "edx", 0, 0, 4 };
 #ifndef JIT_REGISTER_TEST
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_ESI, 0, "esi", 1, 0, 1 };
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_EDI, 0, "edi", 1, 0, 2 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_ESI, 0, "esi", 1, 0, 1 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EDI, 0, "edi", 1, 0, 2 };
 #endif
-	a->gp_regs[reg++] = (struct __hw_reg) { X86_EBP, 0, "ebp", 0, 0, 100 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EBP, 0, "ebp", 0, 0, 100 };
 	a->gp_arg_reg_cnt = 0;
 
 	a->fp_reg = X86_EBP;
-	a->ret_reg = X86_EAX;
-	a->fpret_reg = -1; // unused
+	a->ret_reg = &(a->gp_regs[0]);
+	a->fpret_reg = NULL; // unused
 
 #ifndef JIT_REGISTER_TEST
 	a->fp_reg_cnt = 8;

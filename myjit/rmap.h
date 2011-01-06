@@ -36,7 +36,7 @@ static inline rmap_t * rmap_init()
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = NULL;
-	res->revmap = NULL;
+	//res->revmap = NULL;
 	return res;
 }
 
@@ -76,23 +76,27 @@ static inline jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp,
 static void rmap_assoc(rmap_t * rmap, jit_value reg, jit_hw_reg * hreg)
 {
 	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
+	/*
 	if (!hreg->fp) rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(jit_value)reg, NULL);
 	else rmap->revmap = rb_insert(rmap->revmap, - hreg->id - 1, (void *)(jit_value)reg, NULL);
+	*/
 }
 
 static void rmap_unassoc(rmap_t * rmap, jit_value reg, int fp)
 {
 	jit_hw_reg * hreg = (jit_hw_reg *) rb_search(rmap->map, reg);
 	rmap->map = rb_delete(rmap->map, reg, NULL);
+	/*
 	if (!fp) rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
 	else rmap->revmap = rb_delete(rmap->revmap, - hreg->id - 1, NULL);
+	*/
 }
 
 static rmap_t * rmap_clone(rmap_t * rmap)
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = rb_clone(rmap->map);
-	res->revmap = rb_clone(rmap->revmap);
+//	res->revmap = rb_clone(rmap->revmap);
 	return res;
 }
 
@@ -230,7 +234,10 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 	jit_value x;
 	int hw_associated = (rmap_is_associated(op->regmap, hreg->id, hreg->fp, &x) != NULL);
 
-	int alive = (jitset_get(op->live_in, x) || jitset_get(op->live_out, x));
+	int alive = 0;
+	if (hw_associated) {
+		alive = (jitset_get(op->live_in, x) || jitset_get(op->live_out, x));
+	}
 	if (!alive) score += 10000;		// prefers registers which are not live
 
 	*spill = 0;
@@ -371,6 +378,6 @@ void rmap_free(rmap_t * regmap)
 {
 	if (!regmap) return;
 	rb_free(regmap->map);
-	rb_free(regmap->revmap);
+//	rb_free(regmap->revmap);
 	JIT_FREE(regmap);
 }

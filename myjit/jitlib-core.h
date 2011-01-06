@@ -141,8 +141,8 @@ struct jit_reg_allocator {
 	int gp_reg_cnt;				// number of general purpose registers 
 	int fp_reg_cnt;				// number of floating-point registers 
 	int fp_reg; 				// frame pointer; register used to access the local variables
-	int ret_reg; 				// register used to return value (processor's ID)
-	int fpret_reg; 				// register used to return FP value (processor's ID)
+	jit_hw_reg * ret_reg; 			// register used to return value
+	jit_hw_reg * fpret_reg;			// register used to return FP value
 	int gp_arg_reg_cnt;			// number of GP registers used to pass arguments
 	int fp_arg_reg_cnt;			// number of FP registers used to pass arguments
 
