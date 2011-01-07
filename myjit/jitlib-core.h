@@ -150,8 +150,8 @@ struct jit_reg_allocator {
 	jit_hw_reg * fp_regs;			// array of available floating-point registers
 	struct jit_regpool * gp_regpool;	// pool of available general purpose registers
 	struct jit_regpool * fp_regpool;	// pool of available floating-point registers
-	int * gp_arg_regs;			// array of GP registers used to pass arguments (in the given order) 
-	int * fp_arg_regs;			// array of FP registers used to pass arguments (in the given order) 
+	jit_hw_reg ** gp_arg_regs;		// array of GP registers used to pass arguments (in the given order) 
+	jit_hw_reg ** fp_arg_regs;		// array of FP registers used to pass arguments (in the given order) 
 	struct jit_func_info * current_func_info; // information on currently processed function
 };
 

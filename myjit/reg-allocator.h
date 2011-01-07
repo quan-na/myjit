@@ -62,13 +62,13 @@ static inline void jit_regpool_put(struct jit_regpool * rp, jit_hw_reg * hreg)
 	*/
 //#endif
 }
-
+/*
 static inline jit_hw_reg * jit_regpool_get(struct jit_regpool * rp)
 {
 	if (rp->pos < 0) return NULL;
 	else return rp->pool[rp->pos--];
 }
-
+*/
 /*
 static inline jit_hw_reg * jit_regpool_get_by_id(struct jit_regpool * rp, int id)
 {
@@ -251,27 +251,22 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 		if (a.type == JIT_FLOAT_NUM) fp_arg_cnt += a.size / sizeof(float);
 	}
 
-
-	jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt + fp_arg_cnt, al->gp_arg_reg_cnt));
-
-	jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, NULL, 0);
-
 	int assoc_gp_regs = 0;
 	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
 		if (assoc_gp_regs >= al->gp_arg_reg_cnt) break;
 		int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
 
 		if (!isfp_arg) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), al->gp_arg_regs[assoc_gp_regs]);
 			assoc_gp_regs++;
 		}
 		if (isfp_arg) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), al->gp_arg_regs[assoc_gp_regs]);
 			assoc_gp_regs++;
 			// initializes the second part of the register
 			if ((info->args[i].size == sizeof(double)) && (assoc_gp_regs < al->gp_reg_cnt)) {
 				jit_value r = __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i);
-				rmap_assoc(op->regmap, (int)r, __get_reg(al, al->gp_arg_regs[assoc_gp_regs]));
+				rmap_assoc(op->regmap, (int)r, al->gp_arg_regs[assoc_gp_regs]);
 				assoc_gp_regs++;
 			}
 		}
@@ -284,12 +279,15 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * op)
 {
 	jit_value r, reg;
-	jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg->id, 0, &r);
+	jit_hw_reg * hreg;
+#ifdef JIT_ARCH_COMMON86
+	hreg = rmap_is_associated(op->regmap, al->ret_reg->id, 0, &r);
 	if (hreg) {
 		// checks whether there is a free callee-saved register
 		// that can be used to store the eax register
-		/*
-		jit_hw_reg * freereg = get_free_callee_save_reg(al->gp_regpool);
+//		jit_hw_reg * freereg = get_free_callee_save_reg(al->gp_regpool);
+/*
+		jit_hw_reg * freereg = &(al->gp_regs[4]);
 		if (freereg) {
 			rename_reg(op, freereg->id, al->ret_reg);
 
@@ -302,9 +300,9 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 		}
 		*/
 		sync_reg(op, hreg, r);
-
 	}
 
+#endif
 	// synchronizes fp-register which can be used to return the value
 	if (al->fpret_reg) {
 		hreg = rmap_is_associated(op->regmap, al->fpret_reg->id, 1, &r);
@@ -315,7 +313,7 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 	// FIXME: duplicities
 	int args = MIN(op->arg[0], al->gp_arg_reg_cnt);
 	for (int q = 0; q < args; q++) {
-		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q], 0, &reg);
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q]->id, 0, &reg);
 		if (hreg) {
 			unload_reg(op, hreg, reg);
 			//jit_regpool_put(al->gp_regpool, hreg);
@@ -324,7 +322,7 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 	}
 	args = MIN(op->arg[1], al->fp_arg_reg_cnt);
 	for (int q = 0; q < args; q++) {
-		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q], 1, &reg);
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q]->id, 1, &reg);
 		if (hreg) {
 			if (hreg->id != al->fpret_reg->id) {
 				unload_reg(op, hreg, reg);
@@ -580,7 +578,7 @@ static int assign_call(jit_op * op, struct jit_reg_allocator * al)
 	spill_ret_retreg2(op, al->ret_reg);
 	spill_ret_retreg2(op, al->fpret_reg);
 #ifdef JIT_ARCH_SPARC
-	int reg;
+	jit_value reg;
 	// unloads all FP registers
 	for (int q = 0; q < al->fp_reg_cnt; q++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
@@ -660,10 +658,10 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 		case JIT_PUTARG: skip = 1; break;
 		case JIT_FPUTARG: skip = 1; break;
 
+#ifdef JIT_ARCH_COMMON86
 		case JIT_RETVAL: skip = assign_ret_reg2(op, al->ret_reg); break;
-#ifdef JIT_ARCH_SPARC
-		case JIT_FRETVAL: skip = assign_ret_reg2(op, al->fpret_reg); break;
 #endif
+		case JIT_FRETVAL: skip = assign_ret_reg2(op, al->fpret_reg); break;
 		case JIT_GETARG: skip = assign_getarg(op, al); break;
 		case JIT_CALL: skip = assign_call(op, al); break;
 	}

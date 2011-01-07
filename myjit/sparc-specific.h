@@ -932,14 +932,13 @@ op_complete:
 
 struct jit_reg_allocator * jit_reg_allocator_create()
 {
-	static int __arg_regs[] = { sparc_i0, sparc_i1, sparc_i2, sparc_i3, sparc_i4, sparc_i5 };
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
 	a->gp_reg_cnt = 14;
 #ifdef JIT_REGISTER_TEST
 	a->gp_reg_cnt -= 5;
 #endif 
 	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
-	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * (a->gp_reg_cnt + 1));
+	a->gp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * (a->gp_reg_cnt + 1));
 
 	/* only the l0-l7 and i0-i5 registers are used
 	 * all these registers are callee-saved withou special care
@@ -947,42 +946,49 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	 * all g1-g3 are free for use in the codegenarator
 	 */
 	int i = 0;
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l0, 0, "l0", 1, 0, 14 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l1, 0, "l1", 1, 0, 13 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l2, 0, "l2", 1, 0, 12 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_i0, 0, "i0", 1, 0, 11 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_i1, 0, "i1", 1, 0, 12 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_i2, 0, "i2", 1, 0, 13 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_i3, 0, "i3", 1, 0, 14 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_i4, 0, "i4", 1, 0, 15 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_i5, 0, "i5", 1, 0, 16 };
+
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l0, 0, "l0", 1, 0, 1 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l1, 0, "l1", 1, 0, 2 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l2, 0, "l2", 1, 0, 3 };
 #ifndef JIT_REGISTER_TEST
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l3, 0, "l3", 1, 0, 11 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l4, 0, "l4", 1, 0, 10 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l5, 0, "l5", 1, 0, 9 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l6, 0, "l6", 1, 0, 8 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_l7, 0, "l7", 1, 0, 7 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l3, 0, "l3", 1, 0, 4 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l4, 0, "l4", 1, 0, 5 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l5, 0, "l5", 1, 0, 6 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l6, 0, "l6", 1, 0, 7 };
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_l7, 0, "l7", 1, 0, 8 };
 #endif
 
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_i0, 0, "i0", 1, 0, 1 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_i1, 0, "i1", 1, 0, 2 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_i2, 0, "i2", 1, 0, 3 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_i3, 0, "i3", 1, 0, 4 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_i4, 0, "i4", 1, 0, 5 };
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_i5, 0, "i5", 1, 0, 6 };
-
-	a->gp_regs[i++] = (struct __hw_reg) { sparc_fp, 0, "fp", 0, 0, 0 };
-
-	a->fp_reg = sparc_fp;
-	a->ret_reg = sparc_i7;
-	a->fpret_reg = sparc_f0;
+	a->gp_regs[i++] = (jit_hw_reg) { sparc_fp, 0, "fp", 0, 0, 0 };
 
 	a->fp_reg_cnt = 4;
 	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
-	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+	a->fp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * a->fp_reg_cnt);
 
 	i = 0;
-	a->fp_regs[i++] = (struct __hw_reg) { sparc_f0, 0, "f0", 0, 1, 1 };
-	a->fp_regs[i++] = (struct __hw_reg) { sparc_f2, 0, "f2", 0, 1, 2 };
-	a->fp_regs[i++] = (struct __hw_reg) { sparc_f4, 0, "f4", 0, 1, 3 };
-	a->fp_regs[i++] = (struct __hw_reg) { sparc_f6, 0, "f6", 0, 1, 4 };
+	a->fp_regs[i++] = (jit_hw_reg) { sparc_f0, 0, "f0", 0, 1, 1 };
+	a->fp_regs[i++] = (jit_hw_reg) { sparc_f2, 0, "f2", 0, 1, 2 };
+	a->fp_regs[i++] = (jit_hw_reg) { sparc_f4, 0, "f4", 0, 1, 3 };
+	a->fp_regs[i++] = (jit_hw_reg) { sparc_f6, 0, "f6", 0, 1, 4 };
+
+	jit_hw_reg * reg_i7 = malloc(sizeof(jit_hw_reg));
+	
+	*reg_i7 = (jit_hw_reg) { sparc_i7, 0, "iX", 1, 0, 0 };
+
+	a->fp_reg = sparc_fp;
+	a->ret_reg = NULL;
+	a->fpret_reg = &(a->fp_regs[0]);
+
 
 	a->gp_arg_reg_cnt = 6;
-	a->gp_arg_regs = __arg_regs;
+	a->gp_arg_regs = JIT_MALLOC(sizeof(jit_hw_reg *) * 6);
+	for (int i = 0; i < 6; i++)
+		a->gp_arg_regs[i] = &(a->gp_regs[i]);
 
 	a->fp_arg_reg_cnt = 0;
 	a->fp_arg_regs = NULL;
