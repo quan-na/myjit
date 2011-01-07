@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2011 Petr Krajca, <krajcap@inf.upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -57,16 +57,11 @@ static void rename_reg(jit_op * op, int r1, int r2)
 	insert_reg_op(JIT_RENAMEREG, op, r1, r2);
 }
 
-static jit_hw_reg * make_free_reg2(struct jit_reg_allocator * al, jit_op * op, jit_value for_reg)
+static jit_hw_reg * make_free_reg(struct jit_reg_allocator * al, jit_op * op, jit_value for_reg)
 {
 	int spill = 0;
 	jit_value spill_candidate = -1;
-#ifdef LTU_ALLOCATOR
-	jit_hw_reg * hreg = rmap_spill_candidate2(al, op, for_reg, &spill, &spill_candidate);
-#endif
-#ifdef LRU_ALLOCATOR
-	jit_hw_reg * hreg = rmap_spill_candidate(op, 0, &spill_candidate);
-#endif
+	jit_hw_reg * hreg = rmap_spill_candidate(al, op, for_reg, &spill, &spill_candidate, 0);
 
 	if (spill) {
 		if (jitset_get(op->live_in, spill_candidate))
@@ -144,7 +139,6 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 }
 #endif
 
-
 static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * op)
 {
 	jit_value r, reg;
@@ -153,23 +147,23 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 	if (al->ret_reg) hreg = rmap_is_associated(op->regmap, al->ret_reg->id, 0, &r);
 	if (hreg) {
 		// checks whether there is a free callee-saved register
-		// that can be used to store the eax register
-//		jit_hw_reg * freereg = get_free_callee_save_reg(al->gp_regpool);
-/*
-		jit_hw_reg * freereg = &(al->gp_regs[4]);
-		if (freereg) {
-			rename_reg(op, freereg->id, al->ret_reg);
-
-			jit_regpool_put(al->gp_regpool, hreg);
+		// that can be used to take over content from eax register
+		
+		int alive = (jitset_get(op->live_out, r) || (jitset_get(op->live_in, r)));
+		if (!alive) goto skip;
+		int spill;
+		jit_value spill_reg;
+		jit_hw_reg * freereg = rmap_spill_candidate(al, op, r, &spill, &spill_reg, 1);
+		if (freereg && !spill) {
+			rename_reg(op, freereg->id, al->ret_reg->id);
 
 			rmap_unassoc(op->regmap, r, 0);
 			rmap_assoc(op->regmap, r, freereg);
 		} else {
 			sync_reg(op, hreg, r);
 		}
-		*/
-		sync_reg(op, hreg, r);
 	}
+skip:
 
 #endif
 	// synchronizes fp-register which can be used to return the value
@@ -198,171 +192,13 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-#ifdef LRU_ALLOCATOR
-/*
-static inline void assign_regs(struct jit * jit, struct jit_op * op)
-{
-	int i, r;
-	struct jit_reg_allocator * al = jit->reg_al;
-
-	// initialize mappings
-	// PROLOG needs some special care
-	if (GET_OP(op) == JIT_PROLOG) {
-		
-		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
-		al->current_func_info = info;
-
-		op->regmap = rmap_init();
-
-		assign_regs_for_args(al, op);
-	} else {
-		// initializes register mappings for standard operations
-		if (op->prev) op->regmap = rmap_clone_without_unused_regs(jit, op->prev->regmap, op); 
-	}
-
-	if (GET_OP(op) == JIT_PREPARE) prepare_registers_for_call(al, op);
-
-	// PUTARG have to take care of the register allocation by itself
-	if ((GET_OP(op) == JIT_PUTARG) || (GET_OP(op) == JIT_FPUTARG)) return;
-
-	if (GET_OP(op) == JIT_RETVAL) {
-		jit_hw_reg * hreg = jit_regpool_get_by_id(al->gp_regpool, al->ret_reg);
-		if (hreg) {
-			rmap_assoc(op->regmap, op->arg[0], hreg);
-			return;
-		}
-	}
-
-	if (GET_OP(op) == JIT_GETARG) {
-		// optimization which eliminates undesirable assignments
-		int arg_id = op->arg[1];
-		struct jit_inp_arg * arg = &(al->current_func_info->args[arg_id]);
-		int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
-		if (!jitset_get(op->live_out, reg_id)) {
-			if (((arg->type != JIT_FLOAT_NUM) && (arg->size == REG_SIZE))
-#ifdef JIT_ARCH_AMD64
-			|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))
-#endif
-			) {
-				jit_hw_reg * hreg = rmap_get(op->regmap, reg_id);
-				if (hreg) {
-					   rmap_unassoc(op->regmap, reg_id, arg->type == JIT_FLOAT_NUM);
-					   rmap_assoc(op->regmap, op->arg[0], hreg);
-					   op->r_arg[0] = hreg->id;
-					   op->r_arg[1] = op->arg[1];
-					   // FIXME: should have its own name
-					   op->code = JIT_NOP;
-					   return;
-				}
-			}
-		}
-	}
-
-#ifdef JIT_ARCH_SPARC
-	if (GET_OP(op) == JIT_FRETVAL) {
-		jit_hw_reg * hreg = jit_regpool_get_by_id(al->fp_regpool, al->fpret_reg);
-		if (hreg) {
-			rmap_assoc(op->regmap, op->arg[0], hreg);
-			return;
-		}
-	}
-#endif
-
-	if (GET_OP(op) == JIT_CALL) {
-
-		// spills register which are used to return value
-		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->ret_reg, 0, &r);
-		if (hreg) {
-			jit_regpool_put(al->gp_regpool, hreg);
-			rmap_unassoc(op->regmap, r, hreg->fp);
-		}
-		if (al->fpret_reg >= 0) {
-			hreg = rmap_is_associated(op->regmap, al->fpret_reg, 1, &r);
-			if (hreg) {
-				jit_regpool_put(al->fp_regpool, hreg);
-				rmap_unassoc(op->regmap, r, hreg->fp);
-			}
-		}
-#ifdef JIT_ARCH_SPARC
-		int reg;
-		// unloads all FP registers
-		for (int q = 0; q < al->fp_reg_cnt; q++) {
-			jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
-			if (hreg) {
-				unload_reg(op, hreg, reg);
-				jit_regpool_put(al->fp_regpool, hreg);
-				rmap_unassoc(op->regmap, reg, 1);
-			}
-		}
-#endif
-#ifdef JIT_ARCH_AMD64
-		// since the CALLR may use the given register also to pass an argument,
-		// code genarator has to take care of the register value itself
-		return;
-#endif
-
-	}
-
-	// get registers used in the current operation
-	for (i = 0; i < 3; i++)
-		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			// in order to eliminate unwanted spilling of registers used
-			// by the current operation, we ``touch'' the registers
-			// which are to be used in this operation
-			jit_hw_reg * hreg = rmap_get(op->regmap, op->arg[i]);
-			if (hreg) hreg->used = 0;
-		}
-
-	for (i = 0; i < 3; i++) {
-		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
-			jit_reg virt_reg = JIT_REG(op->arg[i]);
-			if (virt_reg.spec == JIT_RTYPE_ALIAS) {
-				if ((int)op->arg[i] == (int)R_OUT) op->r_arg[i] = al->ret_reg;
-				else if ((int)op->arg[i] == (int)R_FP) op->r_arg[i] = al->fp_reg;
-				else assert(0);
-				continue;
-			}
-
-			jit_hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
-			if (reg) op->r_arg[i] = reg->id;
-			else {
-				if (virt_reg.type == JIT_RTYPE_INT) {
-					reg = jit_regpool_get(al->gp_regpool);
-					if (reg == NULL) reg = make_free_reg(op, 0);
-				} else {
-					reg = jit_regpool_get(al->fp_regpool);
-					if (reg == NULL) reg = make_free_reg(op, 1);
-				}
-
-				rmap_assoc(op->regmap, op->arg[i], reg);
-
-				op->r_arg[i] = reg->id;
-				if (jitset_get(op->live_in, op->arg[i]))
-					load_reg(op, rmap_get(op->regmap, op->arg[i]), op->arg[i]);
-			}
-		} else if (ARG_TYPE(op, i + 1) == IMM) {
-			// assigns immediate values
-			op->r_arg[i] = op->arg[i];
-		}
-	}
-
-	// increasing age of each register
-	rmap_make_older(op->regmap);
-}
-*/
-#endif
-//////////////////////////////////////////////////////////////////
-
-#ifdef LTU_ALLOCATOR
-
 /**
  * If the hw. register which is used to return values is unused (i.e., it's
  * in the register pool) it associates this register with the given virtual register
  * and returns 1.
  * Tacitly assumes, that return register has been unassociated before function call.
  */
-static int assign_ret_reg2(jit_op * op, jit_hw_reg * ret_reg)
+static int assign_ret_reg(jit_op * op, jit_hw_reg * ret_reg)
 {
 	rmap_assoc(op->regmap, op->arg[0], ret_reg);
 	return 1;
@@ -395,24 +231,7 @@ static int assign_getarg(jit_op * op, struct jit_reg_allocator * al)
 	return 0;
 }
 
-/**
- * Spills registers which are used to return value
- */
-/*
-static void spill_ret_retreg(jit_op * op, struct jit_regpool * regpool, int ret_reg, int fp)
-{
-	jit_value r;
-	if (ret_reg >= 0) {
-		jit_hw_reg * hreg = rmap_is_associated(op->regmap, ret_reg, fp, &r);
-		if (hreg) {
-			jit_regpool_put(regpool, hreg);
-			rmap_unassoc(op->regmap, r, hreg->fp);
-		}
-	}
-}
-*/
-
-static void spill_ret_retreg2(jit_op * op, jit_hw_reg * ret_reg)
+static void spill_ret_retreg(jit_op * op, jit_hw_reg * ret_reg)
 {
 	jit_value r;
 	if (ret_reg) {
@@ -423,8 +242,8 @@ static void spill_ret_retreg2(jit_op * op, jit_hw_reg * ret_reg)
 
 static int assign_call(jit_op * op, struct jit_reg_allocator * al)
 {
-	spill_ret_retreg2(op, al->ret_reg);
-	spill_ret_retreg2(op, al->fpret_reg);
+	spill_ret_retreg(op, al->ret_reg);
+	spill_ret_retreg(op, al->fpret_reg);
 #ifdef JIT_ARCH_SPARC
 	jit_value reg;
 	// unloads all FP registers
@@ -458,7 +277,7 @@ static void associate_register(struct jit_reg_allocator * al, jit_op * op, int i
 	jit_hw_reg * reg = rmap_get(op->regmap, op->arg[i]);
 	if (reg) op->r_arg[i] = reg->id;
 	else {
-		reg = make_free_reg2(al, op, op->arg[i]);
+		reg = make_free_reg(al, op, op->arg[i]);
 		rmap_assoc(op->regmap, op->arg[i], reg);
 
 		op->r_arg[i] = reg->id;
@@ -496,10 +315,10 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 		case JIT_FPUTARG: skip = 1; break;
 
 #ifdef JIT_ARCH_COMMON86
-		case JIT_RETVAL: skip = assign_ret_reg2(op, al->ret_reg); break;
+		case JIT_RETVAL: skip = assign_ret_reg(op, al->ret_reg); break;
 #endif
 #ifdef JIT_ARCH_SPARC
-		case JIT_FRETVAL: skip = assign_ret_reg2(op, al->fpret_reg); break;
+		case JIT_FRETVAL: skip = assign_ret_reg(op, al->fpret_reg); break;
 #endif
 		case JIT_GETARG: skip = assign_getarg(op, al); break;
 		case JIT_CALL: skip = assign_call(op, al); break;
@@ -532,7 +351,6 @@ static void collect_statistics(struct jit * jit)
 	for (jit_op * op = jit_op_last(jit->ops); op != NULL; op = op->prev) {
 		struct rb_node * new_hints = rb_clone(last_hints);
 		op->normalized_pos = ops_from_return;
-	
 	
 		// determines used registers	
 		// FIXME: should be separate function
@@ -578,7 +396,6 @@ static void collect_statistics(struct jit * jit)
 		}
 	}
 }
-#endif
 //////////////////////////////////////////////////////////////////
 
 
@@ -619,8 +436,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 	rmap_t * cur_regmap = op->regmap;
 	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
-//	if (!rmap_equal(cur_regmap, tgt_regmap)) {
-	if (!rmap_equal2(op, cur_regmap, tgt_regmap)) {
+	if (!rmap_equal(op, cur_regmap, tgt_regmap)) {
 		switch (GET_OP(op)) {
 			case JIT_BEQ: op->code = JIT_BNE | (op->code & 0x7); break;
 			case JIT_BGT: op->code = JIT_BLE | (op->code & 0x7); break;
@@ -668,9 +484,7 @@ void jit_assign_regs(struct jit * jit)
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		op->regmap = rmap_init();
 
-#ifdef LTU_ALLOCATOR
 	collect_statistics(jit);
-#endif
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		assign_regs(jit, op);

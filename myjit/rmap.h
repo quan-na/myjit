@@ -105,7 +105,7 @@ static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
  * Compares whether register mappings in the target destination
  * are the same as the current
  */
-static int rmap_equal2(jit_op * op, rmap_t * current, rmap_t * target)
+static int rmap_equal(jit_op * op, rmap_t * current, rmap_t * target)
 {
 	//return rb_equal(r1->map, r2->map);
 	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
@@ -186,9 +186,13 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 }
 
 /**
- * Finds suitable register which can be spilled out.
+ * Returns suitable register which can be associated to registers virtreg in the operation op
+ * Paramater spill indicates whether the content of the register has to be spilled out and if so,
+ * it returns currently associated value throught the reg_to_spill argument.
+ *
+ * Parameter callee_saved indicates whether, the argument have to be callee-saved or not.
  */
-static jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op * op, jit_value virtreg, int * spill, jit_value * reg_to_spill)
+static jit_hw_reg * rmap_spill_candidate(struct jit_reg_allocator * al, jit_op * op, jit_value virtreg, int * spill, jit_value * reg_to_spill, int callee_saved)
 {
 	jit_reg r = JIT_REG(virtreg);
 	jit_hw_reg * regs;
@@ -207,6 +211,7 @@ static jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op 
 	int not_found = 1;
 	int sp = 0;
 	for (int i = 0; i < reg_count; i++) {
+		if (callee_saved && !regs[i].callee_saved) continue;
 		jit_value assoc = 0;
 		int score = candidate_score(op, virtreg, &(regs[i]), &sp, &assoc);
 		if (score > best_score) {
