@@ -214,20 +214,20 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 {
 	struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
 
-	jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt, al->gp_arg_reg_cnt));
+	//jit_regpool_prepare(al->gp_regpool, al->gp_regs, al->gp_reg_cnt, al->gp_arg_regs, MIN(info->general_arg_cnt, al->gp_arg_reg_cnt));
 
-	jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
+//	jit_regpool_prepare(al->fp_regpool, al->fp_regs, al->fp_reg_cnt, al->fp_arg_regs, MIN(info->float_arg_cnt, al->fp_arg_reg_cnt));
 
 	int assoc_gp_regs = 0;
 	int assoc_fp_regs = 0;
 	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
 		int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
 		if (!isfp_arg && (assoc_gp_regs < al->gp_arg_reg_cnt)) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), __get_reg(al, al->gp_arg_regs[i]));
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), al->gp_arg_regs[i]);
 			assoc_gp_regs++;
 		}
 		if (isfp_arg && (assoc_fp_regs < al->fp_arg_reg_cnt)) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), __get_fp_reg(al, al->fp_arg_regs[i]));
+			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), al->fp_arg_regs[i]);
 			assoc_fp_regs++;
 		}
 	}

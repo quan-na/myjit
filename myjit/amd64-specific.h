@@ -55,7 +55,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 		int pos = a->gp_pos;
 		if (pos < jit->reg_al->gp_arg_reg_cnt) {
 			a->passed_by_reg = 1;
-			a->location.reg = jit->reg_al->gp_arg_regs[pos];
+			a->location.reg = jit->reg_al->gp_arg_regs[pos]->id;
 			a->spill_pos = __GET_ARG_SPILL_POS(jit, info, p);
 		} else {
 			int stack_pos = (pos - jit->reg_al->gp_arg_reg_cnt) + MAX(0, (a->fp_pos - jit->reg_al->fp_arg_reg_cnt));
@@ -72,7 +72,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	int pos = a->fp_pos;
 	if (pos < jit->reg_al->fp_arg_reg_cnt) {
 		a->passed_by_reg = 1;
-		a->location.reg = jit->reg_al->fp_arg_regs[pos];
+		a->location.reg = jit->reg_al->fp_arg_regs[pos]->id;
 		a->spill_pos = __GET_ARG_SPILL_POS(jit, info, p);
 	} else {
 
@@ -91,7 +91,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg)
 {
 	int sreg;
-	int reg = jit->reg_al->gp_arg_regs[arg->argpos];
+	int reg = jit->reg_al->gp_arg_regs[arg->argpos]->id;
 	long value = arg->value.generic;
 	if (arg->isreg) {
 		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
@@ -108,7 +108,7 @@ static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg)
 static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg)
 {
 	int sreg;
-	int reg = jit->reg_al->fp_arg_regs[arg->argpos];
+	int reg = jit->reg_al->fp_arg_regs[arg->argpos]->id;
 	long value = arg->value.generic;
 	if (arg->isreg) {
 		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
@@ -324,8 +324,8 @@ void jit_patch_external_calls(struct jit * jit)
 
 struct jit_reg_allocator * jit_reg_allocator_create()
 {
-	static int __arg_regs[] = { AMD64_RDI, AMD64_RSI, AMD64_RDX, AMD64_RCX, AMD64_R8, AMD64_R9 };
-	static int __fp_arg_regs[] = { AMD64_XMM0, AMD64_XMM1, AMD64_XMM2, AMD64_XMM3, AMD64_XMM4, AMD64_XMM5, AMD64_XMM6, AMD64_XMM7 };
+	//static int __arg_regs[] = { AMD64_RDI, AMD64_RSI, AMD64_RDX, AMD64_RCX, AMD64_R8, AMD64_R9 };
+	//static int __fp_arg_regs[] = { AMD64_XMM0, AMD64_XMM1, AMD64_XMM2, AMD64_XMM3, AMD64_XMM4, AMD64_XMM5, AMD64_XMM6, AMD64_XMM7 };
 
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
 	a->gp_reg_cnt = 13;
@@ -363,8 +363,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * a->fp_reg_cnt);
 
 	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM0, 0, "xmm0", 0, 1, 99 };
-	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 1 };
-	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 2 };
 	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM1, 0, "xmm1", 0, 1, 98 };
 	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM2, 0, "xmm2", 0, 1, 97 };
 	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM3, 0, "xmm3", 0, 1, 96 };
@@ -374,6 +372,8 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM7, 0, "xmm7", 0, 1, 92 };
 	//a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM11, 0, "xmm11", 0, 1, 3 };
 	//a->fp_regs[reg++] = (struct __hw_reg) { AMD64_XMM10, 0, "xmm10", 0, 1, 4 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM13, 0, "xmm13", 0, 1, 1 };
+	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM12, 0, "xmm12", 0, 1, 2 };
 	/*
 #ifndef JIT_REGISTER_TEST
 	a->fp_regs[reg++] = (struct __hw_reg) { X86_XMM4, 0, "xmm4", 0, 1, 5 };
@@ -386,9 +386,18 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fpret_reg = &(a->fp_regs[0]);
 
 	a->gp_arg_reg_cnt = 6;
-	a->gp_arg_regs = __arg_regs;
+	a->gp_arg_regs = JIT_MALLOC(sizeof(jit_hw_reg *) * 6); 
+	a->gp_arg_regs[0] = &(a->gp_regs[5]);
+	a->gp_arg_regs[1] = &(a->gp_regs[4]);
+	a->gp_arg_regs[2] = &(a->gp_regs[3]);
+	a->gp_arg_regs[3] = &(a->gp_regs[2]);
+	a->gp_arg_regs[4] = &(a->gp_regs[7]);
+	a->gp_arg_regs[5] = &(a->gp_regs[6]);
 
 	a->fp_arg_reg_cnt = 8;
-	a->fp_arg_regs = __fp_arg_regs;
+	a->fp_arg_regs = JIT_MALLOC(sizeof(jit_hw_reg *) * 8); 
+	for (int i = 0; i < 8; i++)
+		a->fp_arg_regs[i] = &(a->fp_regs[i]);
+
 	return a;
 }
