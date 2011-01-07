@@ -330,7 +330,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	struct jit_reg_allocator * a = JIT_MALLOC(sizeof(struct jit_reg_allocator));
 	a->gp_reg_cnt = 13;
 
-	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
 	a->gp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->gp_reg_cnt);
 
 	a->gp_regs[0] = (jit_hw_reg) { AMD64_RAX, 0, "rax", 0, 0, 7 };
@@ -359,7 +358,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->fp_reg_cnt = 10;
 
 	int reg = 0;
-	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
 	a->fp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * a->fp_reg_cnt);
 
 	a->fp_regs[reg++] = (jit_hw_reg) { AMD64_XMM0, 0, "xmm0", 0, 1, 99 };

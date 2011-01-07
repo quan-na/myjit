@@ -28,7 +28,6 @@
 
 static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg);
 static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg);
-static inline void jit_regpool_put(struct jit_regpool * rp, struct __hw_reg * hreg);
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -36,7 +35,6 @@ static inline rmap_t * rmap_init()
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = NULL;
-	//res->revmap = NULL;
 	return res;
 }
 
@@ -76,37 +74,18 @@ static inline jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp,
 static void rmap_assoc(rmap_t * rmap, jit_value reg, jit_hw_reg * hreg)
 {
 	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
-	/*
-	if (!hreg->fp) rmap->revmap = rb_insert(rmap->revmap, hreg->id, (void *)(jit_value)reg, NULL);
-	else rmap->revmap = rb_insert(rmap->revmap, - hreg->id - 1, (void *)(jit_value)reg, NULL);
-	*/
 }
 
 static void rmap_unassoc(rmap_t * rmap, jit_value reg, int fp)
 {
-	jit_hw_reg * hreg = (jit_hw_reg *) rb_search(rmap->map, reg);
 	rmap->map = rb_delete(rmap->map, reg, NULL);
-	/*
-	if (!fp) rmap->revmap = rb_delete(rmap->revmap, hreg->id, NULL);
-	else rmap->revmap = rb_delete(rmap->revmap, - hreg->id - 1, NULL);
-	*/
 }
 
 static rmap_t * rmap_clone(rmap_t * rmap)
 {
 	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
 	res->map = rb_clone(rmap->map);
-//	res->revmap = rb_clone(rmap->revmap);
 	return res;
-}
-
-/**
- * Compares whether register mappings in the target destination
- * are the same as the current
- */
-static int rmap_equal(rmap_t * r1, rmap_t * r2)
-{
-	return rb_equal(r1->map, r2->map);
 }
 
 static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
@@ -128,6 +107,7 @@ static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
  */
 static int rmap_equal2(jit_op * op, rmap_t * current, rmap_t * target)
 {
+	//return rb_equal(r1->map, r2->map);
 	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
 }
 
@@ -168,64 +148,6 @@ static void rmap_sync(jit_op * op, rmap_t * current, rmap_t * target, int mode)
 	__sync(current->map, target->map, op, mode);
 }
 
-static void __clone_wo_regs(struct jit_reg_allocator * al, rmap_t * target, rb_node * n, jit_op * op)
-{
-	if (n == NULL) return;
-
-	int i = n->key;
-	struct __hw_reg * hreg = (struct __hw_reg *) n->value;
-	if (!hreg) assert(0);
-	if (!(jitset_get(op->live_in, i) || jitset_get(op->live_out, i))) {
-		//rmap_unassoc(target, i);
-		if (!hreg->fp) jit_regpool_put(al->gp_regpool, hreg);
-		else jit_regpool_put(al->fp_regpool, hreg);
-	} else {
-		rmap_assoc(target, i, hreg);
-	}
-	__clone_wo_regs(al, target, n->left, op);
-	__clone_wo_regs(al, target, n->right, op);
-
-}
-
-static rmap_t * rmap_clone_without_unused_regs(struct jit * jit, rmap_t * prev_rmap, jit_op * op)
-{
-	rmap_free(op->regmap);
-
-	rmap_t * res = rmap_init();
-	__clone_wo_regs(jit->reg_al, res, prev_rmap->map, op);
-	op->regmap = res;
-
-	return op->regmap;
-}
-
-#ifdef LRU_ALLOCATOR
-static void __spill_candidate(rb_node * n, int fp, int * age, struct __hw_reg ** cand_hreg, int * candidate)
-{
-	if (n == NULL) return;
-
-	struct __hw_reg * hreg = (struct __hw_reg *) n->value; 
-	if (hreg->fp == fp) {
-		if ((int)hreg->used > *age) {
-			*candidate = n->key;
-			*age = hreg->used;
-			*cand_hreg = hreg;
-		}
-	}
-	__spill_candidate(n->left, fp, age, cand_hreg, candidate);
-	__spill_candidate(n->right, fp, age, cand_hreg, candidate);
-}
-
-static struct __hw_reg * rmap_spill_candidate(jit_op * op, int fp, int * candidate)
-{
-	int age = -1;
-	struct __hw_reg * res;
-	__spill_candidate(op->regmap->map, fp, &age, &res, candidate);
-	return res;
-}
-#endif
-
-#ifdef LTU_ALLOCATOR
-
 static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, int * spill, jit_value * associated_virtreg)
 {
 	int score = 0;
@@ -264,63 +186,8 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 }
 
 /**
- * Looks into the regmap for suitable register to spill out.
- *
- * @param op -- operation that requires new register
- * @param fp -- indicates whether we are looking for floating point register or not
- * @param live -- indicates whether the given register should be in use or not
- * @param to_be_used -- auxiliary value used to select appropriate candidate
- * @param cand_hreg -- returns hardware register which is to be spilled
- * @candidate -- returns virtual register which is to be spilled
- */
-static void __spill_candidate(jit_op * op, rb_node * n, int fp, int live, int * to_be_used, jit_hw_reg ** cand_hreg, jit_value * candidate)
-{
-	if (n == NULL) return;
-
-	jit_value virtreg = (jit_value) n->key;
-	jit_hw_reg * hreg = (jit_hw_reg *) n->value; 
-	int reg_liveness = (jitset_get(op->live_in, virtreg) || jitset_get(op->live_out, virtreg));
-	
-	if ((hreg->fp == fp) && (reg_liveness == live)) {
-		struct jit_allocator_hint * hint = NULL;
-		struct rb_node * node = rb_search(op->allocator_hints, virtreg);
-		if (node) hint = node->value;
-		if (!hint) {
-			// There's no hint on the given register, so we are expecting
-			// that this register won't be used anymore and so it's suitable
-			// candidate
-			*candidate = n->key;
-			*to_be_used = -1;
-			*cand_hreg = hreg;
-		} else {
-			if (hint->last_pos < *to_be_used) {
-				*candidate = n->key;
-				*to_be_used = hint->last_pos;
-				*cand_hreg = hreg;
-			}
-		}
-	}
-	__spill_candidate(op, n->left, fp, live, to_be_used, cand_hreg, candidate);
-	__spill_candidate(op, n->right, fp, live, to_be_used, cand_hreg, candidate);
-}
-
-/**
  * Finds suitable register which can be spilled out.
- * First, it attempts to spill out some register which is not in use (it's not live),
- * If there is no such register tries to find register which is to be used in the
- * furthest future
  */
-static jit_hw_reg * rmap_spill_candidate(jit_op * op, int fp, jit_value * candidate)
-{
-	int to_be_used = INT_MAX;
-	jit_hw_reg * res = NULL;
-
-	__spill_candidate(op, op->regmap->map, fp, 0, &to_be_used, &res, candidate);
-	if (!res) __spill_candidate(op, op->regmap->map, fp, 1, &to_be_used, &res, candidate);
-
-	return res;
-}
-
 static jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op * op, jit_value virtreg, int * spill, jit_value * reg_to_spill)
 {
 	jit_reg r = JIT_REG(virtreg);
@@ -355,29 +222,12 @@ static jit_hw_reg * rmap_spill_candidate2(struct jit_reg_allocator * al, jit_op 
 			not_found = 0;
 		}
 	}
-	if (not_found) assert(0);
-	if (result == NULL) assert(0);
 	return result;
-}
-#endif
-
-static void __make_older(rb_node * n)
-{
-	if (n == NULL) return;
-	((struct __hw_reg *)n->value)->used++;
-	__make_older(n->left);
-	__make_older(n->right);
-}
-
-static inline void rmap_make_older(rmap_t * regmap)
-{
-	__make_older(regmap->map);
 }
 
 void rmap_free(rmap_t * regmap)
 {
 	if (!regmap) return;
 	rb_free(regmap->map);
-//	rb_free(regmap->revmap);
 	JIT_FREE(regmap);
 }

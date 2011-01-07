@@ -131,25 +131,17 @@ struct __hw_reg {
 
 typedef struct __hw_reg jit_hw_reg;
 
-struct jit_regpool
-{
-	int pos;
-	jit_hw_reg ** pool;	
-};
-
 struct jit_reg_allocator {
 	int gp_reg_cnt;				// number of general purpose registers 
 	int fp_reg_cnt;				// number of floating-point registers 
 	int fp_reg; 				// frame pointer; register used to access the local variables
-	jit_hw_reg * ret_reg; 			// register used to return value
-	jit_hw_reg * fpret_reg;			// register used to return FP value
 	int gp_arg_reg_cnt;			// number of GP registers used to pass arguments
 	int fp_arg_reg_cnt;			// number of FP registers used to pass arguments
+	jit_hw_reg * ret_reg; 			// register used to return value
+	jit_hw_reg * fpret_reg;			// register used to return FP value
 
 	jit_hw_reg * gp_regs;			// array of available GP registers
 	jit_hw_reg * fp_regs;			// array of available floating-point registers
-	struct jit_regpool * gp_regpool;	// pool of available general purpose registers
-	struct jit_regpool * fp_regpool;	// pool of available floating-point registers
 	jit_hw_reg ** gp_arg_regs;		// array of GP registers used to pass arguments (in the given order) 
 	jit_hw_reg ** fp_arg_regs;		// array of FP registers used to pass arguments (in the given order) 
 	struct jit_func_info * current_func_info; // information on currently processed function
@@ -157,8 +149,6 @@ struct jit_reg_allocator {
 
 typedef struct rmap_t {
 	struct rb_node * map;		// R/B tree which maps virtual registers to hardware registers
-	// FIXME: obsolete
-	struct rb_node * revmap;	// R/B tree which maps hw. registers to virtual registers
 } rmap_t;
 
 typedef struct jit_op {
@@ -290,8 +280,6 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a);
 void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg, int fp);
-struct jit_regpool * jit_regpool_init(int size);
-void jit_regpool_free(struct jit_regpool * p);
 void rmap_free(rmap_t * regmap);
 
 #define JIT_CODESTART	(0x00 << 3)

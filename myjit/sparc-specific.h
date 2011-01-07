@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2011 Petr Krajca, <krajcap@inf.upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -937,7 +937,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 #ifdef JIT_REGISTER_TEST
 	a->gp_reg_cnt -= 5;
 #endif 
-	a->gp_regpool = jit_regpool_init(a->gp_reg_cnt);
 	a->gp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * (a->gp_reg_cnt + 1));
 
 	/* only the l0-l7 and i0-i5 registers are used
@@ -967,7 +966,6 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_regs[i++] = (jit_hw_reg) { sparc_fp, 0, "fp", 0, 0, 0 };
 
 	a->fp_reg_cnt = 4;
-	a->fp_regpool = jit_regpool_init(a->fp_reg_cnt);
 	a->fp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * a->fp_reg_cnt);
 
 	i = 0;
