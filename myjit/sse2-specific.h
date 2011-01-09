@@ -40,12 +40,12 @@
 #define sse_movlpd_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  x86_movlpd_memindex_xreg(ip, reg, basereg, disp, indexreg, shift)
 
 #define sse_alu_sd_reg_reg(ip, op, r1, r2) 		x86_sse_alu_sd_reg_reg(ip, op, r1, r2)
-#define sse_reg_safeimm(jit, reg, imm)			x86_movsd_reg_mem(jit->ip, reg, imm)
-#define sse_alu_sd_reg_safeimm(jit, op, reg, imm) 	x86_sse_alu_sd_reg_mem(jit->ip, op, reg, imm)
+#define sse_mov_reg_safeimm(jit, xop, reg, imm)		x86_movsd_reg_mem(jit->ip, reg, imm)
+#define sse_alu_sd_reg_safeimm(jit, xop, op, reg, imm) 	x86_sse_alu_sd_reg_mem(jit->ip, op, reg, imm)
 
 #define sse_alu_pd_reg_reg(ip, op, r1, r2) 		x86_sse_alu_pd_reg_reg(ip, op, r1, r2)
 #define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm) 	x86_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)
-#define sse_alu_pd_reg_safeimm(jit, op, reg, imm) 	x86_sse_alu_pd_reg_mem(jit->ip, op, reg, imm)
+#define sse_alu_pd_reg_safeimm(jit, xop, op, reg, imm) 	x86_sse_alu_pd_reg_mem(jit->ip, op, reg, imm)
 
 #define sse_comisd_reg_reg(ip, r1, r2)			x86_sse_alu_pd_reg_reg(ip, X86_SSE_COMI, r1, r2)
 
