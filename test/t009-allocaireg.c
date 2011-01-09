@@ -43,12 +43,12 @@ int main()
 	jit_movi(p, R(3), 4);
 	jit_movi(p, R(4), 8);
 	jit_movi(p, R(5), 16);
-	jit_movi(p, R(6), 32);
-	jit_movi(p, R(7), 64);
-	jit_movi(p, R(8), 128);
-	jit_movi(p, R(9), 256);
-	jit_movi(p, R(10), msg);
-
+//	jit_movi(p, R(6), 32);
+//	jit_movi(p, R(7), 64);
+//	jit_movi(p, R(8), 128);
+//	jit_movi(p, R(9), 256);
+//	jit_movi(p, R(10), msg);
+/*
 	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));
@@ -61,6 +61,7 @@ int main()
 	jit_putargr(p, R(8));
 	jit_putargr(p, R(9));
 	jit_call(p, foobar);
+*/
 
 	// prints out allocated memory
 
@@ -81,7 +82,7 @@ int main()
 	jit_retr(p, R(0));
 
 	jit_generate_code(p);
-//	jit_dump_ops(p, 0);
+	jit_dump_ops(p, JIT_DEBUG_ASSOC | JIT_DEBUG_LIVENESS);
 
 	jit_dump_code(p, 0);
 

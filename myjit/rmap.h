@@ -107,8 +107,8 @@ static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
  */
 static int rmap_equal(jit_op * op, rmap_t * current, rmap_t * target)
 {
-	//return rb_equal(r1->map, r2->map);
-	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
+	return rb_equal(current->map, target->map);
+	//return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
 }
 
 /**
@@ -122,11 +122,12 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
 
+	// FIXME: optimizations
 	// if the given register does not have relevant content, then ignore it
-	if ((mode == RMAP_LOAD) && (!jitset_get(op->live_out, current->key))) return;
+///	if ((mode == RMAP_LOAD) && (!jitset_get(op->live_out, current->key))) return;
 
 	// if the register is not used in the destination, then ignore it
-	if ((mode == RMAP_UNLOAD) && (!jitset_get(op->jmp_addr->live_in, current->key))) return;
+//	if ((mode == RMAP_UNLOAD) && (!jitset_get(op->jmp_addr->live_in, current->key))) return;
 
 	rb_node * found = rb_search(target, current->key);
 	int i = current->key;

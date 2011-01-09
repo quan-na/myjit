@@ -102,16 +102,18 @@
 static void sse_reg_safeimm(struct jit * jit, jit_value reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
+		/* FIXME: 
 		if (jit->reg_al->gp_regpool->pos >= 0) {
 			int r = jit->reg_al->gp_regpool->pool[0]->id;
 			amd64_mov_reg_imm(jit->ip, r, (jit_value)imm);
 			amd64_movsd_reg_membase(jit->ip, reg, r, 0);
 		} else {
+		*/
 			amd64_push_reg(jit->ip, AMD64_RAX);
 			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (jit_value)imm);
 			amd64_movsd_reg_membase(jit->ip, reg, AMD64_RAX, 0);
 			amd64_pop_reg(jit->ip, AMD64_RAX);
-		}
+		//}
 	} else {
 		amd64_movsd_reg_mem(jit->ip, reg, (jit_value)imm);
 	}
@@ -126,16 +128,17 @@ static void sse_reg_safeimm(struct jit * jit, jit_value reg, double * imm)
 static void sse_alu_pd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
+		/* FIXME: 
 		if (jit->reg_al->gp_regpool->pos >= 0) {
 			int r = jit->reg_al->gp_regpool->pool[0]->id;
 			amd64_mov_reg_imm(jit->ip, r, (long)imm);
 			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, r, 0);
-		} else {
+		} else {*/
 			amd64_push_reg(jit->ip, AMD64_RAX);
 			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
 			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
 			amd64_pop_reg(jit->ip, AMD64_RAX);
-		}
+//		}
 	} else {
 		amd64_sse_alu_pd_reg_mem(jit->ip, op, reg, (long)imm);
 	}
@@ -150,16 +153,17 @@ static void sse_alu_pd_reg_safeimm(struct jit * jit, int op, int reg, double * i
 static void sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
+		/*
 		if (jit->reg_al->gp_regpool->pos >= 0) {
 			int r = jit->reg_al->gp_regpool->pool[0]->id;
 			amd64_mov_reg_imm(jit->ip, r, (long)imm);
 			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, r, 0);
-		} else {
+		} else {*/
 			amd64_push_reg(jit->ip, AMD64_RAX);
 			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
 			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
 			amd64_pop_reg(jit->ip, AMD64_RAX);
-		}
+//		}
 	} else {
 		amd64_sse_alu_sd_reg_mem(jit->ip, op, reg, (long)imm);
 	}

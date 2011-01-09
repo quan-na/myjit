@@ -144,7 +144,7 @@ static inline void __push_arg(struct jit * jit, struct jit_out_arg * arg)
 			amd64_push_membase(jit->ip, AMD64_RBP, __GET_REG_POS(jit, arg->value.generic));
 		else amd64_push_reg(jit->ip, sreg);
 	} else {
-		amd64_mov_reg_reg(jit->ip, AMD64_RAX, arg->value.generic, REG_SIZE);
+		amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, arg->value.generic, REG_SIZE);
 		amd64_push_reg(jit->ip, AMD64_RAX);
 	}
 }
@@ -389,8 +389,8 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	a->gp_arg_regs[1] = &(a->gp_regs[4]);
 	a->gp_arg_regs[2] = &(a->gp_regs[3]);
 	a->gp_arg_regs[3] = &(a->gp_regs[2]);
-	a->gp_arg_regs[4] = &(a->gp_regs[7]);
-	a->gp_arg_regs[5] = &(a->gp_regs[6]);
+	a->gp_arg_regs[4] = &(a->gp_regs[6]);
+	a->gp_arg_regs[5] = &(a->gp_regs[7]);
 
 	a->fp_arg_reg_cnt = 8;
 	a->fp_arg_regs = JIT_MALLOC(sizeof(jit_hw_reg *) * 8); 
