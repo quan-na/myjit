@@ -124,7 +124,6 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
 
-	// FIXME: optimizations
 	// if the given register does not have relevant content, then ignore it
 	if ((mode == RMAP_LOAD) && (!jitset_get(op->live_out, current->key))) goto skip;
 

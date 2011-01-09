@@ -280,6 +280,7 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a);
 void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg, int fp);
+jit_hw_reg * jit_get_unused_reg(struct jit_reg_allocator * al, jit_op * op, int fp);
 void rmap_free(rmap_t * regmap);
 
 #define JIT_CODESTART	(0x00 << 3)

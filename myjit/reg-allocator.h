@@ -504,9 +504,32 @@ void jit_reg_allocator_free(struct jit_reg_allocator * a)
 }
 
 /**
- * @return true if the given hw. register (e.g., X86_EAX) is in use
+ * returns 1 if the given hw. register (e.g., X86_EAX) is in use
  */
 int jit_reg_in_use(jit_op * op, int reg, int fp)
 {
-	return rmap_is_associated(op->regmap, reg, fp, NULL) != NULL;
+	jit_value virt_reg;
+	if (rmap_is_associated(op->regmap, reg, fp, &virt_reg)
+	&& ((jitset_get(op->live_in, virt_reg) || (jitset_get(op->live_out, virt_reg))))) return 1;
+	else return 0;
+}
+
+/**
+ * returns a register which is unused, otherwise returns NULL
+ */
+jit_hw_reg * jit_get_unused_reg(struct jit_reg_allocator * al, jit_op * op, int fp)
+{
+	jit_hw_reg * regs;
+	int reg_count;
+
+	if (!fp) {
+		regs = al->gp_regs;
+		reg_count = al->gp_reg_cnt;
+	} else {
+		regs = al->fp_regs;
+		reg_count = al->fp_reg_cnt;
+	}
+	for (int i = 0; i < reg_count; i++)
+		if (!jit_reg_in_use(op, regs[i].id, fp)) return &(regs[i]);
+	return NULL;
 }

@@ -99,21 +99,19 @@
  * in to the XMM register If the value is not addressable with 32bit address, unused 
  * register from the register pool is used to access this value.
  */
-static void sse_reg_safeimm(struct jit * jit, jit_value reg, double * imm)
+static void sse_mov_reg_safeimm(struct jit * jit, jit_op * op, jit_value reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
-		/* FIXME: 
-		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0]->id;
-			amd64_mov_reg_imm(jit->ip, r, (jit_value)imm);
-			amd64_movsd_reg_membase(jit->ip, reg, r, 0);
+		jit_hw_reg * r = jit_get_unused_reg(jit->reg_al, op, 0);
+		if (r) {
+			amd64_mov_reg_imm(jit->ip, r->id, (jit_value)imm);
+			amd64_movsd_reg_membase(jit->ip, reg, r->id, 0);
 		} else {
-		*/
 			amd64_push_reg(jit->ip, AMD64_RAX);
 			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (jit_value)imm);
 			amd64_movsd_reg_membase(jit->ip, reg, AMD64_RAX, 0);
 			amd64_pop_reg(jit->ip, AMD64_RAX);
-		//}
+		}
 	} else {
 		amd64_movsd_reg_mem(jit->ip, reg, (jit_value)imm);
 	}
@@ -125,22 +123,21 @@ static void sse_reg_safeimm(struct jit * jit, jit_value reg, double * imm)
  * address, unused register from the register pool is used to access
  * this value.
  */
-static void sse_alu_pd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
+static void sse_alu_pd_reg_safeimm(struct jit * jit, jit_op * op, int op_id, int reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
-		/* FIXME: 
-		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0]->id;
-			amd64_mov_reg_imm(jit->ip, r, (long)imm);
-			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, r, 0);
-		} else {*/
+		jit_hw_reg * r = jit_get_unused_reg(jit->reg_al, op, 0);
+		if (r) {
+			amd64_mov_reg_imm(jit->ip, r->id, (long)imm);
+			amd64_sse_alu_pd_reg_membase(jit->ip, op_id, reg, r->id, 0);
+		} else {
 			amd64_push_reg(jit->ip, AMD64_RAX);
 			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
-			amd64_sse_alu_pd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
+			amd64_sse_alu_pd_reg_membase(jit->ip, op_id, reg, AMD64_RAX, 0);
 			amd64_pop_reg(jit->ip, AMD64_RAX);
-//		}
+		}
 	} else {
-		amd64_sse_alu_pd_reg_mem(jit->ip, op, reg, (long)imm);
+		amd64_sse_alu_pd_reg_mem(jit->ip, op_id, reg, (long)imm);
 	}
 }
 
@@ -150,22 +147,21 @@ static void sse_alu_pd_reg_safeimm(struct jit * jit, int op, int reg, double * i
  * address, unused register from the register pool is used to access
  * this value.
  */
-static void sse_alu_sd_reg_safeimm(struct jit * jit, int op, int reg, double * imm)
+static void sse_alu_sd_reg_safeimm(struct jit * jit, jit_op * op, int op_id, int reg, double * imm)
 {
 	if (((jit_value)imm) > 0xffffffffUL) {
-		/*
-		if (jit->reg_al->gp_regpool->pos >= 0) {
-			int r = jit->reg_al->gp_regpool->pool[0]->id;
-			amd64_mov_reg_imm(jit->ip, r, (long)imm);
-			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, r, 0);
-		} else {*/
+		jit_hw_reg * r = jit_get_unused_reg(jit->reg_al, op, 0);
+		if (r) {
+			amd64_mov_reg_imm(jit->ip, r->id, (long)imm);
+			amd64_sse_alu_sd_reg_membase(jit->ip, op_id, reg, r->id, 0);
+		} else {
 			amd64_push_reg(jit->ip, AMD64_RAX);
 			amd64_mov_reg_imm(jit->ip, AMD64_RAX, (long)imm);
-			amd64_sse_alu_sd_reg_membase(jit->ip, op, reg, AMD64_RAX, 0);
+			amd64_sse_alu_sd_reg_membase(jit->ip, op_id, reg, AMD64_RAX, 0);
 			amd64_pop_reg(jit->ip, AMD64_RAX);
-//		}
+		}
 	} else {
-		amd64_sse_alu_sd_reg_mem(jit->ip, op, reg, (long)imm);
+		amd64_sse_alu_sd_reg_mem(jit->ip, op_id, reg, (long)imm);
 	}
 }
 
@@ -203,18 +199,18 @@ static void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 	}
 }
 
-static void __sse_change_sign(struct jit * jit, int reg)
+static void __sse_change_sign(struct jit * jit, jit_op * op, int reg)
 {
-	sse_alu_pd_reg_safeimm(jit, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
+	sse_alu_pd_reg_safeimm(jit, op, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
 }
 
-static void __sse_sub_op(struct jit * jit, long a1, long a2, long a3)
+static void __sse_sub_op(struct jit * jit, jit_op * op, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
 	} else if (a1 == a3) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
-		__sse_change_sign(jit, a1);
+		__sse_change_sign(jit, op, a1);
 	} else {
 		sse_movsd_reg_reg(jit->ip, a1, a2);
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
@@ -241,10 +237,10 @@ static void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
 	}
 }
 
-static void __sse_neg_op(struct jit * jit, long a1, long a2)
+static void __sse_neg_op(struct jit * jit, jit_op * op, long a1, long a2)
 {
 	if (a1 != a2) sse_movsd_reg_reg(jit->ip, a1, a2); 
-	__sse_change_sign(jit, a1);
+	__sse_change_sign(jit, op, a1);
 }
 
 static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
@@ -254,7 +250,7 @@ static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a
         x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
 
-static inline void __sse_round(struct jit * jit, jit_value a1, jit_value a2)
+static inline void __sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
 {
 	static const double x0 = 0.0;
 	static const double x05 = 0.5;
@@ -262,19 +258,19 @@ static inline void __sse_round(struct jit * jit, jit_value a1, jit_value a2)
 	// creates a copy of the a2 and tmp_reg into high bits of a2 and tmp_reg
 	sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 
-	sse_alu_pd_reg_safeimm(jit, X86_SSE_COMI, a2, (double *)&x0);
+	sse_alu_pd_reg_safeimm(jit, op, X86_SSE_COMI, a2, (double *)&x0);
 
 	unsigned char * branch1 = jit->ip;
 	common86_branch_disp(jit->ip, X86_CC_LT, 0, 0);
 
-	sse_alu_sd_reg_safeimm(jit, X86_SSE_ADD, a2, (double *)&x05);
+	sse_alu_sd_reg_safeimm(jit, op, X86_SSE_ADD, a2, (double *)&x05);
 
 	unsigned char * branch2 = jit->ip;
 	common86_jump_disp(jit->ip, 0);
 
 	common86_patch(branch1, jit->ip);
 
-	sse_alu_sd_reg_safeimm(jit, X86_SSE_SUB, a2, (double *)&x05);
+	sse_alu_sd_reg_safeimm(jit, op, X86_SSE_SUB, a2, (double *)&x05);
 	common86_patch(branch2, jit->ip);
 
 	sse_cvttsd2si_reg_reg(jit->ip, a1, a2);
