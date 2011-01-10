@@ -19,7 +19,7 @@
 
 #include "common86-codegen.h"
 
-static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg);
+static inline int __is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg);
 static int __push_callee_saved_regs(struct jit * jit, jit_op * op);
 static int __push_caller_saved_regs(struct jit * jit, jit_op * op);
 static int __pop_callee_saved_regs(struct jit * jit);
@@ -606,7 +606,7 @@ static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int al
  * it is returned through the reg argument
  */
 // FIXME: reports as spilled also argument which contains appropriate value
-static int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
+static int __is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg)
 {
         jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 

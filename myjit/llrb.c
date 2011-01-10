@@ -49,6 +49,22 @@ static inline void color_flip(rb_node * h)
 	h->right->color = !h->right->color;
 }
 
+static inline rb_node * fixup(rb_node * h)
+{
+	if (is_red(h->right)) h = rotate_left(h);
+
+	if (is_red(h->left) && (is_red(h->left->left))) {
+		h = rotate_right(h);
+		color_flip(h);
+	}
+
+	if (is_red(h->left) && is_red(h->right)) color_flip(h);
+
+	return h;
+}
+
+
+
 static inline rb_node * node_new(rb_key_t key, value_t value)
 {
 	rb_node * res = malloc(sizeof(rb_node));
@@ -72,9 +88,11 @@ static rb_node * node_insert(rb_node * h, rb_key_t key, value_t value, int * fou
 	} else if (h->key > key) h->left = node_insert(h->left, key, value, found);
 	else h->right = node_insert(h->right, key, value, found);
 
-	if (is_red(h->right) && !is_red(h->left)) h = rotate_left(h);
-	if (is_red(h->left) && is_red(h->left->left)) h = rotate_right(h);
-	return h;
+	//if (is_red(h->right) && !is_red(h->left)) h = rotate_left(h);
+	//if (is_red(h->left) && is_red(h->left->left)) h = rotate_right(h);
+	////if (is_red(h->right)/* && !is_red(h->left)*/) h = rotate_left(h);
+	//if (is_red(h->right)/* && !is_red(h->left)*/) h = rotate_left(h);
+	return fixup(h);
 }
 
 static rb_node * rb_insert(rb_node * root, rb_key_t key, value_t value, int * found)
@@ -106,25 +124,13 @@ static inline rb_node * move_red_left(rb_node * h)
 
 static inline rb_node * move_red_right(rb_node * h)
 {
-	if (!h->left) return h; // workaround not present in the sedgewick's implementation;
+//	if (!h->left) return h; // workaround not present in the sedgewick's implementation;
 				// fixing seg. fault while deleting nodes
 	color_flip(h);
 	if (is_red(h->left->left)) {
 		h = rotate_right(h);
 		color_flip(h);
 	}
-	return h;
-}
-
-static inline rb_node * fixup(rb_node * h)
-{
-	if (is_red(h->right)) h = rotate_left(h);
-
-	if (is_red(h->left) && (is_red(h->left->left))) {
-		h = rotate_right(h);
-		color_flip(h);
-	}
-
 	return h;
 }
 
@@ -141,8 +147,7 @@ static rb_node * delete_min(rb_node * h)
 		return NULL;
 	}
 
-	//if ((!is_red(h->left)) && (!is_red(h->left->left)))
-	if ((!is_red(h->left)) && (h->left) && (!is_red(h->left->left)))
+	if ((!is_red(h->left)) && (!is_red(h->left->left)))
 		h = move_red_left(h);
 
 	h->left = delete_min(h->left);
@@ -158,7 +163,7 @@ static rb_node * delete_node(rb_node * h, rb_key_t key, int * found)
 	}
 
 	if (key < h->key) {
-		//if ((!is_red(h->left)) && (!is_red(h->left->left)))
+		// XXX: if ((!is_red(h->left)) && (!is_red(h->left->left)))
 		if ((!is_red(h->left)) && (h->left) && (!is_red(h->left->left)))
 			h = move_red_left(h);
 		h->left = delete_node(h->left, key, found);
@@ -169,7 +174,8 @@ static rb_node * delete_node(rb_node * h, rb_key_t key, int * found)
 			if (found) *found = 1;
 			return NULL;
 		}
-		//if (!is_red(h->right) && !is_red(h->right->left)) h = move_red_right(h);
+
+		// XXX: if (!is_red(h->right) && !is_red(h->right->left)) h = move_red_right(h);
 		if (!is_red(h->right) && (h->right) && !is_red(h->right->left)) h = move_red_right(h);
 		if (key == h->key) {
 			h->value = rb_search(h->right, node_min(h->right))->value;

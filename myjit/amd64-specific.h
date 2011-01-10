@@ -92,7 +92,7 @@ static inline void __set_arg(struct jit * jit, struct jit_out_arg * arg)
 {
 	int sreg;
 	int reg = jit->reg_al->gp_arg_regs[arg->argpos]->id;
-	long value = arg->value.generic;
+	jit_value value = arg->value.generic;
 	if (arg->isreg) {
 		if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
 			amd64_mov_reg_membase(jit->ip, reg, AMD64_RBP, __GET_REG_POS(jit, value), REG_SIZE);
