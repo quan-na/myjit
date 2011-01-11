@@ -2,17 +2,12 @@
 #include <stddef.h>
 #include "../myjit/jitlib.h"
 #include "tests.h"
-typedef long (*plfsss)(short, short, short);
-typedef long (*plfiui)(int, unsigned int);
-typedef long (*plfuc)(unsigned char);
-typedef long (*plfus)(unsigned short);
-typedef long (*plfpcus)(char *, unsigned short);
 
 #define LOOP_CNT	(10000000)
 // implements ternary operator (old-fashioned way); end tests efficiency
 void test1(long cond, long value1, long value2)
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfl f1;
 	jit_prolog(p, &f1);
@@ -46,7 +41,7 @@ void test1(long cond, long value1, long value2)
 // implements ternary operator (tricky); end tests efficiency
 void test2(long cond, long value1, long value2)
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfl f1;
 	jit_prolog(p, &f1);

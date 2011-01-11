@@ -104,5 +104,6 @@
 #define REG_SIZE (sizeof(void *))
 
 typedef long jit_value;
+typedef unsigned long jit_unsigned_value;
 
 #endif

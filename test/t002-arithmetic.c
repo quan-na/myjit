@@ -6,7 +6,7 @@
 #define TEST_IMM_SAME_REG(__name, __n, __op, __arg1, __arg2, __expected_value) \
 void __name() \
 { \
-	long r; \
+	jit_value r; \
 	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
@@ -24,7 +24,7 @@ void __name() \
 #define TEST_IMM_OTHER_REG(__name, __n, __op, __arg1, __arg2, __expected_value) \
 void __name() \
 { \
-	long r; \
+	jit_value r; \
 	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
@@ -42,7 +42,7 @@ void __name() \
 #define TEST_REG_SAME_REG(__name, __n, __op, __arg1, __arg2, __expected_value) \
 void __name() \
 { \
-	long r; \
+	jit_value r; \
 	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
@@ -61,7 +61,7 @@ void __name() \
 #define TEST_REG_OTHER_REG(__name, __n, __op, __arg1, __arg2, __expected_value) \
 void __name() \
 { \
-	long r; \
+	jit_value r; \
 	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
@@ -80,7 +80,7 @@ void __name() \
 #define TEST_UNARY_REG_OTHER_REG(__name, __n, __op, __arg1, __expected_value) \
 void __name() \
 { \
-	long r; \
+	jit_value r; \
 	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \
@@ -98,7 +98,7 @@ void __name() \
 #define TEST_UNARY_REG_SAME_REG(__name, __n, __op, __arg1, __expected_value) \
 void __name() \
 { \
-	long r; \
+	jit_value r; \
 	struct jit * p = jit_init(); \
 	plfv f1; \
 	jit_prolog(p, &f1); \

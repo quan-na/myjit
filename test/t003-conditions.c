@@ -5,7 +5,7 @@
 #define CREATE_TEST_SIGNED_REG(testname, __data_type, __ji_op, __operator) \
 void testname(int id, int samereg, int equal, int negative, int greater)\
 {\
-	long r;\
+	jit_value r;\
 	struct jit * p = jit_init();\
 	plfv f1;\
 	jit_prolog(p, &f1);\
@@ -39,7 +39,7 @@ void testname(int id, int samereg, int equal, int negative, int greater)\
 #define CREATE_TEST_SIGNED_IMM(testname, __data_type, __ji_op, __operator) \
 void testname(int id, int samereg, int equal, int negative, int greater)\
 {\
-	long r;\
+	jit_value r;\
 	struct jit * p = jit_init();\
 	plfv f1;\
 	jit_prolog(p, &f1);\
@@ -88,33 +88,33 @@ void testname(int id, int samereg, int equal, int negative, int greater)\
 	testname(id, 1, 1, 1, 1);\
 
 
-CREATE_TEST_SIGNED_REG(test01reg, long, jit_ltr, <)
-CREATE_TEST_SIGNED_REG(test02reg, long, jit_ler, <=)
-CREATE_TEST_SIGNED_REG(test03reg, long, jit_ger, >=)
-CREATE_TEST_SIGNED_REG(test04reg, long, jit_gtr, >)
-CREATE_TEST_SIGNED_REG(test05reg, long, jit_eqr, ==)
-CREATE_TEST_SIGNED_REG(test06reg, long, jit_ner, !=)
+CREATE_TEST_SIGNED_REG(test01reg, jit_value, jit_ltr, <)
+CREATE_TEST_SIGNED_REG(test02reg, jit_value, jit_ler, <=)
+CREATE_TEST_SIGNED_REG(test03reg, jit_value, jit_ger, >=)
+CREATE_TEST_SIGNED_REG(test04reg, jit_value, jit_gtr, >)
+CREATE_TEST_SIGNED_REG(test05reg, jit_value, jit_eqr, ==)
+CREATE_TEST_SIGNED_REG(test06reg, jit_value, jit_ner, !=)
 
-CREATE_TEST_SIGNED_REG(test11reg, unsigned long, jit_ltr_u, <)
-CREATE_TEST_SIGNED_REG(test12reg, unsigned long, jit_ler_u, <=)
-CREATE_TEST_SIGNED_REG(test13reg, unsigned long, jit_ger_u, >=)
-CREATE_TEST_SIGNED_REG(test14reg, unsigned long, jit_gtr_u, >)
-CREATE_TEST_SIGNED_REG(test15reg, unsigned long, jit_eqr, ==)
-CREATE_TEST_SIGNED_REG(test16reg, unsigned long, jit_ner, !=)
+CREATE_TEST_SIGNED_REG(test11reg, jit_unsigned_value, jit_ltr_u, <)
+CREATE_TEST_SIGNED_REG(test12reg, jit_unsigned_value, jit_ler_u, <=)
+CREATE_TEST_SIGNED_REG(test13reg, jit_unsigned_value, jit_ger_u, >=)
+CREATE_TEST_SIGNED_REG(test14reg, jit_unsigned_value, jit_gtr_u, >)
+CREATE_TEST_SIGNED_REG(test15reg, jit_unsigned_value, jit_eqr, ==)
+CREATE_TEST_SIGNED_REG(test16reg, jit_unsigned_value, jit_ner, !=)
 
-CREATE_TEST_SIGNED_IMM(test21imm, long, jit_lti, <)
-CREATE_TEST_SIGNED_IMM(test22imm, long, jit_lei, <=)
-CREATE_TEST_SIGNED_IMM(test23imm, long, jit_gei, >=)
-CREATE_TEST_SIGNED_IMM(test24imm, long, jit_gti, >)
-CREATE_TEST_SIGNED_IMM(test25imm, long, jit_eqi, ==)
-CREATE_TEST_SIGNED_IMM(test26imm, long, jit_nei, !=)
+CREATE_TEST_SIGNED_IMM(test21imm, jit_value, jit_lti, <)
+CREATE_TEST_SIGNED_IMM(test22imm, jit_value, jit_lei, <=)
+CREATE_TEST_SIGNED_IMM(test23imm, jit_value, jit_gei, >=)
+CREATE_TEST_SIGNED_IMM(test24imm, jit_value, jit_gti, >)
+CREATE_TEST_SIGNED_IMM(test25imm, jit_value, jit_eqi, ==)
+CREATE_TEST_SIGNED_IMM(test26imm, jit_value, jit_nei, !=)
 
-CREATE_TEST_SIGNED_IMM(test31imm, unsigned long, jit_lti_u, <)
-CREATE_TEST_SIGNED_IMM(test32imm, unsigned long, jit_lei_u, <=)
-CREATE_TEST_SIGNED_IMM(test33imm, unsigned long, jit_gei_u, >=)
-CREATE_TEST_SIGNED_IMM(test34imm, unsigned long, jit_gti_u, >)
-CREATE_TEST_SIGNED_IMM(test35imm, unsigned long, jit_eqi, ==)
-CREATE_TEST_SIGNED_IMM(test36imm, unsigned long, jit_nei, !=)
+CREATE_TEST_SIGNED_IMM(test31imm, jit_unsigned_value, jit_lti_u, <)
+CREATE_TEST_SIGNED_IMM(test32imm, jit_unsigned_value, jit_lei_u, <=)
+CREATE_TEST_SIGNED_IMM(test33imm, jit_unsigned_value, jit_gei_u, >=)
+CREATE_TEST_SIGNED_IMM(test34imm, jit_unsigned_value, jit_gti_u, >)
+CREATE_TEST_SIGNED_IMM(test35imm, jit_unsigned_value, jit_eqi, ==)
+CREATE_TEST_SIGNED_IMM(test36imm, jit_unsigned_value, jit_nei, !=)
 
 
 int main()

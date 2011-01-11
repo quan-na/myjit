@@ -5,7 +5,7 @@
 #define CREATE_TEST_REG(testname, __data_type, __ji_op, __operator) \
 void testname(int id, int equal, int negative, int greater)\
 {\
-	long r;\
+	jit_value r;\
 	struct jit * p = jit_init();\
 	plfv f1;\
 	jit_prolog(p, &f1);\
@@ -41,7 +41,7 @@ void testname(int id, int equal, int negative, int greater)\
 #define CREATE_TEST_IMM(testname, __data_type, __ji_op, __operator) \
 void testname(int id, int equal, int negative, int greater)\
 {\
-	long r;\
+	jit_value r;\
 	struct jit * p = jit_init();\
 	plfv f1;\
 	jit_prolog(p, &f1);\
@@ -85,33 +85,33 @@ void testname(int id, int equal, int negative, int greater)\
 	testname(id, 1, 1, 1);
 
 
-CREATE_TEST_REG(test01reg, long, jit_bltr, <)
-CREATE_TEST_REG(test02reg, long, jit_bler, <=)
-CREATE_TEST_REG(test03reg, long, jit_bger, >=)
-CREATE_TEST_REG(test04reg, long, jit_bgtr, >)
-CREATE_TEST_REG(test05reg, long, jit_beqr, ==)
-CREATE_TEST_REG(test06reg, long, jit_bner, !=)
+CREATE_TEST_REG(test01reg, jit_value, jit_bltr, <)
+CREATE_TEST_REG(test02reg, jit_value, jit_bler, <=)
+CREATE_TEST_REG(test03reg, jit_value, jit_bger, >=)
+CREATE_TEST_REG(test04reg, jit_value, jit_bgtr, >)
+CREATE_TEST_REG(test05reg, jit_value, jit_beqr, ==)
+CREATE_TEST_REG(test06reg, jit_value, jit_bner, !=)
 
-CREATE_TEST_REG(test11reg, unsigned long, jit_bltr_u, <)
-CREATE_TEST_REG(test12reg, unsigned long, jit_bler_u, <=)
-CREATE_TEST_REG(test13reg, unsigned long, jit_bger_u, >=)
-CREATE_TEST_REG(test14reg, unsigned long, jit_bgtr_u, >)
-CREATE_TEST_REG(test15reg, unsigned long, jit_beqr, ==)
-CREATE_TEST_REG(test16reg, unsigned long, jit_bner, !=)
+CREATE_TEST_REG(test11reg, jit_unsigned_value, jit_bltr_u, <)
+CREATE_TEST_REG(test12reg, jit_unsigned_value, jit_bler_u, <=)
+CREATE_TEST_REG(test13reg, jit_unsigned_value, jit_bger_u, >=)
+CREATE_TEST_REG(test14reg, jit_unsigned_value, jit_bgtr_u, >)
+CREATE_TEST_REG(test15reg, jit_unsigned_value, jit_beqr, ==)
+CREATE_TEST_REG(test16reg, jit_unsigned_value, jit_bner, !=)
 
-CREATE_TEST_IMM(test21imm, long, jit_blti, <)
-CREATE_TEST_IMM(test22imm, long, jit_blei, <=)
-CREATE_TEST_IMM(test23imm, long, jit_bgei, >=)
-CREATE_TEST_IMM(test24imm, long, jit_bgti, >)
-CREATE_TEST_IMM(test25imm, long, jit_beqi, ==)
-CREATE_TEST_IMM(test26imm, long, jit_bnei, !=)
+CREATE_TEST_IMM(test21imm, jit_value, jit_blti, <)
+CREATE_TEST_IMM(test22imm, jit_value, jit_blei, <=)
+CREATE_TEST_IMM(test23imm, jit_value, jit_bgei, >=)
+CREATE_TEST_IMM(test24imm, jit_value, jit_bgti, >)
+CREATE_TEST_IMM(test25imm, jit_value, jit_beqi, ==)
+CREATE_TEST_IMM(test26imm, jit_value, jit_bnei, !=)
 
-CREATE_TEST_IMM(test31imm, unsigned long, jit_blti_u, <)
-CREATE_TEST_IMM(test32imm, unsigned long, jit_blei_u, <=)
-CREATE_TEST_IMM(test33imm, unsigned long, jit_bgei_u, >=)
-CREATE_TEST_IMM(test34imm, unsigned long, jit_bgti_u, >)
-CREATE_TEST_IMM(test35imm, unsigned long, jit_beqi, ==)
-CREATE_TEST_IMM(test36imm, unsigned long, jit_bnei, !=)
+CREATE_TEST_IMM(test31imm, jit_unsigned_value, jit_blti_u, <)
+CREATE_TEST_IMM(test32imm, jit_unsigned_value, jit_blei_u, <=)
+CREATE_TEST_IMM(test33imm, jit_unsigned_value, jit_bgei_u, >=)
+CREATE_TEST_IMM(test34imm, jit_unsigned_value, jit_bgti_u, >)
+CREATE_TEST_IMM(test35imm, jit_unsigned_value, jit_beqi, ==)
+CREATE_TEST_IMM(test36imm, jit_unsigned_value, jit_bnei, !=)
 
 int main()
 {

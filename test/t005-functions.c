@@ -2,17 +2,17 @@
 #include <stddef.h>
 #include "../myjit/jitlib.h"
 #include "tests.h"
-typedef long (*plfsss)(short, short, short);
-typedef long (*plfiui)(int, unsigned int);
-typedef long (*plfuc)(unsigned char);
-typedef long (*plfus)(unsigned short);
-typedef long (*plfpcus)(char *, unsigned short);
+typedef jit_value (*plfsss)(short, short, short);
+typedef jit_value (*plfiui)(int, unsigned int);
+typedef jit_value (*plfuc)(unsigned char);
+typedef jit_value (*plfus)(unsigned short);
+typedef jit_value (*plfpcus)(char *, unsigned short);
 //typedef long (*plfv)(void);
 
 // function which computes an average of three numbers each occupying 2 bytes 
 void test1()
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfsss f1;
 	jit_prolog(p, &f1);
@@ -41,7 +41,7 @@ void test1()
 // function which computes n^m
 void test2()
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfiui f1;
 
@@ -79,7 +79,7 @@ void test2()
 // function which computes factorial
 void test3()
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfuc f1;
 
@@ -113,7 +113,7 @@ void test3()
 // function which computes fibonacci's number
 void test4()
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfus f1;
 
@@ -166,7 +166,7 @@ void test4()
 // function which converts string to number
 void test5()
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 	plfpcus f1; // string, radix -> long 
 
@@ -229,7 +229,7 @@ void test5()
 // prints ``hello, world!''
 void test6()
 {
-	long r;
+	jit_value r;
 	static char * str = "Hello, World! Number of the day is %i!!!\n";
 	struct jit * p = jit_init();
 	plfv f1; 
@@ -273,7 +273,7 @@ void test6()
 void test7()
 {
 	static int ARR_SIZE = 10;
-	long r;
+	jit_value r;
 	static char * formatstr = "%i\n";
 	struct jit * p = jit_init();
 	plfv f1; 
@@ -334,7 +334,7 @@ struct mystruct {
 // sums integers in a an array and computes their sum and average (uses structs)
 void test8()
 {
-	long r;
+	jit_value r;
 	static char * formatstr = "sum: %i\navg: %i\n";
 	struct jit * p = jit_init();
 

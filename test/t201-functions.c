@@ -2,17 +2,16 @@
 #include <stddef.h>
 #include "../myjit/jitlib.h"
 #include "tests.h"
-typedef long (*plfsss)(short, short, short);
-typedef long (*plfiui)(int, unsigned int);
-typedef long (*plfuc)(unsigned char);
-typedef long (*plfus)(unsigned short);
-typedef long (*plfpcus)(char *, unsigned short);
-//typedef long (*plfv)(void);
+typedef jit_value (*plfsss)(short, short, short);
+typedef jit_value (*plfiui)(int, unsigned int);
+typedef jit_value (*plfuc)(unsigned char);
+typedef jit_value (*plfus)(unsigned short);
+typedef jit_value (*plfpcus)(char *, unsigned short);
 
 // function which computes an average of three numbers each occupying 2 bytes 
 void test1()
 {
-	long r;
+	jit_value r;
 	struct jit * p = jit_init();
 
 	plfsss f1;
