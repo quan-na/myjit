@@ -68,7 +68,6 @@ static jit_hw_reg * make_free_reg(struct jit_reg_allocator * al, jit_op * op, ji
 			unload_reg(op, hreg, spill_candidate);
 		rmap_unassoc(op->regmap, spill_candidate, JIT_REG(for_reg).type == JIT_RTYPE_FLOAT);
 	}
-	hreg->used = 0;
 	return hreg;
 }
 
@@ -339,6 +338,17 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 }
 
+static void mark_calleesaved_regs(struct rb_node * hint, jit_op * op)
+{
+	if (hint == NULL) return;
+	struct jit_allocator_hint * h = (struct jit_allocator_hint *) hint->value;
+	jit_value reg = (jit_value) hint->key;
+	if (jitset_get(op->live_out, reg)) h->should_be_calleesaved++;
+
+	mark_calleesaved_regs(hint->left, op);
+	mark_calleesaved_regs(hint->right, op);
+}
+
 /**
  * Collects statistics on used registers
  */
@@ -353,7 +363,7 @@ static void collect_statistics(struct jit * jit)
 		op->normalized_pos = ops_from_return;
 	
 		// determines used registers	
-		// FIXME: should be separate function
+		// FIXME: should be a separate function
 		jit_value regs[3];
 		int found_regs = 0;
 		for (i = 0; i < 3; i++)
@@ -379,18 +389,25 @@ static void collect_statistics(struct jit * jit)
 			else {
 				new_hint->last_pos = 0;
 				new_hint->should_be_calleesaved = 0;
+				new_hint->should_be_eax = 0;
 			}
 
 			new_hint->last_pos = ops_from_return;
+#ifdef JIT_ARCH_COMMON86
+			if ((GET_OP(op) == JIT_RETVAL) || (GET_OP(op) == JIT_RET)) 
+				new_hint->should_be_eax++;
+#endif 
 			new_hints = rb_insert(new_hints, reg, new_hint, NULL);
 		}
+#ifdef JIT_ARCH_COMMON86
+		if (GET_OP(op) == JIT_CALL) mark_calleesaved_regs(new_hints, op);
+#endif
 		op->allocator_hints = new_hints;
 
 		if (GET_OP(op) == JIT_PROLOG) {
 			last_hints = NULL;
 			ops_from_return = 0;
-		}
-		else {
+		} else {
 			last_hints = new_hints;
 			ops_from_return++;
 		}

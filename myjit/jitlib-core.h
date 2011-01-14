@@ -174,6 +174,7 @@ typedef struct jit_op {
 struct jit_allocator_hint {
 	int last_pos;
 	int should_be_calleesaved;
+	int should_be_eax;
 };
 
 typedef struct jit_label {

@@ -25,7 +25,6 @@
 #include "cpu-detect.h"
 
 #include "set.h"
-#include "rmap.h"
 
 #ifdef JIT_ARCH_COMMON86
 #include "common86-specific.h"
@@ -35,6 +34,7 @@
 #include "sparc-specific.h"
 #endif
 
+#include "rmap.h"
 #include "reg-allocator.h"
 #include "jitlib-core.h"
 

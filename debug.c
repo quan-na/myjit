@@ -68,12 +68,19 @@ int main()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 
+	jit_movi(p, R(0), 2);
+	jit_movi(p, R(1), 3);
+	jit_lshr(p, R(2), R(0), R(1));
+	jit_extr(p, FR(0), R(2));
+/*
 	jit_prepare(p);
 	jit_putargi(p, str2);
 	jit_putargi(p, 1234);
 	jit_call(p, printf);
 
 	jit_fmovi(p, FR(0), 3.14); 
+
+*/
 	jit_fretr(p, FR(0), sizeof(double));
 	jit_generate_code(p);
 

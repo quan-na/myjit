@@ -66,7 +66,7 @@ static inline jit_hw_reg * __is_associated(rb_node * n, int reg_id, int fp, jit_
  * If so, returns a pointer to this register and sets the id of the virtual
  * register
  */
-static inline jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg)
+static jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg)
 {
 	return __is_associated(rmap->map, reg_id, fp, virt_reg);
 }
@@ -177,14 +177,25 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 		int is_to_be_used = (hint_node != NULL);
 
 		if (!is_to_be_used) score += 50000; // if it's not to be used it is not so bad candidate
-
-		if (hint_node) {
+		else {
 			struct jit_allocator_hint * hint = (struct jit_allocator_hint *)hint_node->value;
 			int used_in_steps = -(hint->last_pos - op->normalized_pos);
-			if (used_in_steps == 0) return INT_MIN; // register is used in the current function (it's not a good candidate for spilling)
+			if (hw_associated && (used_in_steps == 0)) return INT_MIN; // register is used in the current function (it's not a good candidate for spilling)
 			else score += (used_in_steps * 5);
 		}
 	}
+
+
+#ifdef JIT_ARCH_COMMON86
+	struct rb_node * hint_node = rb_search(op->allocator_hints, virtreg);
+	if (hint_node) {
+		struct jit_allocator_hint * hint = (struct jit_allocator_hint *)hint_node->value;
+		if ((hreg->fp == 0) && (hreg->id == COMMON86_AX)) {
+			score += hint->should_be_eax * 5;
+		}
+		if (hreg->callee_saved) score += (hint->should_be_calleesaved - 1) * 15;
+	}
+#endif
 	return score;
 }
 

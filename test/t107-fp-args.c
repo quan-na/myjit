@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "tests.h"
 #include "../myjit/jitlib.h"
+#include "tests.h"
 
 typedef double (* pdf10f)(float, float, float, float, float, float, float, float, float, float);
 typedef double (* pdf10d)(double, double, double, double, double, double, double, double, double, double);

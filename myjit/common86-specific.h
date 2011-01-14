@@ -25,6 +25,11 @@ static int __push_caller_saved_regs(struct jit * jit, jit_op * op);
 static int __pop_callee_saved_regs(struct jit * jit);
 static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
 
+
+static jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg);
+static jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg);
+
+
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((jit_value)jit->buf + ((jit_label *)(imm))->pos - (jit_value)jit->ip)))
 #define __PATCH_ADDR(jit)       ((jit_value)jit->ip - (jit_value)jit->buf)
@@ -517,8 +522,6 @@ static void emit_div_op(struct jit * jit, struct jit_op * op, int imm, int sign,
  *
  * Unfortunately, only constant or register ECX can be used to shift value.
  * This leads to a weird situation if the shifted value is in the ECX register.
- * In that case, the value from EDX is pushed on the stack and contents from
- * ECX is moved to EDX and EDX is used instead.
  */
 static void emit_shift_op(struct jit * jit, struct jit_op * op, int shift_op, int imm)
 {
@@ -529,29 +532,34 @@ static void emit_shift_op(struct jit * jit, struct jit_op * op, int shift_op, in
 		int destreg = op->r_arg[0];
 		int valreg = op->r_arg[1];
 		int shiftreg = op->r_arg[2];
-		int cx_pathology = 0; // shifting content in the ECX register
 
-		int cx_in_use = jit_reg_in_use(op, COMMON86_CX, 0);
-		int dx_in_use = jit_reg_in_use(op, COMMON86_DX, 0);
+		if (destreg != COMMON86_CX) {
 
-		if (destreg == COMMON86_CX) {
-			cx_pathology = 1;
-			if (dx_in_use) common86_push_reg(jit->ip, COMMON86_DX); 
-			destreg = COMMON86_DX;
-		}
+			int cx_in_use = jit_reg_in_use(op, COMMON86_CX, 0);
 
-		if (shiftreg != COMMON86_CX) {
-			if (cx_in_use) common86_push_reg(jit->ip, COMMON86_CX); 
-			common86_mov_reg_reg(jit->ip, COMMON86_CX, shiftreg, REG_SIZE);
-		}
-		if (destreg != valreg) common86_mov_reg_reg(jit->ip, destreg, valreg, REG_SIZE); 
-		common86_shift_reg(jit->ip, shift_op, destreg);
-		if (cx_pathology) {
-			common86_mov_reg_reg(jit->ip, COMMON86_CX, COMMON86_DX, REG_SIZE);
-			if ((shiftreg != COMMON86_CX) && cx_in_use) common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, REG_SIZE);
-			if (dx_in_use) common86_pop_reg(jit->ip, COMMON86_DX);
+			if (cx_in_use && (shiftreg != COMMON86_CX)) common86_push_reg(jit->ip, COMMON86_CX);
+			if (shiftreg != COMMON86_CX) common86_mov_reg_reg(jit->ip, COMMON86_CX, shiftreg, REG_SIZE);
+			if (destreg != valreg) {
+				if (valreg != COMMON86_CX) common86_mov_reg_reg(jit->ip, destreg, valreg, REG_SIZE);
+				else common86_mov_reg_membase(jit->ip, destreg, COMMON86_SP, 0, REG_SIZE);
+			}
+			common86_shift_reg(jit->ip, shift_op, destreg);
+			if (cx_in_use && (shiftreg != COMMON86_CX)) common86_pop_reg(jit->ip, COMMON86_CX);
 		} else {
-			if ((shiftreg != COMMON86_CX) && cx_in_use) common86_pop_reg(jit->ip, COMMON86_CX);
+			// ECX is the destination register
+			jit_hw_reg * tmp = jit_get_unused_reg(jit->reg_al, op, 0);
+			int tmpreg = (tmp ? tmp->id : COMMON86_AX);
+
+			int tmp_in_use = jit_reg_in_use(op, tmpreg, 0);
+
+			if (tmp_in_use) common86_push_reg(jit->ip, tmpreg); 
+			
+			if (tmpreg != valreg) common86_mov_reg_reg(jit->ip, tmpreg, valreg, REG_SIZE);
+			if (shiftreg != COMMON86_CX) common86_mov_reg_reg(jit->ip, COMMON86_CX, shiftreg, REG_SIZE);
+			common86_shift_reg(jit->ip, shift_op, tmpreg);
+			common86_mov_reg_reg(jit->ip, destreg, tmpreg, REG_SIZE);
+
+			if (tmp_in_use) common86_pop_reg(jit->ip, tmpreg); 
 		}
 	}
 }
