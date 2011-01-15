@@ -1,3 +1,7 @@
+Version 0.6.0.0
+===============
++ completely new linear scan register allocator
+
 Version 0.5.2.2
 ===============
 + proper parenthesis inside API macros (this has (slightly) changed the semantics of ld, st,

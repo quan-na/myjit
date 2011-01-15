@@ -4,10 +4,11 @@ ROADMAP
 + release 0.6.0
 	* linear-scan reg. allocator (last-to-be-used heuristics)
 	+ reg. allocator should be aware of:
-		+ callee/caller-saved registers
-		+ register which are used to pass/return values
-		+ operations having particular requirements on registers, e.g., MUL, DIV, SHL.
+		* callee/caller-saved registers
+		* register which are used to pass/return values
 
++ release 0.6.0
+		+ operations having particular requirements on registers, e.g., MUL, DIV, SHL.
 + release 0.7.0
 	+ warnings:
 		+ basic API
