@@ -153,18 +153,21 @@ static void emit_prolog_op(struct jit * jit, jit_op * op)
 {
 	jit->current_func = op;
 	struct jit_func_info * info = jit_current_func_info(jit);
+	int no_prolog = (jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr);
 	while ((long)jit->ip % 8) 
 		x86_nop(jit->ip);
 
 	op->patch_addr = __PATCH_ADDR(jit);
-	x86_push_reg(jit->ip, X86_EBP);
-	x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
+	if (!no_prolog) {
+		x86_push_reg(jit->ip, X86_EBP);
+		x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
+	}
 	int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(double);
 
 #ifdef __APPLE__
 	stack_mem = jit_value_align(stack_mem, 16);
 #endif
-	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+	if (!no_prolog)
 		x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
 	jit->push_count = __push_callee_saved_regs(jit, op);
 }
@@ -190,9 +193,10 @@ static void emit_fret_op(struct jit * jit, jit_op * op)
 
 	// common epilogue
 	jit->push_count -= __pop_callee_saved_regs(jit);
-	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
 		x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
-	x86_pop_reg(jit->ip, X86_EBP);
+		x86_pop_reg(jit->ip, X86_EBP);
+	}
 	x86_ret(jit->ip);
 }
 

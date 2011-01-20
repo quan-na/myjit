@@ -255,18 +255,22 @@ static void emit_prolog_op(struct jit * jit, jit_op * op)
 	jit->current_func = op;
 	struct jit_func_info * info = jit_current_func_info(jit);
 
+	int no_prolog = (jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr);
+
 	while ((jit_value)jit->ip % 16)
 		amd64_nop(jit->ip);
 
 	op->patch_addr = __PATCH_ADDR(jit);
-	amd64_push_reg(jit->ip, AMD64_RBP);
-	amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
+	if (!no_prolog) {
+		amd64_push_reg(jit->ip, AMD64_RBP);
+		amd64_mov_reg_reg(jit->ip, AMD64_RBP, AMD64_RSP, 8);
+	}
 
 	int stack_mem = info->allocai_mem + info->gp_reg_count * REG_SIZE + info->fp_reg_count * sizeof(jit_float) + info->general_arg_cnt * REG_SIZE + info->float_arg_cnt * sizeof(jit_float);
 
 	stack_mem = jit_value_align(stack_mem, JIT_STACK_ALIGNMENT); // 16-bytes aligned
 
-	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+	if (!no_prolog)
 		amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
 	jit->push_count = __push_callee_saved_regs(jit, op);
 }
@@ -305,9 +309,10 @@ static void emit_fret_op(struct jit * jit, jit_op * op)
 
 	// common epilogue
 	jit->push_count -= __pop_callee_saved_regs(jit);
-	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
 		common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, 8);
-	common86_pop_reg(jit->ip, COMMON86_BP);
+		common86_pop_reg(jit->ip, COMMON86_BP);
+	}
 	common86_ret(jit->ip);
 }
 

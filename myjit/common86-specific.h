@@ -205,6 +205,19 @@ static void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
 	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
 }
 
+static inline void __read_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
+{
+	if (type != JIT_FLOAT_NUM) {
+		if (size == REG_SIZE) common86_mov_reg_membase(jit->ip, dreg, stack_reg, stack_pos, REG_SIZE);
+		else if (type == JIT_SIGNED_NUM)
+			common86_movsx_reg_membase(jit->ip, dreg, stack_reg, stack_pos, size);
+		else common86_movzx_reg_membase(jit->ip, dreg, stack_reg, stack_pos, size);
+	} else {
+		if (size == sizeof(float)) sse_cvtss2sd_reg_membase(jit->ip, dreg, stack_reg, stack_pos);
+		else sse_movlpd_xreg_membase(jit->ip, dreg, stack_reg, stack_pos);
+	}
+}
+
 /**
  * Emits GETARG operation
  *
@@ -231,6 +244,14 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 	if (!arg->passed_by_reg) {
 		read_from_stack = 1;
 		stack_pos = arg->location.stack_pos;
+
+		// optimization which doesnot require EBP register
+		if ((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)) {
+			stack_pos -= REG_SIZE;
+			stack_pos += jit->push_count * REG_SIZE;
+			__read_from_stack(jit, type, size, dreg, COMMON86_SP, stack_pos);
+			return;
+		}
 	}
 	
 	if (arg->passed_by_reg && rmap_get(op->regmap, reg_id) == NULL) {
@@ -240,15 +261,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 	}
 
 	if (read_from_stack) {
-		if (type != JIT_FLOAT_NUM) {
-			if (size == REG_SIZE) common86_mov_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos, REG_SIZE);
-			else if (type == JIT_SIGNED_NUM)
-				common86_movsx_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos, size);
-			else common86_movzx_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos, size);
-		} else {
-			if (size == sizeof(float)) sse_cvtss2sd_reg_membase(jit->ip, dreg, COMMON86_BP, stack_pos);
-			else sse_movlpd_xreg_membase(jit->ip, dreg, COMMON86_BP, stack_pos);
-		}
+		__read_from_stack(jit, type, size, dreg, COMMON86_BP, stack_pos);
 		return;
 	} 
 
@@ -756,9 +769,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (!imm && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
 			if (imm) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
 			__pop_callee_saved_regs(jit);
-			if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+			if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
 				common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
-			common86_pop_reg(jit->ip, COMMON86_BP);
+				common86_pop_reg(jit->ip, COMMON86_BP);
+			}
 			common86_ret(jit->ip);
 			break;
 
