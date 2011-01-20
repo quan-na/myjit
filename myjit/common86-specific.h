@@ -331,7 +331,7 @@ static void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op, int i
 		common86_push_reg(jit->ip, op->r_arg[2]);
 		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
 		common86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], COMMON86_SP, 0);
-		common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, 8);
+		common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, REG_SIZE);
 	} else {
 		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
 		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
@@ -502,7 +502,7 @@ static void emit_div_op(struct jit * jit, struct jit_op * op, int imm, int sign,
 
 		if ((divisor == COMMON86_AX) || (divisor == COMMON86_DX)) {
 			common86_div_membase(jit->ip, COMMON86_SP, 0, sign);
-			common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, 8);
+			common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, REG_SIZE);
 		} else {
 			common86_div_reg(jit->ip, divisor, sign);
 		}
@@ -756,7 +756,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (!imm && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
 			if (imm) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
 			__pop_callee_saved_regs(jit);
-			common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
+			if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+				common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
 			common86_pop_reg(jit->ip, COMMON86_BP);
 			common86_ret(jit->ip);
 			break;

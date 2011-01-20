@@ -60,6 +60,7 @@ struct jit * jit_init()
 	r->labels = NULL;
 	r->reg_al = jit_reg_allocator_create();
 	r->argpos = 0;
+	jit_enable_optimization(r, JIT_OPT_ALL);
 
 	return r;
 }
@@ -286,6 +287,10 @@ void jit_generate_code(struct jit * jit)
 #endif
 	jit_assign_regs(jit);
 
+#ifdef JIT_ARCH_COMMON86
+	if (jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) jit_optimize_frame_ptr(jit);
+#endif
+
 	jit->buf_capacity = BUF_SIZE;
 	jit->buf = JIT_MALLOC(jit->buf_capacity);
 	jit->ip = jit->buf;
@@ -339,6 +344,16 @@ static void __free_labels(jit_label * lab)
 	if (lab == NULL) return;
 	__free_labels(lab->next);
 	JIT_FREE(lab);
+}
+
+void jit_enable_optimization(struct jit * jit, int opt)
+{
+	jit->optimizations |= opt;
+}
+
+void jit_disable_optimzation(struct jit * jit, int opt)
+{
+	jit->optimizations &= ~opt;
 }
 
 void jit_free(struct jit * jit)

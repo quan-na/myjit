@@ -266,7 +266,8 @@ static void emit_prolog_op(struct jit * jit, jit_op * op)
 
 	stack_mem = jit_value_align(stack_mem, JIT_STACK_ALIGNMENT); // 16-bytes aligned
 
-	amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
+	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+		amd64_alu_reg_imm(jit->ip, X86_SUB, AMD64_RSP, stack_mem);
 	jit->push_count = __push_callee_saved_regs(jit, op);
 }
 
@@ -304,7 +305,8 @@ static void emit_fret_op(struct jit * jit, jit_op * op)
 
 	// common epilogue
 	jit->push_count -= __pop_callee_saved_regs(jit);
-	common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, 8);
+	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)))
+		common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, 8);
 	common86_pop_reg(jit->ip, COMMON86_BP);
 	common86_ret(jit->ip);
 }

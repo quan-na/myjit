@@ -68,3 +68,18 @@ void jit_optimize_st_ops(struct jit * jit)
 
 	}
 }
+
+void jit_optimize_frame_ptr(struct jit * jit)
+{
+	struct jit_func_info * info = NULL;
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (GET_OP(op) == JIT_PROLOG) {
+			info = (struct jit_func_info *) op->arg[1];
+			info->uses_frame_ptr = 0;
+		}
+		if ((GET_OP(op) == JIT_ALLOCA) || (GET_OP(op) == JIT_UREG)
+		|| (GET_OP(op) == JIT_LREG) || (GET_OP(op) == JIT_SYNCREG)) {
+			info->uses_frame_ptr = 1;
+		}
+	}
+}

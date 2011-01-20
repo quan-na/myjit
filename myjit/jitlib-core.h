@@ -56,6 +56,7 @@
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
+
 struct jitset;
 
 typedef double jit_float;
@@ -82,6 +83,9 @@ typedef struct {
 #define JIT_DEBUG_LOADS		(0x01)
 #define JIT_DEBUG_ASSOC		(0x02)
 #define JIT_DEBUG_LIVENESS	(0x04)
+
+#define JIT_OPT_OMIT_FRAME_PTR	(0x01)
+#define JIT_OPT_ALL		(0xff)
 
 static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)
 {
@@ -235,6 +239,7 @@ struct jit_func_info {			// collection of information related to one function
 
 	int gp_reg_count;		// total number of GP registers used in the processed function
 	int fp_reg_count;		// total number of FP registers used in the processed function
+	int uses_frame_ptr;		// this flag indicates whether there is an operation using frame pointer
 };
 
 struct jit {
@@ -251,6 +256,7 @@ struct jit {
 	jit_label * labels;		// list of labels used in the c
 	jit_prepared_args prepared_args; // list of arguments passed between PREPARE-CALL
 	int push_count;			// number of values pushed on the stack; used by AMD64
+	unsigned int optimizations;
 };
 
 struct jit * jit_init();
@@ -265,6 +271,8 @@ void jit_dump_ops(struct jit * jit, int verbosity);
 void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);
+void jit_enable_optimization(struct jit * jit, int opt);
+void jit_disable_optimzation(struct jit * jit, int opt);
 
 /**
  * Initialize argpos-th argument.
