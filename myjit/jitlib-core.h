@@ -84,8 +84,9 @@ typedef struct {
 #define JIT_DEBUG_ASSOC		(0x02)
 #define JIT_DEBUG_LIVENESS	(0x04)
 
-#define JIT_OPT_OMIT_FRAME_PTR	(0x01)
-#define JIT_OPT_ALL		(0xff)
+#define JIT_OPT_OMIT_FRAME_PTR			(0x01)
+#define JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS	(0x02)
+#define JIT_OPT_ALL				(0xff)
 
 static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)
 {
@@ -271,6 +272,8 @@ void jit_dump_ops(struct jit * jit, int verbosity);
 void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 void jit_optimize_st_ops(struct jit * jit);
+void jit_optimize_unused_assignments(struct jit * jit);
+
 void jit_enable_optimization(struct jit * jit, int opt);
 void jit_disable_optimzation(struct jit * jit, int opt);
 

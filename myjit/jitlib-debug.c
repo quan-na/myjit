@@ -127,6 +127,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_LABEL:		return ".label";
 		case JIT_SYNCREG:	return ".syncreg";
 		case JIT_MSG:		return "msg";
+		case JIT_NOP:		return "nop";
 
 		case JIT_FMOV:	return "fmov";
 		case JIT_FADD: 	return "fadd";

@@ -282,6 +282,8 @@ void jit_generate_code(struct jit * jit)
 	__initialize_arguments(jit);
 	jit_flw_analysis(jit);
 
+	if (jit->optimizations & JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS) jit_optimize_unused_assignments(jit);
+
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
 	jit_optimize_st_ops(jit);
 #endif

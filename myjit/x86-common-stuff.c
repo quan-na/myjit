@@ -83,3 +83,19 @@ void jit_optimize_frame_ptr(struct jit * jit)
 		}
 	}
 }
+
+void jit_optimize_unused_assignments(struct jit * jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (ARG_TYPE(op, 1) == TREG) {
+			// we have to skip these operations since, these are setting carry flag
+			if ((GET_OP(op) == JIT_ADDC) || (GET_OP(op) == JIT_ADDX)
+			|| (GET_OP(op) == JIT_SUBC) || (GET_OP(op) == JIT_SUBX)) continue;
+
+			if (!jitset_get(op->live_out, op->arg[0])) {
+				op->code = JIT_NOP;
+				op->spec = SPEC(NO, NO, NO);
+			}
+		}
+	}
+}
