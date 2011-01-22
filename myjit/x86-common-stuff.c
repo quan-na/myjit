@@ -21,6 +21,7 @@
 
 #define JIT_X86_STI     (0x0100 << 3)
 #define JIT_X86_STXI    (0x0101 << 3)
+#define JIT_X86_ADDMUL	(0x0102 << 3)
 
 //
 // 
@@ -95,6 +96,90 @@ void jit_optimize_unused_assignments(struct jit * jit)
 			if (!jitset_get(op->live_out, op->arg[0])) {
 				op->code = JIT_NOP;
 				op->spec = SPEC(NO, NO, NO);
+			}
+		}
+	}
+}
+
+static jit_op * get_related_op(jit_op * op, int result_reg)
+{
+	rb_node * hint_node = rb_search(op->next->allocator_hints, result_reg);
+	if (!hint_node) return NULL;
+	int expected_pos = ((struct jit_allocator_hint *)hint_node->value)->last_pos;
+
+	for (jit_op * nextop = op->next; nextop != NULL; nextop = nextop->next) {
+		if (expected_pos == nextop->normalized_pos) return nextop;
+	}
+	return NULL;
+}
+
+void jit_optimize_join_addmul(struct jit * jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		jit_value arg = op->arg[2];
+		if ((((op->code == (JIT_MUL | IMM)) && ((arg == 2) || (arg == 4) || (arg == 8))))
+		|| ((op->code == (JIT_LSH | IMM)) && ((arg == 1) || (arg == 2) || (arg == 3)))) {
+			jit_value result_reg = op->arg[0];
+
+			int m_arg;
+			int s_arg;
+
+			if (op->code == (JIT_LSH | IMM)) {
+				s_arg = arg;
+				if (arg == 1) m_arg = 2;
+				if (arg == 2) m_arg = 4;
+				if (arg == 3) m_arg = 8;
+			} else {
+				m_arg = arg;
+				if (arg == 2) s_arg = 1;
+				if (arg == 4) s_arg = 2;
+				if (arg == 8) s_arg = 3;
+			}
+
+			jit_op * nextop = get_related_op(op, result_reg);
+
+			if ((nextop->arg[0] != result_reg) && jitset_get(nextop->live_out, result_reg)) continue;
+
+			jit_value mul_reg = op->arg[1];
+
+			if (nextop->code == (JIT_ADD | REG)) {
+				if (nextop->arg[1] != nextop->arg[2]) {
+					jit_value add_reg = (nextop->arg[1] == result_reg) ? nextop->arg[2] : nextop->arg[1];
+
+					op->code = JIT_NOP;
+					op->spec = SPEC(NO, NO, NO);
+
+					nextop->code = JIT_X86_ADDMUL | REG;
+					nextop->spec = SPEC(REG, REG, REG);
+
+					nextop->arg[1] = add_reg;
+					nextop->arg[2] = mul_reg;
+					nextop->arg_size = s_arg;
+				}
+			}
+
+			if (nextop->code == (JIT_ADD | IMM)) {
+				op->code = JIT_NOP;
+				op->spec = SPEC(NO, NO, NO);
+
+				nextop->code = JIT_X86_ADDMUL | IMM;
+				nextop->spec = SPEC(REG, REG, IMM);
+
+				nextop->arg[1] = mul_reg;
+				nextop->arg_size = s_arg;
+			}
+
+			if (nextop->code == (JIT_OR | IMM)) {
+				if ((nextop->arg[2] > 0) && (nextop->arg[2] < m_arg)) {
+					op->code = JIT_NOP;
+					op->spec = SPEC(NO, NO, NO);
+
+					nextop->code = JIT_X86_ADDMUL | IMM;
+					nextop->spec = SPEC(REG, REG, IMM);
+
+					nextop->arg[1] = mul_reg;
+					nextop->arg_size = s_arg;
+				}
 			}
 		}
 	}

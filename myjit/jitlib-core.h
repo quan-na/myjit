@@ -86,6 +86,7 @@ typedef struct {
 
 #define JIT_OPT_OMIT_FRAME_PTR			(0x01)
 #define JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS	(0x02)
+#define JIT_OPT_JOIN_ADDMUL			(0x03)
 #define JIT_OPT_ALL				(0xff)
 
 static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)

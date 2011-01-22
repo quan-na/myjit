@@ -856,6 +856,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case (JIT_X86_STI | REG): common86_mov_membase_imm(jit->ip, a1, 0, a2, op->arg_size); break;
 		case (JIT_X86_STXI | IMM): common86_mov_membase_imm(jit->ip, a2, a1, a3, op->arg_size); break;
 		case (JIT_X86_STXI | REG): common86_mov_memindex_imm(jit->ip, a1, 0, a2, 0, a3, op->arg_size); break;
+		case (JIT_X86_ADDMUL | REG): common86_lea_memindex(jit->ip, a1, a2, 0, a3, op->arg_size); break;
+		case (JIT_X86_ADDMUL | IMM): common86_lea_memindex(jit->ip, a1, X86_NOBASEREG, a3, a2, op->arg_size); break;
 
 		default: printf("common86: unknown operation (opcode: 0x%x)\n", GET_OP(op) >> 3);
 	}

@@ -352,7 +352,7 @@ static void mark_calleesaved_regs(struct rb_node * hint, jit_op * op)
 /**
  * Collects statistics on used registers
  */
-static void collect_statistics(struct jit * jit)
+void jit_collect_statistics(struct jit * jit)
 {
 	int i, j;
 	int ops_from_return = 0;
@@ -500,8 +500,6 @@ void jit_assign_regs(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		op->regmap = rmap_init();
-
-	collect_statistics(jit);
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		assign_regs(jit, op);
