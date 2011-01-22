@@ -162,7 +162,7 @@ typedef struct jit_op {
 	unsigned char spec;		// argument types, e.g REG+REG+IMM
 	unsigned char arg_size; 	// used by ld, st
 	unsigned char assigned;
-	unsigned char fp;		// FP if it's an floating-point operation	
+	unsigned char fp;		// FP if it's a floating-point operation	
 	double flt_imm;			// floating point immediate value
 	jit_value arg[3];		// arguments passed by user
 	jit_value r_arg[3];		// arguments transformed by register allocator

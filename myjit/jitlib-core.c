@@ -287,8 +287,18 @@ void jit_generate_code(struct jit * jit)
 	jit_collect_statistics(jit);
 
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
+	int change = 0;
 	jit_optimize_st_ops(jit);
-	if (jit->optimizations & JIT_OPT_JOIN_ADDMUL) jit_optimize_join_addmul(jit);
+	if (jit->optimizations & JIT_OPT_JOIN_ADDMUL) {
+		change |= jit_optimize_join_addmul(jit);
+		change |= jit_optimize_join_addimm(jit);
+	}
+	// oops, we have changed the code structure, we have to do the analysis again
+	if (change) {
+		printf("fooooooooooooooooooooo\n");
+		jit_flw_analysis(jit);
+		jit_collect_statistics(jit);
+	}
 #endif
 	jit_assign_regs(jit);
 

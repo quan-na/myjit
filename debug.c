@@ -68,10 +68,10 @@ int main()
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));
 
-	jit_movi(p, R(0), 2);
-	jit_lshi(p, R(1), R(0), 3);
-	jit_movi(p, R(2), 3);
-	jit_ori(p, R(2), R(1), 7);
+	jit_movi(p, R(0), 10);
+	jit_movi(p, R(1), 3);
+	jit_lshi(p, R(2), R(0), 2);
+	jit_ori(p, R(2), R(2), 3);
 	jit_msgr(p, "Foooo:%i\n", R(2));
 	jit_addr(p, R(2), R(2), R(0));
 //	jit_lshr(p, R(2), R(0), R(1));

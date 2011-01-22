@@ -22,6 +22,7 @@
 #define JIT_X86_STI     (0x0100 << 3)
 #define JIT_X86_STXI    (0x0101 << 3)
 #define JIT_X86_ADDMUL	(0x0102 << 3)
+#define JIT_X86_ADDIMM	(0x0103 << 3)
 
 //
 // 
@@ -101,86 +102,191 @@ void jit_optimize_unused_assignments(struct jit * jit)
 	}
 }
 
+//
+//
+// Optimizations combining mul+add, add+add, and such operations into the one operation
+//
+//
+
+static inline void make_nop(jit_op * op)
+{
+	op->code = JIT_NOP;
+	op->spec = SPEC(NO, NO, NO);
+}
+
 static jit_op * get_related_op(jit_op * op, int result_reg)
 {
-	rb_node * hint_node = rb_search(op->next->allocator_hints, result_reg);
-	if (!hint_node) return NULL;
-	int expected_pos = ((struct jit_allocator_hint *)hint_node->value)->last_pos;
+	jit_op * nextop = op->next; 
 
-	for (jit_op * nextop = op->next; nextop != NULL; nextop = nextop->next) {
-		if (expected_pos == nextop->normalized_pos) return nextop;
-	}
+	if ((nextop->arg[0] != result_reg) && (jitset_get(nextop->live_out, result_reg))) return NULL;
+
+	int used = 0;
+	for (int i = 0; i < 3; i++)
+		if ((ARG_TYPE(nextop, i + 1) == REG) && (nextop->arg[i])) {
+			used = 1;
+			break;
+		}
+	if (used) return nextop;
 	return NULL;
 }
 
-void jit_optimize_join_addmul(struct jit * jit)
+static int join_2ops(jit_op * op, int opcode1, int opcode2, int (* joinfn)(jit_op *, jit_op *))
 {
-	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		jit_value arg = op->arg[2];
-		if ((((op->code == (JIT_MUL | IMM)) && ((arg == 2) || (arg == 4) || (arg == 8))))
-		|| ((op->code == (JIT_LSH | IMM)) && ((arg == 1) || (arg == 2) || (arg == 3)))) {
-			jit_value result_reg = op->arg[0];
-
-			int m_arg;
-			int s_arg;
-
-			if (op->code == (JIT_LSH | IMM)) {
-				s_arg = arg;
-				if (arg == 1) m_arg = 2;
-				if (arg == 2) m_arg = 4;
-				if (arg == 3) m_arg = 8;
-			} else {
-				m_arg = arg;
-				if (arg == 2) s_arg = 1;
-				if (arg == 4) s_arg = 2;
-				if (arg == 8) s_arg = 3;
-			}
-
-			jit_op * nextop = get_related_op(op, result_reg);
-
-			if ((nextop->arg[0] != result_reg) && jitset_get(nextop->live_out, result_reg)) continue;
-
-			jit_value mul_reg = op->arg[1];
-
-			if (nextop->code == (JIT_ADD | REG)) {
-				if (nextop->arg[1] != nextop->arg[2]) {
-					jit_value add_reg = (nextop->arg[1] == result_reg) ? nextop->arg[2] : nextop->arg[1];
-
-					op->code = JIT_NOP;
-					op->spec = SPEC(NO, NO, NO);
-
-					nextop->code = JIT_X86_ADDMUL | REG;
-					nextop->spec = SPEC(REG, REG, REG);
-
-					nextop->arg[1] = add_reg;
-					nextop->arg[2] = mul_reg;
-					nextop->arg_size = s_arg;
-				}
-			}
-
-			if (nextop->code == (JIT_ADD | IMM)) {
-				op->code = JIT_NOP;
-				op->spec = SPEC(NO, NO, NO);
-
-				nextop->code = JIT_X86_ADDMUL | IMM;
-				nextop->spec = SPEC(REG, REG, IMM);
-
-				nextop->arg[1] = mul_reg;
-				nextop->arg_size = s_arg;
-			}
-
-			if (nextop->code == (JIT_OR | IMM)) {
-				if ((nextop->arg[2] > 0) && (nextop->arg[2] < m_arg)) {
-					op->code = JIT_NOP;
-					op->spec = SPEC(NO, NO, NO);
-
-					nextop->code = JIT_X86_ADDMUL | IMM;
-					nextop->spec = SPEC(REG, REG, IMM);
-
-					nextop->arg[1] = mul_reg;
-					nextop->arg_size = s_arg;
-				}
-			}
-		}
+	if (op->code == opcode1) {
+		jit_value result_reg = op->arg[0];
+		jit_op * nextop = get_related_op(op, result_reg);
+		if (nextop && (nextop->code == opcode2)) return joinfn(op, nextop); 
 	}
+	return 0;
+}
+
+static inline int shift_index(int arg)
+{
+	if (arg == 2) return 1;
+	if (arg == 4) return 2;
+	if (arg == 8) return 3;
+	assert(0);
+}
+
+static inline int pow2(int arg)
+{
+	int r = 1;
+	for (int i = 0; i < arg; i++)
+		r *= 2;
+	return r;
+}
+
+static inline int is_suitable_mul(jit_op * op)
+{
+	jit_value arg = op->arg[2];
+	return ((((op->code == (JIT_MUL | IMM)) && ((arg == 2) || (arg == 4) || (arg == 8))))
+	|| ((op->code == (JIT_LSH | IMM)) && ((arg == 1) || (arg == 2) || (arg == 3))));
+}
+
+static inline int make_addmuli(jit_op * op, jit_op * nextop)
+{
+	nextop->code = JIT_X86_ADDMUL | IMM;
+	nextop->spec = SPEC(TREG, REG, IMM);
+
+	nextop->arg[1] = op->arg[1];
+	nextop->arg_size = (GET_OP(op) == JIT_MUL ? shift_index(op->arg[2]) : op->arg[2]);
+
+	make_nop(op);
+	return 1;
+}
+
+// combines:
+// muli r1, r2, [2, 4, 8] (or lsh r1, r2, [1, 2, 3])
+// addi r3, r1, imm
+// -->
+// addmuli r3, r2*size, r1	... lea reg, [reg*size + imm]
+static int join_muli_addi(jit_op * op, jit_op * nextop)
+{
+	if (!is_suitable_mul(op)) return 0;
+	return make_addmuli(op, nextop);
+}
+
+// combines:
+// muli r1, r2, [2, 4, 8] (or lsh r1, r2, [1, 2, 3])
+// ori r3, r1, [0..8]
+// -->
+// addmuli r3, r2*size, r1	... lea reg, [reg*size + imm]
+static int join_muli_ori(jit_op * op, jit_op * nextop)
+{
+	if (!is_suitable_mul(op)) return 0;
+	int max = (GET_OP(op) == JIT_MUL) ? max = op->arg[2] : pow2(op->arg[2]);
+
+	if ((nextop->arg[2] > 0) && (nextop->arg[2] < max)) return make_addmuli(op, nextop);
+	else return 0;
+}
+
+// combines:
+// muli r1, r2, [2, 4, 8] (or lsh r1, r2, [1, 2, 3])
+// addi r3, r1, r4
+// -->
+// addmulr r3, r2*size, r4	... lea reg, [reg*size + reg]
+static int join_muli_addr(jit_op * op, jit_op * nextop)
+{
+	if ((!is_suitable_mul(op) || (nextop->arg[1] == nextop->arg[2]))) return 0;
+
+	jit_value add_reg = (nextop->arg[1] == op->arg[0]) ? nextop->arg[2] : nextop->arg[1];
+
+	nextop->code = JIT_X86_ADDMUL | REG;
+	nextop->spec = SPEC(TREG, REG, REG);
+
+	nextop->arg[1] = add_reg;
+	nextop->arg[2] = op->arg[1];
+	nextop->arg_size = (GET_OP(op) == JIT_MUL ? shift_index(op->arg[2]) : op->arg[2]);
+
+	make_nop(op);
+	return 1;
+}
+
+int jit_optimize_join_addmul(struct jit * jit)
+{
+	int change = 0;
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		change |= join_2ops(op, JIT_MUL | IMM, JIT_ADD | IMM, join_muli_addi);
+		change |= join_2ops(op, JIT_LSH | IMM, JIT_ADD | IMM, join_muli_addi);
+		change |= join_2ops(op, JIT_MUL | IMM, JIT_ADD | REG, join_muli_addr);
+		change |= join_2ops(op, JIT_LSH | IMM, JIT_ADD | REG, join_muli_addr);
+		change |= join_2ops(op, JIT_MUL | IMM, JIT_OR | IMM, join_muli_ori);
+		change |= join_2ops(op, JIT_LSH | IMM, JIT_OR | IMM, join_muli_ori);
+	}
+	return change;
+}
+
+// combines:
+// addr r1, r2, r3 
+// addi r4, r1, imm
+// -->
+// addimm r4, r2, r3, imm  i.e., r4 := r2 + r3 + imm
+static int join_addr_addi(jit_op * op, jit_op * nextop)
+{
+	make_nop(op);
+
+	nextop->code = JIT_X86_ADDIMM;
+	nextop->spec = SPEC(TREG, REG, REG);
+
+	nextop->arg[2] = -nextop->arg[2];
+	nextop->flt_imm = *(double *)&(nextop->arg[2]);
+	nextop->arg[1] = op->arg[1];
+	nextop->arg[2] = op->arg[2];
+
+	return 1;
+}
+
+// combines:
+// addi r1, r2, imm 
+// addr r3, r1, r4 (or addr r3, r4, r1)
+// -->
+// addimm r3, r2, r4, imm  i.e., r3 := r2 + r4 + imm
+static int join_addi_addr(jit_op * op, jit_op * nextop)
+{
+	if (GET_OP(op) == JIT_SUB) op->arg[2] = -op->arg[2];
+
+	make_nop(op);
+
+	nextop->code = JIT_X86_ADDIMM;
+	nextop->spec = SPEC(TREG, REG, REG);
+
+	if (nextop->arg[1] == nextop->arg[2]) op->arg[2] *= 2;
+	nextop->flt_imm = *(double *)&(op->arg[2]);
+
+	if (nextop->arg[1] == op->arg[0]) nextop->arg[1] = op->arg[1];
+	if (nextop->arg[2] == op->arg[0]) nextop->arg[2] = op->arg[1];
+
+	return 1;
+}
+
+int jit_optimize_join_addimm(struct jit * jit)
+{
+	int change = 0;
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		change |= join_2ops(op, JIT_ADD | REG, JIT_ADD | IMM, join_addr_addi);
+		change |= join_2ops(op, JIT_ADD | REG, JIT_SUB | IMM, join_addr_addi);
+		change |= join_2ops(op, JIT_ADD | IMM, JIT_ADD | REG, join_addi_addr);
+		change |= join_2ops(op, JIT_SUB | IMM, JIT_ADD | REG, join_addi_addr);
+	}
+	return change;
 }
