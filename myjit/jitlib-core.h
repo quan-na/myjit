@@ -272,11 +272,17 @@ void jit_dump_ops(struct jit * jit, int verbosity);
 
 void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
+
+void jit_collect_statistics(struct jit * jit);
+
 void jit_optimize_st_ops(struct jit * jit);
+int jit_optimize_join_addmul(struct jit * jit);
+int jit_optimize_join_addimm(struct jit * jit);
+void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
 
 void jit_enable_optimization(struct jit * jit, int opt);
-void jit_disable_optimzation(struct jit * jit, int opt);
+void jit_disable_optimization(struct jit * jit, int opt);
 
 /**
  * Initialize argpos-th argument.

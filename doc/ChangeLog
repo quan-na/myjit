@@ -1,3 +1,11 @@
+Version 0.7.0.0
+===============
++ support for optimizations
++ adjacent addr+addi are converted into one LEA
++ adjacent mul+add or shl+or are converted into one LEA
++ if not necessary, prolog and epilogue of the function is skipped
++ unused assignments can be skipped
+
 Version 0.6.0.0
 ===============
 + completely new linear scan register allocator

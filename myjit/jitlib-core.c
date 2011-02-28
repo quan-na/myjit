@@ -60,7 +60,7 @@ struct jit * jit_init()
 	r->labels = NULL;
 	r->reg_al = jit_reg_allocator_create();
 	r->argpos = 0;
-	jit_enable_optimization(r, JIT_OPT_ALL);
+	jit_enable_optimization(r, JIT_OPT_JOIN_ADDMUL | JIT_OPT_OMIT_FRAME_PTR);
 
 	return r;
 }
@@ -284,7 +284,6 @@ void jit_generate_code(struct jit * jit)
 
 	if (jit->optimizations & JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS) jit_optimize_unused_assignments(jit);
 
-	jit_collect_statistics(jit);
 
 #if defined(JIT_ARCH_I386) || defined(JIT_ARCH_AMD64)
 	int change = 0;
@@ -294,12 +293,9 @@ void jit_generate_code(struct jit * jit)
 		change |= jit_optimize_join_addimm(jit);
 	}
 	// oops, we have changed the code structure, we have to do the analysis again
-	if (change) {
-		printf("fooooooooooooooooooooo\n");
-		jit_flw_analysis(jit);
-		jit_collect_statistics(jit);
-	}
+	if (change) jit_flw_analysis(jit);
 #endif
+	jit_collect_statistics(jit);
 	jit_assign_regs(jit);
 
 #ifdef JIT_ARCH_COMMON86
@@ -366,7 +362,7 @@ void jit_enable_optimization(struct jit * jit, int opt)
 	jit->optimizations |= opt;
 }
 
-void jit_disable_optimzation(struct jit * jit, int opt)
+void jit_disable_optimization(struct jit * jit, int opt)
 {
 	jit->optimizations &= ~opt;
 }

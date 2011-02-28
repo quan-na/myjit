@@ -1,8 +1,10 @@
-all: gp fp misc
+all: gp fp misc optim
 
 gp: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010
 	
 fp: t101 t102 t103 t104 t105 t107 t108 t109
+
+optim: t301
 
 misc: t200 t201
 
@@ -69,6 +71,10 @@ t200: t200-callr.c jitlib-core.o tests.h
 t201: t201-functions.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t201 t201-functions.c jitlib-core.o
 
+t301: t301-optim-adds.c jitlib-core.o tests.h
+	$(CC) $(CFLAGS) -o t301 t301-optim-adds.c jitlib-core.o
+
+
 
 
 jitlib-core.o: ../myjit/jitlib.h ../myjit/jitlib-core.h ../myjit/jitlib-core.c ../myjit/jitlib-debug.c ../myjit/x86-codegen.h ../myjit/x86-specific.h ../myjit/reg-allocator.h ../myjit/flow-analysis.h ../myjit/set.h ../myjit/amd64-specific.h ../myjit/amd64-codegen.h ../myjit/llrb.c ../myjit/reg-allocator.h ../myjit/rmap.h 
@@ -97,3 +103,4 @@ clean:
 	rm -f t109
 	rm -f t200
 	rm -f t201
+	rm -f t301

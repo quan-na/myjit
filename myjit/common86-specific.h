@@ -205,7 +205,7 @@ static void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
 	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
 }
 
-static inline void __read_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
+static void __read_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
 {
 	if (type != JIT_FLOAT_NUM) {
 		if (size == REG_SIZE) common86_mov_reg_membase(jit->ip, dreg, stack_reg, stack_pos, REG_SIZE);

@@ -1,15 +1,22 @@
 ROADMAP
 =======
 
-+ release 0.6.0
-	* linear-scan reg. allocator (last-to-be-used heuristics)
-	+ reg. allocator should be aware of:
-		* callee/caller-saved registers
-		* register which are used to pass/return values
-
-+ release 0.6.0
-		+ operations having particular requirements on registers, e.g., MUL, DIV, SHL.
 + release 0.7.0
+	* optimizations
+	* add + mul
+	* shl + or
+	* add + add
+	* frame pointer
+	* unused variables
+
++ release 0.7.1
+	+ addmul+add
+	+ ld/st -> membase/memindex conversion
+
++ release 0.7.2
+	+ reg. allocator should be aware of operations having particular requirements on registers, e.g., MUL, DIV, SHL.
+
++ release 0.8.0
 	+ warnings:
 		+ basic API
 		+ unused assignments
@@ -17,8 +24,6 @@ ROADMAP
 		+ uninitialized registers
 		+ register type mismatches
 
-+ release 0.8.0
-	+ optimizations
 
 + release 0.9.0
 	+ integrated disassambler
