@@ -38,7 +38,7 @@ static inline rmap_t * rmap_init()
 	return res;
 }
 
-static inline jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg)
+jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg)
 {
 	rb_node * found = rb_search(rmap->map, reg);
 	if (found) return (jit_hw_reg *) found->value;

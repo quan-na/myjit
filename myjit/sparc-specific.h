@@ -18,6 +18,7 @@
  */
 
 #include "sparc-codegen.h"
+#include "x86-common-stuff.c"
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		((((long)jit->buf + (long)((jit_label *)(imm))->pos - (long)jit->ip)) / 4))
@@ -25,6 +26,8 @@
 #define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
 #define EXTRA_SPACE (16)
+
+inline jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg);
 
 static inline int __GET_REG_POS(struct jit * jit, int r)
 {
