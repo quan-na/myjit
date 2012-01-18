@@ -298,12 +298,15 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 		struct jit_func_info * info = (struct jit_func_info *) op->arg[1];
 		al->current_func_info = info;
 
-		op->regmap = rmap_init();
+		//op->regmap = rmap_init();
 
 		assign_regs_for_args(al, op);
 	} else {
 		// initializes register mappings for standard operations
-		if (op->prev) op->regmap = rmap_clone(op->prev->regmap); 
+		if (op->prev) {
+			rmap_free(op->regmap);
+			op->regmap = rmap_clone(op->prev->regmap); 
+		}
 	}
 
 	// operations reuqiring some special core
@@ -352,6 +355,7 @@ static void mark_calleesaved_regs(struct rb_node * hint, jit_op * op)
 /**
  * Collects statistics on used registers
  */
+static void __increase_refcount(struct rb_node * hints);
 void jit_collect_statistics(struct jit * jit)
 {
 	int i, j;
@@ -391,6 +395,7 @@ void jit_collect_statistics(struct jit * jit)
 				new_hint->should_be_calleesaved = 0;
 				new_hint->should_be_eax = 0;
 			}
+			new_hint->refs = 0;
 
 			new_hint->last_pos = ops_from_return;
 #ifdef JIT_ARCH_COMMON86
@@ -402,6 +407,7 @@ void jit_collect_statistics(struct jit * jit)
 #ifdef JIT_ARCH_COMMON86
 		if (GET_OP(op) == JIT_CALL) mark_calleesaved_regs(new_hints, op);
 #endif
+		__increase_refcount(new_hints);
 		op->allocator_hints = new_hints;
 
 		if (GET_OP(op) == JIT_PROLOG) {
@@ -413,11 +419,31 @@ void jit_collect_statistics(struct jit * jit)
 		}
 	}
 }
+
+static void __increase_refcount(struct rb_node * hints)
+{
+	if (hints == NULL) return;
+	((struct jit_allocator_hint*) hints->value)->refs++;
+	__increase_refcount(hints->left);
+	__increase_refcount(hints->right);
+}
+
+void jit_allocator_hints_free(struct rb_node * hints)
+{
+	if (hints == NULL) return;
+	jit_allocator_hints_free(hints->left);
+	jit_allocator_hints_free(hints->right);
+
+	int refs = --((struct jit_allocator_hint*) hints->value)->refs;
+	if (refs == 0) JIT_FREE(hints->value);
+
+	JIT_FREE(hints);
+}
 //////////////////////////////////////////////////////////////////
 
 
 /**
- * This function adjusts assocaiation of registers to the state
+ * This function adjusts association of registers to the state
  * which is expected at the destination address of the jump
  * operation
  */

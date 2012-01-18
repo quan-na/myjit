@@ -181,6 +181,7 @@ struct jit_allocator_hint {
 	int last_pos;
 	int should_be_calleesaved;
 	int should_be_eax;
+	int refs;			// counts number of references to the hint
 };
 
 typedef struct jit_label {
@@ -301,6 +302,7 @@ char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg, int fp);
 jit_hw_reg * jit_get_unused_reg(struct jit_reg_allocator * al, jit_op * op, int fp);
 void rmap_free(rmap_t * regmap);
+void jit_allocator_hints_free(struct rb_node *);
 
 #define JIT_CODESTART	(0x00 << 3)
 #define JIT_UREG	(0x01 << 3)
@@ -666,6 +668,7 @@ static struct jit_op * __new_op(unsigned short code, unsigned char spec, long ar
 	r->regmap = NULL;
 	r->live_in = NULL;
 	r->live_out = NULL;
+	r->allocator_hints = NULL;
 	return r;
 }
 

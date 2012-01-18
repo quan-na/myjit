@@ -340,6 +340,7 @@ static void __free_ops(struct jit_op * op)
 	if (op->live_in) jitset_free(op->live_in);
 	if (op->live_out) jitset_free(op->live_out);
 	rmap_free(op->regmap);
+	jit_allocator_hints_free(op->allocator_hints);
 
 	if (GET_OP(op) == JIT_PROLOG) {
 		struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
