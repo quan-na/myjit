@@ -254,5 +254,8 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 #endif
 
 	a->fp_arg_reg_cnt = 0;
+
+	a->gp_arg_regs = NULL;
+	a->fp_arg_regs = NULL;
 	return a;
 }
