@@ -629,8 +629,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BGE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
 		case JIT_BEQ: __branch_op(jit, op, sparc_be, IS_IMM(op)); break;
 		case JIT_BNE: __branch_op(jit, op, sparc_bne, IS_IMM(op)); break;
-		case JIT_BMS: __branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
-		case JIT_BMC: __branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
+		case JIT_BMS: __branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
+		case JIT_BMC: __branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
 		case JIT_BOADD: __branch_overflow_op(jit, op, JIT_ADD, IS_IMM(op)); break;
 		case JIT_BOSUB: __branch_overflow_op(jit, op, JIT_SUB, IS_IMM(op)); break;
 

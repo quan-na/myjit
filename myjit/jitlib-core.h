@@ -53,8 +53,12 @@
 #define SIGNED 0x00 
 #define SIGN_MASK (0x04)
 
+#ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
 
 
 struct jitset;

@@ -6,11 +6,14 @@
 #else
 #endif
 
-// FIXME: REMOVEME
+#include <stdint.h>
+
+#ifndef FALSE
 #define FALSE	(0)
+#endif
+#ifndef TRUE
 #define TRUE	(1)
-typedef unsigned int guint32;
-typedef int gint32;
+#endif
 //////////////////////
 
 typedef enum {
@@ -862,13 +865,13 @@ typedef struct {
 	do {	\
         if ((val) == 0) \
             sparc_clr_reg((ins),(reg)); \
-               else if (((guint32)(val) & 0x3ff) == 0) \
-			sparc_sethi((ins),(guint32)(val),(reg));	\
-		else if (((gint32)(val) >= -4096) && ((gint32)(val) <= 4095))	\
-			sparc_or_imm((ins),FALSE,sparc_g0,(gint32)(val),(reg));	\
+               else if (((uint32_t)(val) & 0x3ff) == 0) \
+			sparc_sethi((ins),(uint32_t)(val),(reg));	\
+		else if (((int32_t)(val) >= -4096) && ((int32_t)(val) <= 4095))	\
+			sparc_or_imm((ins),FALSE,sparc_g0,(int32_t)(val),(reg));	\
 		else {	\
-			sparc_sethi((ins),(guint32)(val),(reg));	\
-			sparc_or_imm((ins),FALSE,(reg),(guint32)(val)&0x3ff,(reg));	\
+			sparc_sethi((ins),(uint32_t)(val),(reg));	\
+			sparc_or_imm((ins),FALSE,(reg),(uint32_t)(val)&0x3ff,(reg));	\
 		}	\
 	} while (0)
 
@@ -883,8 +886,8 @@ typedef struct {
 	do {	\
         g_assert ((reg) != sparc_g1); \
         gint64 val = (gint64)ptr; \
-		guint32 top_word = (val) >> 32; \
-		guint32 bottom_word = (val) & 0xffffffff; \
+		uint32_t top_word = (val) >> 32; \
+		uint32_t bottom_word = (val) & 0xffffffff; \
         if (val == 0) \
            sparc_clr_reg ((ins), reg); \
 		else if ((val >= -4096) && ((val) <= 4095))	\
@@ -921,13 +924,13 @@ typedef struct {
 	do {	\
         if ((val) == 0) \
             sparc_clr_reg((ins),(reg)); \
-               else if (((guint32)(val) & 0x3ff) == 0) \
-			sparc_sethi((ins),(guint32)(val),(reg));	\
-		else if (((gint32)(val) >= -4096) && ((gint32)(val) <= 4095))	\
-			sparc_or_imm((ins),FALSE,sparc_g0,(gint32)(val),(reg));	\
+               else if (((uint32_t)(val) & 0x3ff) == 0) \
+			sparc_sethi((ins),(uint32_t)(val),(reg));	\
+		else if (((int32_t)(val) >= -4096) && ((int32_t)(val) <= 4095))	\
+			sparc_or_imm((ins),FALSE,sparc_g0,(int32_t)(val),(reg));	\
 		else {	\
-			sparc_sethi((ins),(guint32)(val),(reg));	\
-			sparc_or_imm((ins),FALSE,(reg),(guint32)(val)&0x3ff,(reg));	\
+			sparc_sethi((ins),(uint32_t)(val),(reg));	\
+			sparc_or_imm((ins),FALSE,(reg),(uint32_t)(val)&0x3ff,(reg));	\
 		}	\
 	} while (0)
 #endif
