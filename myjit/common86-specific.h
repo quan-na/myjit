@@ -77,6 +77,7 @@ static void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
 
 static int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 {
+	if ((GET_OP(op) == JIT_RENAMEREG) && (op->r_arg[0] == reg)) return 1; // not a regular operation
 	for (int i = 0; i < 3; i++)
 		if ((ARG_TYPE(op, i + 1) == REG) || (ARG_TYPE(op, i + 1) == TREG)) {
 			if (fp && (JIT_REG(op->arg[i]).type == JIT_RTYPE_INT)) continue;
