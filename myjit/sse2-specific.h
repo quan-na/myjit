@@ -250,7 +250,7 @@ static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a
         x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
 }
 
-static inline void __sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
+static void __sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
 {
 	static const double x0 = 0.0;
 	static const double x05 = 0.5;

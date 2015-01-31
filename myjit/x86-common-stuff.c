@@ -140,7 +140,7 @@ static int join_2ops(jit_op * op, int opcode1, int opcode2, int (* joinfn)(jit_o
 	return 0;
 }
 
-static inline int shift_index(int arg)
+static int shift_index(int arg)
 {
 	if (arg == 2) return 1;
 	if (arg == 4) return 2;

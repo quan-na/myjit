@@ -219,7 +219,7 @@ static inline int __configure_args(struct jit * jit)
 	return stack_correction;
 }
 
-static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
+static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 {
 	// correctly aligns stack to 16 bytes
 	int stack_correction = __configure_args(jit);

@@ -222,7 +222,6 @@ static jit_hw_reg * rmap_spill_candidate(struct jit_reg_allocator * al, jit_op *
 		reg_count = al->fp_reg_cnt;
 	}
 
-	int not_found = 1;
 	int sp = 0;
 	for (int i = 0; i < reg_count; i++) {
 		if (callee_saved && !regs[i].callee_saved) continue;
@@ -238,7 +237,6 @@ static jit_hw_reg * rmap_spill_candidate(struct jit_reg_allocator * al, jit_op *
 			}
 			result = &(regs[i]);
 			best_score = score;
-			not_found = 0;
 		}
 	}
 	return result;
