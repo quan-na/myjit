@@ -20,7 +20,7 @@
 /*
 // x86 register numbers
 */
-typedef enum {
+typedef enum jit_x86_gp_regs {
 	X86_EAX = 0,
 	X86_ECX = 1,
 	X86_EDX = 2,
@@ -32,7 +32,7 @@ typedef enum {
 	X86_NREG
 } X86_Reg_No;
 
-typedef enum {
+typedef enum jit_x86_fp_regs {
 	X86_XMM0,
 	X86_XMM1,
 	X86_XMM2,

@@ -20,7 +20,7 @@
 
 #include <assert.h>
 
-typedef enum {
+typedef enum jit_amd64_gp_regs {
 	AMD64_RAX = 0,
 	AMD64_RCX = 1,
 	AMD64_RDX = 2,
@@ -41,7 +41,7 @@ typedef enum {
 	AMD64_NREG
 } AMD64_Reg_No;
 
-typedef enum {
+typedef enum jit_amd64_fp_regs {
 	AMD64_XMM0 = 0,
 	AMD64_XMM1 = 1,
 	AMD64_XMM2 = 2,
@@ -193,7 +193,7 @@ typedef union {
 			*(inst)++ = (unsigned char)0x83;	\
 			x86_reg_emit ((inst), (opc), (reg));	\
 			x86_imm_emit8 ((inst), (imm));	\
-		} else if ((reg) == X86_EAX) {	\
+		} else if ((reg) == AMD64_RAX) {	\
 			amd64_emit_rex(inst, size, 0, 0, 0); \
 			*(inst)++ = (((unsigned char)(opc)) << 3) + 5;	\
 			x86_imm_emit32 ((inst), (imm));	\
