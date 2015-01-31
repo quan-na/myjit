@@ -32,13 +32,15 @@
 
 static void gcc_based_debugger(struct jit * jit)
 {
-	char * obj_file_name = tempnam(NULL, "myjit");
+	char obj_file_name[] = "myjitXXXXXX";
+	int obj_file_fd = mkstemp(obj_file_name);	
+
 
 	char * cmd1_fmt = "gcc -x assembler -c -o %s -";
 	char * cmd2_fmt = "objdump -d -M intel %s";
 
-	char cmd1[strlen(cmd1_fmt) + strlen(obj_file_name)];
-	char cmd2[strlen(cmd2_fmt) + strlen(obj_file_name)];
+	char cmd1[strlen(cmd1_fmt) + strlen(obj_file_name) + 1];
+	char cmd2[strlen(cmd2_fmt) + strlen(obj_file_name) + 1];
 
 	sprintf(cmd1, cmd1_fmt, obj_file_name);
 
@@ -53,8 +55,8 @@ static void gcc_based_debugger(struct jit * jit)
 	sprintf(cmd2, cmd2_fmt, obj_file_name);
 	system(cmd2);
 
+	close(obj_file_fd);
 	unlink(obj_file_name);
-	free(obj_file_name);
 }
 
 void jit_dump_code(struct jit * jit, int verbosity)
