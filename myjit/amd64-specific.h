@@ -124,7 +124,11 @@ static inline void __set_fparg(struct jit * jit, struct jit_out_arg * arg)
 	} else { // immediate value
 		if (arg->size == sizeof(float)) {
 			float val = (float)arg->value.fp;
-			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned int *)&val, 4);
+			unsigned int tmp;
+
+			memcpy(&tmp, &val, sizeof(float));
+			//amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned int *)&val, 4);
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, tmp, 4);
 			amd64_movd_xreg_reg_size(jit->ip, reg, AMD64_RAX, 4);
 		} else {
 			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, value, 8);
@@ -167,7 +171,9 @@ static inline void __push_fparg(struct jit * jit, struct jit_out_arg * arg)
 			}
 		} else {
 			double b = arg->value.fp;
-			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned long *)&b, 8);
+			unsigned long tmp;
+			memcpy(&tmp, &b, sizeof(double));
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, tmp, 8);
 			amd64_push_reg(jit->ip, AMD64_RAX);
 		}
 
@@ -182,8 +188,11 @@ static inline void __push_fparg(struct jit * jit, struct jit_out_arg * arg)
 			amd64_sse_movlpd_membase_xreg(jit->ip, AMD64_XMM0, AMD64_RSP, 0);
 		} else {
 			float b = arg->value.fp;
-			// FIXME: mely by se kopirovat jenom 4B!!!
-			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, *(unsigned long *)&b, 8);
+			unsigned long tmp = 0;
+			// FIXME: overit, ze toto funguje spravne, nevim, jestli to nezapisuje do blbe (horni/dolni) casti registru
+			memcpy(&tmp, &b, sizeof(float));
+			
+			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, tmp, 8);
 			amd64_push_reg(jit->ip, AMD64_RAX);
 		}
 	}

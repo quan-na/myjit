@@ -249,7 +249,8 @@ static int join_addr_addi(jit_op * op, jit_op * nextop)
 	nextop->spec = SPEC(TREG, REG, REG);
 
 	nextop->arg[2] = -nextop->arg[2];
-	nextop->flt_imm = *(double *)&(nextop->arg[2]);
+	//nextop->flt_imm = *(double *)&(nextop->arg[2]);
+	memcpy(&nextop->flt_imm, &(nextop->arg[2]), sizeof(jit_value));
 	nextop->arg[1] = op->arg[1];
 	nextop->arg[2] = op->arg[2];
 
@@ -271,7 +272,8 @@ static int join_addi_addr(jit_op * op, jit_op * nextop)
 	nextop->spec = SPEC(TREG, REG, REG);
 
 	if (nextop->arg[1] == nextop->arg[2]) op->arg[2] *= 2;
-	nextop->flt_imm = *(double *)&(op->arg[2]);
+	//nextop->flt_imm = *(double *)&(op->arg[2]);
+	memcpy(&nextop->flt_imm, &(nextop->arg[2]), sizeof(jit_value));
 
 	if (nextop->arg[1] == op->arg[0]) nextop->arg[1] = op->arg[1];
 	if (nextop->arg[2] == op->arg[0]) nextop->arg[2] = op->arg[1];
