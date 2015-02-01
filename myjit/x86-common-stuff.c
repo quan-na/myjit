@@ -248,6 +248,7 @@ static int join_addr_addi(jit_op * op, jit_op * nextop)
 	nextop->code = JIT_X86_ADDIMM;
 	nextop->spec = SPEC(TREG, REG, REG);
 
+	// FIXME: je to - spravne?
 	nextop->arg[2] = -nextop->arg[2];
 	//nextop->flt_imm = *(double *)&(nextop->arg[2]);
 	memcpy(&nextop->flt_imm, &(nextop->arg[2]), sizeof(jit_value));

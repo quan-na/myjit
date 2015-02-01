@@ -218,15 +218,15 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 #endif
 	a->gp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * (a->gp_reg_cnt + 1));
 
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_EAX, 0, "eax", 0, 0, 5 };
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_EBX, 0, "ebx", 1, 0, 0 };
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_ECX, 0, "ecx", 0, 0, 3 };
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_EDX, 0, "edx", 0, 0, 4 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EAX, "eax", 0, 0, 5 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EBX, "ebx", 1, 0, 0 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_ECX, "ecx", 0, 0, 3 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EDX, "edx", 0, 0, 4 };
 #ifndef JIT_REGISTER_TEST
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_ESI, 0, "esi", 1, 0, 1 };
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_EDI, 0, "edi", 1, 0, 2 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_ESI, "esi", 1, 0, 1 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EDI, "edi", 1, 0, 2 };
 #endif
-	a->gp_regs[reg++] = (jit_hw_reg) { X86_EBP, 0, "ebp", 0, 0, 100 };
+	a->gp_regs[reg++] = (jit_hw_reg) { X86_EBP, "ebp", 0, 0, 100 };
 	a->gp_arg_reg_cnt = 0;
 
 	a->fp_reg = X86_EBP;
@@ -242,15 +242,15 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 	reg = 0;
 	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
 
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM0, 0, "xmm0", 0, 1, 1 };
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM1, 0, "xmm1", 0, 1, 2 };
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM2, 0, "xmm2", 0, 1, 3 };
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM3, 0, "xmm3", 0, 1, 4 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM0, "xmm0", 0, 1, 1 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM1, "xmm1", 0, 1, 2 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM2, "xmm2", 0, 1, 3 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM3, "xmm3", 0, 1, 4 };
 #ifndef JIT_REGISTER_TEST
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM4, 0, "xmm4", 0, 1, 5 };
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM5, 0, "xmm5", 0, 1, 6 };
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM6, 0, "xmm6", 0, 1, 7 };
-	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM7, 0, "xmm7", 0, 1, 8 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM4, "xmm4", 0, 1, 5 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM5, "xmm5", 0, 1, 6 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM6, "xmm6", 0, 1, 7 };
+	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM7, "xmm7", 0, 1, 8 };
 #endif
 
 	a->fp_arg_reg_cnt = 0;

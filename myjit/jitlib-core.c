@@ -59,7 +59,6 @@ struct jit * jit_init()
 
 	r->labels = NULL;
 	r->reg_al = jit_reg_allocator_create();
-	r->argpos = 0;
 	jit_enable_optimization(r, JIT_OPT_JOIN_ADDMUL | JIT_OPT_OMIT_FRAME_PTR);
 
 	return r;

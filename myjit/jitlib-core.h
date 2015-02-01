@@ -132,7 +132,6 @@ static inline jit_reg JIT_REG(jit_value v)
 
 struct __hw_reg {
 	int id;
-	unsigned long used; // FIXME: unnecessary for LTU allocator
 	char * name;
 	char callee_saved;
 	char fp;
@@ -255,7 +254,6 @@ struct jit {
 
 	unsigned char * ip;		// pointer to the buffer
 
-	int argpos;			// FIXME: REMOVEME
 	struct jit_op * ops;		// list of operations
 	struct jit_op * last_op;	// last operation
 	struct jit_reg_allocator * reg_al; // register allocatot
