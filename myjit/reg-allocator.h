@@ -324,6 +324,7 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 #endif
 		case JIT_GETARG: skip = assign_getarg(op, al); break;
 		case JIT_CALL: skip = assign_call(op, al); break;
+		default: break;
 	}
 
 	if (skip) return;
@@ -494,6 +495,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 			case JIT_FBNE: op->code = JIT_FBEQ | (op->code & 0x7); break;
 			case JIT_FBLT: op->code = JIT_FBGE | (op->code & 0x7); break;
 			case JIT_FBLE: op->code = JIT_FBGT | (op->code & 0x7); break;
+			default: break;
 		}
 	
 		jit_op * o = __new_op(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		

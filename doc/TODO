@@ -10,10 +10,23 @@ ROADMAP
 	* unused variables
 
 + release 0.7.1
+	* removed warnings
+	* bug in JIT_OPT_JOIN_ADDMUL
+	* opcodes as an enum
+	+ label to register operation
+	+ align operation
+	+ raw data in code
+	+ bogus demo.c file
+	+ cpu detection
+	+ all globals with the jit/JIT prefix
+	+ floating point comparisons
+
+
++ release 0.7.2
 	+ addmul+add
 	+ ld/st -> membase/memindex conversion
 
-+ release 0.7.2
++ release 0.7.3
 	+ reg. allocator should be aware of operations having particular requirements on registers, e.g., MUL, DIV, SHL.
 
 + release 0.8.0
