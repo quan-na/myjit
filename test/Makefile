@@ -8,7 +8,7 @@ optim: t301
 
 misc: t200 t201
 
-CFLAGS = -g -std=c99 -Wall -pedantic
+CFLAGS = -g -std=c99 -Wall -pedantic -D_XOPEN_SOURCE=600
 
 t001: t001-basics.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t001 t001-basics.c jitlib-core.o
