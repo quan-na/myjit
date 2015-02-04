@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -81,23 +81,8 @@
 
 
 /*
- * Common macros
+ * Common platform specific macros
  */
-
-#define R(x) (__mkreg(JIT_RTYPE_INT, JIT_RTYPE_REG, (x)))
-#define FR(x) (__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_REG, (x)))
-
-#ifndef JIT_MALLOC
-#define JIT_MALLOC(x)	(malloc(x))
-#endif
-
-#ifndef JIT_REALLOC
-#define JIT_REALLOC(x, size)	(realloc((x), (size)))
-#endif
-
-#ifndef JIT_FREE
-#define JIT_FREE(x)	(free(x))
-#endif
 
 #define INT_SIZE (sizeof(int))
 #define PTR_SIZE (sizeof(void *))
@@ -105,5 +90,6 @@
 
 typedef long jit_value;
 typedef unsigned long jit_unsigned_value;
+typedef double jit_float;
 
 #endif

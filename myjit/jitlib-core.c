@@ -24,10 +24,25 @@
 #include <unistd.h>
 
 #include "cpu-detect.h"
-
+#include "jitlib.h"
 #include "jitlib-core.h"
+#include "set.h"
+
+
+#ifdef JIT_ARCH_COMMON86
+#include "common86-specific.h"
+#endif
+
+#ifdef JIT_ARCH_SPARC
+#include "sparc-specific.h"
+#endif
+
 #include "jitlib-debug.c"
 #include "flow-analysis.h"
+#include "rmap.h"
+#include "reg-allocator.h"
+
+
 
 #define BUF_SIZE		(4096)
 #define MINIMAL_BUF_SPACE	(1024)
@@ -63,6 +78,29 @@ struct jit * jit_init()
 
 	return r;
 }
+
+void jit_prolog(struct jit * jit, void * func)
+{
+        jit_op * op = jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0);
+        struct jit_func_info * info = JIT_MALLOC(sizeof(struct jit_func_info));
+        op->arg[1] = (long)info;
+
+        jit->current_func = op;
+
+        info->allocai_mem = 0;
+        info->general_arg_cnt = 0;
+        info->float_arg_cnt = 0;
+}
+
+jit_label * jit_get_label(struct jit * jit)
+{
+        jit_label * r = JIT_MALLOC(sizeof(jit_label));
+        jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
+        r->next = jit->labels;
+        jit->labels = r;
+        return r;
+}
+
 
 #if JIT_IMM_BITS > 0
 /**

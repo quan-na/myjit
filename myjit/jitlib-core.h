@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,32 +26,19 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
+#include "jitlib.h"
 #include "llrb.c"
+
 
 #define FR_IMM	(__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_IMM, 0))
 #define R_IMM	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_IMM, 0)) // used by amd64 and sparc
-
-#define R_FP	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 0))
-#define R_OUT	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 1))
-
-#define JIT_FORWARD    (NULL)
 
 #define GET_OP(op) ((jit_opcode) (op->code & 0xfff8))
 #define GET_OP_SUFFIX(op) (op->code & 0x0007)
 #define IS_IMM(op) (op->code & IMM)
 #define IS_SIGNED(op) (!(op->code & UNSIGNED))
-
-
-#define NO  0x00
-#define REG 0x01
-#define IMM 0x02
-#define TREG 0x03 /* target register */
-#define SPEC(ARG1, ARG2, ARG3) (((ARG3) << 4) | ((ARG2) << 2) | (ARG1))
-#define SPEC_SIGN(SIGN, ARG1, ARG2, ARG3) ((SIGN << 6) | ((ARG3) << 4) | ((ARG2) << 2) | (ARG1))
 #define ARG_TYPE(op, arg) (((op)->spec >> ((arg) - 1) * 2) & 0x03)
-#define UNSIGNED 0x04
-#define SIGNED 0x00 
-#define SIGN_MASK (0x04)
+
 
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -60,75 +47,6 @@
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-
-struct jitset;
-
-typedef double jit_float;
-
-typedef struct {
-	unsigned type: 1; // INT / FP
-	unsigned spec: 2; // register, alias, immediate, argument's shadow space
-	unsigned part: 1; // allows to split one virtual register into two hw. registers (implicitly 0)
-	unsigned id: 28;
-#ifndef JIT_ARCH_AMD64
-#else
-	unsigned reserved: 32; 
-#endif
-} jit_reg;
-
-#define JIT_RTYPE_REG	(0)
-#define JIT_RTYPE_IMM	(1)
-#define JIT_RTYPE_ALIAS	(2)
-#define JIT_RTYPE_ARG	(3)
-
-#define JIT_RTYPE_INT	(0)
-#define JIT_RTYPE_FLOAT	(1)
-
-#define JIT_DEBUG_LOADS		(0x01)
-#define JIT_DEBUG_ASSOC		(0x02)
-#define JIT_DEBUG_LIVENESS	(0x04)
-
-#define JIT_OPT_OMIT_FRAME_PTR			(0x01)
-#define JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS	(0x02)
-#define JIT_OPT_JOIN_ADDMUL			(0x04)
-#define JIT_OPT_ALL				(0xff)
-
-static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)
-{
-	jit_value v;
-	memcpy(&v, &r, sizeof(jit_reg));
-	return v;
-}
-
-static inline jit_value __mkreg(int type, int spec, int id)
-{
-	jit_reg r;
-	r.type = type;
-	r.spec = spec;
-	r.id = id;
-	r.part = 0;
-#ifdef JIT_ARCH_AMD64
-	r.reserved = 0;
-#endif
-	return JIT_REG_TO_JIT_VALUE(r);
-}
-
-static inline jit_value __mkreg_ex(int type, int spec, int id)
-{
-	jit_reg r;
-	r.type = type;
-	r.spec = spec;
-	r.id = id;
-	r.part = 1;
-	return JIT_REG_TO_JIT_VALUE(r);
-}
-
-static inline jit_reg JIT_REG(jit_value v)
-{
-	jit_reg r;
-	memcpy(&r, &v, sizeof(jit_value));
-	return r;
-}
 
 struct __hw_reg {
 	int id;
@@ -160,38 +78,12 @@ typedef struct rmap_t {
 	struct rb_node * map;		// R/B tree which maps virtual registers to hardware registers
 } rmap_t;
 
-typedef struct jit_op {
-	unsigned short code;		// operation code
-	unsigned char spec;		// argument types, e.g REG+REG+IMM
-	unsigned char arg_size; 	// used by ld, st
-	unsigned char assigned;
-	unsigned char fp;		// FP if it's a floating-point operation	
-	double flt_imm;			// floating point immediate value
-	jit_value arg[3];		// arguments passed by user
-	jit_value r_arg[3];		// arguments transformed by register allocator
-	long patch_addr;
-	struct jit_op * jmp_addr;
-	struct jit_op * next;
-	struct jit_op * prev;
-	struct jitset * live_in;
-	struct jitset * live_out;
-	rmap_t * regmap;		// register mappings 
-	int normalized_pos;		// number of operations from the end of the function
-	struct rb_node * allocator_hints; // reg. allocator to collect statistics on used registers
-} jit_op;
-
 struct jit_allocator_hint {
 	int last_pos;
 	int should_be_calleesaved;
 	int should_be_eax;
 	int refs;			// counts number of references to the hint
 };
-
-typedef struct jit_label {
-	long pos;
-	jit_op * op;
-	struct jit_label * next;
-} jit_label;
 
 typedef struct jit_prepared_args {
 	int count;	// number of arguments to prepare
@@ -211,13 +103,6 @@ typedef struct jit_prepared_args {
 		char size;
 	} * args;
 } jit_prepared_args;
-
-enum jit_inp_type {
-	JIT_SIGNED_NUM,
-	JIT_UNSIGNED_NUM,
-	JIT_FLOAT_NUM,
-	JIT_PTR
-};
 
 typedef struct jitset {
 	rb_node * root;
@@ -264,15 +149,6 @@ struct jit {
 	unsigned int optimizations;
 };
 
-struct jit * jit_init();
-struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, jit_value arg1, jit_value arg2, jit_value arg3, unsigned char arg_size);
-struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, jit_value arg1, jit_value arg2, jit_value arg3, double flt_imm, unsigned char arg_size);
-void jit_generate_code(struct jit * jit);
-void jit_free(struct jit * jit);
-
-void jit_dump_code(struct jit * jit, int verbosity);
-void jit_dump_ops(struct jit * jit, int verbosity);
-
 void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 
@@ -283,9 +159,6 @@ int jit_optimize_join_addmul(struct jit * jit);
 int jit_optimize_join_addimm(struct jit * jit);
 void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
-
-void jit_enable_optimization(struct jit * jit, int opt);
-void jit_disable_optimization(struct jit * jit, int opt);
 
 /**
  * Initialize argpos-th argument.
@@ -306,347 +179,6 @@ jit_hw_reg * jit_get_unused_reg(struct jit_reg_allocator * al, jit_op * op, int 
 void rmap_free(rmap_t * regmap);
 void jit_allocator_hints_free(struct rb_node *);
 
-typedef enum {
-	 JIT_CODESTART	= (0x00 << 3),
-	 JIT_UREG	= (0x01 << 3),
-	 JIT_LREG	= (0x02 << 3),
-	 JIT_SYNCREG	= (0x03 << 3),
-	 JIT_RENAMEREG	= (0x0f << 3), 
-
-	 JIT_DECL_ARG	= (0x04 << 3),
-	 JIT_ALLOCA	= (0x05 << 3),
-
-	 JIT_MOV 	= (0x06 << 3),
-	 JIT_LD		= (0x07 << 3),
-	 JIT_LDX	= (0x08 << 3),
-	 JIT_ST		= (0x09 << 3),
-	 JIT_STX	= (0x0a << 3),
-
-	 JIT_JMP 	= (0x10 << 3),
-	 JIT_PATCH 	= (0x11 << 3),
-	 JIT_PREPARE 	= (0x12 << 3),
-	 JIT_PUTARG 	= (0x15 << 3),
-	 JIT_CALL 	= (0x16 << 3),
-	 JIT_RET	= (0x17 << 3),
-	 JIT_PROLOG	= (0x18 << 3),
-	 JIT_LEAF	= (0x19 << 3),
-	 JIT_GETARG	= (0x1a << 3),
-	 JIT_RETVAL	= (0x1b << 3),
-	 JIT_LABEL	= (0x1c << 3),
-
-	 JIT_ADD 	= (0x20 << 3),
-	 JIT_ADDC	= (0x21 << 3),
-	 JIT_ADDX	= (0x22 << 3),
-	 JIT_SUB	= (0x23 << 3),
-	 JIT_SUBC	= (0x24 << 3),
-	 JIT_SUBX	= (0x25 << 3),
-	 JIT_RSB	= (0x26 << 3),
-	 JIT_NEG 	= (0x27 << 3),
-	 JIT_MUL	= (0x28 << 3),
-	 JIT_HMUL	= (0x29 << 3),
-	 JIT_DIV	= (0x2a << 3),
-	 JIT_MOD	= (0x2b << 3),
-
-	 JIT_OR	 	= (0x30 << 3),
-	 JIT_XOR 	= (0x31 << 3),
-	 JIT_AND	= (0x32 << 3),
-	 JIT_LSH	= (0x33 << 3),
-	 JIT_RSH	= (0x34 << 3),
-	 JIT_NOT	= (0x35 << 3),
-
-	 JIT_LT		= (0x40 << 3),
-	 JIT_LE		= (0x41 << 3),
-	 JIT_GT		= (0x42 << 3),
-	 JIT_GE		= (0x43 << 3),
-	 JIT_EQ		= (0x44 << 3),
-	 JIT_NE		= (0x45 << 3),
-
-	 JIT_BLT 	= (0x50 << 3),
-	 JIT_BLE	= (0x51 << 3),
-	 JIT_BGT	= (0x52 << 3),
-	 JIT_BGE	= (0x53 << 3),
-	 JIT_BEQ	= (0x54 << 3),
-	 JIT_BNE	= (0x55 << 3),
-	 JIT_BMS	= (0x56 << 3),	
-	 JIT_BMC	= (0x57 << 3),	
-	 JIT_BOADD	= (0x58 << 3),	
-	 JIT_BOSUB	= (0x59 << 3),	
-
-	 JIT_MSG	= (0x60 << 3),
-	 JIT_NOP	= (0xff << 3),
-
-	 JIT_FMOV	= (0x70 << 3),
-	 JIT_FADD	= (0x71 << 3),
-	 JIT_FSUB	= (0x72 << 3),
-	 JIT_FRSB 	= (0x73 << 3),
-	 JIT_FMUL	= (0x74 << 3),
-	 JIT_FDIV	= (0x75 << 3),
-	 JIT_FNEG	= (0x76 << 3),
-	 JIT_FRETVAL	= (0x77 << 3),
-	 JIT_FPUTARG	= (0x78 << 3),
-
-	 JIT_EXT	= (0x79 << 3),
-	 JIT_ROUND	= (0x7a << 3),
-	 JIT_TRUNC	= (0x7b << 3),
-	 JIT_FLOOR	= (0x7c << 3),
-	 JIT_CEIL	= (0x7d << 3),
-
-/*
-	 JIT_FLT 	= (0x80 << 3),
-	 JIT_FLE	= (0x81 << 3),
-	 JIT_FGT	= (0x82 << 3),
-	 JIT_FGE	= (0x83 << 3),
-	 JIT_FEQ	= (0x84 << 3),
-	 JIT_FNE	= (0x85 << 3),
-*/
-
-	 JIT_FBLT 	= (0x86 << 3),
-	 JIT_FBLE	= (0x87 << 3),
-	 JIT_FBGT	= (0x88 << 3),
-	 JIT_FBGE	= (0x89 << 3),
-	 JIT_FBEQ	= (0x8a << 3),
-	 JIT_FBNE	= (0x8b << 3),
-
-	 JIT_FLD	= (0x90 << 3),
-	 JIT_FLDX	= (0x91 << 3),
-	 JIT_FST	= (0x92 << 3),
-	 JIT_FSTX	= (0x93 << 3),
-
-	 JIT_FRET	= (0x95 << 3),
-} jit_opcode;
-
-
-#define jit_movr(jit, a, b) jit_add_op(jit, JIT_MOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0)
-#define jit_movi(jit, a, b) jit_add_op(jit, JIT_MOV | IMM, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
-
-/* functions, call, jumps, etc. */
-
-#define jit_jmpr(jit, a) jit_add_op(jit, JIT_JMP | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_jmpi(jit, a) jit_add_op(jit, JIT_JMP | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_patch(jit, a) jit_add_op(jit, JIT_PATCH | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-
-#define jit_prepare(jit) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, IMM, NO), 0, 0, 0, 0)
-#define jit_putargr(jit, a) jit_add_op(jit, JIT_PUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-
-#define jit_declare_arg(jit, a, b) jit_add_op(jit, JIT_DECL_ARG, SPEC(IMM, IMM, NO), a, b, 0, 0)
-
-#define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_reti(jit, a) jit_add_op(jit, JIT_RET | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_retval(jit, a) jit_add_op(jit, JIT_RETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0)
-
-#define jit_getarg(jit, a, b) jit_add_op(jit, JIT_GETARG, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
-
-/* arithmetics */
-
-#define jit_addr(jit, a, b, c) jit_add_op(jit, JIT_ADD | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_addi(jit, a, b, c) jit_add_op(jit, JIT_ADD | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_addcr(jit, a, b, c) jit_add_op(jit, JIT_ADDC | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_addci(jit, a, b, c) jit_add_op(jit, JIT_ADDC | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_addxr(jit, a, b, c) jit_add_op(jit, JIT_ADDX | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_addxi(jit, a, b, c) jit_add_op(jit, JIT_ADDX | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_subr(jit, a, b, c) jit_add_op(jit, JIT_SUB | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_subi(jit, a, b, c) jit_add_op(jit, JIT_SUB | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
-#define jit_subcr(jit, a, b, c) jit_add_op(jit, JIT_SUBC | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_subci(jit, a, b, c) jit_add_op(jit, JIT_SUBC | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
-#define jit_subxr(jit, a, b, c) jit_add_op(jit, JIT_SUBX | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_subxi(jit, a, b, c) jit_add_op(jit, JIT_SUBX | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
-
-#define jit_rsbr(jit, a, b, c) jit_add_op(jit, JIT_RSB | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_rsbi(jit, a, b, c) jit_add_op(jit, JIT_RSB | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
-
-#define jit_negr(jit, a, b) jit_add_op(jit, JIT_NEG, SPEC(TREG, REG, NO), a, b, 0, 0)
-
-#define jit_mulr(jit, a, b, c) jit_add_op(jit, JIT_MUL | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_muli(jit, a, b, c) jit_add_op(jit, JIT_MUL | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_mulr_u(jit, a, b, c) jit_add_op(jit, JIT_MUL | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_muli_u(jit, a, b, c) jit_add_op(jit, JIT_MUL | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_hmulr(jit, a, b, c) jit_add_op(jit, JIT_HMUL | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_hmuli(jit, a, b, c) jit_add_op(jit, JIT_HMUL | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_hmulr_u(jit, a, b, c) jit_add_op(jit, JIT_HMUL | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_hmuli_u(jit, a, b, c) jit_add_op(jit, JIT_HMUL | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_divr(jit, a, b, c) jit_add_op(jit, JIT_DIV | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_divi(jit, a, b, c) jit_add_op(jit, JIT_DIV | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_divr_u(jit, a, b, c) jit_add_op(jit, JIT_DIV | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_divi_u(jit, a, b, c) jit_add_op(jit, JIT_DIV | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_modr(jit, a, b, c) jit_add_op(jit, JIT_MOD | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_modi(jit, a, b, c) jit_add_op(jit, JIT_MOD | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_modr_u(jit, a, b, c) jit_add_op(jit, JIT_MOD | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_modi_u(jit, a, b, c) jit_add_op(jit, JIT_MOD | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-/* bitwise arithmetics */
-
-#define jit_orr(jit, a, b, c) jit_add_op(jit, JIT_OR | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_ori(jit, a, b, c) jit_add_op(jit, JIT_OR | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_xorr(jit, a, b, c) jit_add_op(jit, JIT_XOR | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_xori(jit, a, b, c) jit_add_op(jit, JIT_XOR | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_andr(jit, a, b, c) jit_add_op(jit, JIT_AND | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_andi(jit, a, b, c) jit_add_op(jit, JIT_AND | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_lshr(jit, a, b, c) jit_add_op(jit, JIT_LSH | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lshi(jit, a, b, c) jit_add_op(jit, JIT_LSH | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_rshr(jit, a, b, c) jit_add_op(jit, JIT_RSH | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_rshi(jit, a, b, c) jit_add_op(jit, JIT_RSH | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_rshr_u(jit, a, b, c) jit_add_op(jit, JIT_RSH | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_rshi_u(jit, a, b, c) jit_add_op(jit, JIT_RSH | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_notr(jit, a, b) jit_add_op(jit, JIT_NOT, SPEC(TREG, REG, NO), a, b, 0, 0)
-
-/* branches */
-
-#define jit_bltr(jit, a, b, c) jit_add_op(jit, JIT_BLT | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blti(jit, a, b, c) jit_add_op(jit, JIT_BLT | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bltr_u(jit, a, b, c) jit_add_op(jit, JIT_BLT | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blti_u(jit, a, b, c) jit_add_op(jit, JIT_BLT | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-
-#define jit_bler(jit, a, b, c) jit_add_op(jit, JIT_BLE | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blei(jit, a, b, c) jit_add_op(jit, JIT_BLE | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bler_u(jit, a, b, c) jit_add_op(jit, JIT_BLE | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blei_u(jit, a, b, c) jit_add_op(jit, JIT_BLE | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-
-#define jit_bgtr(jit, a, b, c) jit_add_op(jit, JIT_BGT | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgti(jit, a, b, c) jit_add_op(jit, JIT_BGT | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bgtr_u(jit, a, b, c) jit_add_op(jit, JIT_BGT | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgti_u(jit, a, b, c) jit_add_op(jit, JIT_BGT | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-
-#define jit_bger(jit, a, b, c) jit_add_op(jit, JIT_BGE | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgei(jit, a, b, c) jit_add_op(jit, JIT_BGE | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bger_u(jit, a, b, c) jit_add_op(jit, JIT_BGE | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgei_u(jit, a, b, c) jit_add_op(jit, JIT_BGE | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-
-#define jit_beqr(jit, a, b, c) jit_add_op(jit, JIT_BEQ | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_beqi(jit, a, b, c) jit_add_op(jit, JIT_BEQ | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-
-#define jit_bner(jit, a, b, c) jit_add_op(jit, JIT_BNE | REG, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bnei(jit, a, b, c) jit_add_op(jit, JIT_BNE | IMM, SPEC(IMM, REG, IMM), a, b, c, 0)
-
-#define jit_bmsr(jit, a, b, c) jit_add_op(jit, JIT_BMS | REG, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bmsi(jit, a, b, c) jit_add_op(jit, JIT_BMS | IMM, SPEC(IMM, REG, IMM), a, b, c, 0)
-
-#define jit_bmcr(jit, a, b, c) jit_add_op(jit, JIT_BMC | REG, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bmci(jit, a, b, c) jit_add_op(jit, JIT_BMC | IMM, SPEC(IMM, REG, IMM), a, b, c, 0)
-
-#define jit_boaddr(jit, a, b, c) jit_add_op(jit, JIT_BOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_boaddi(jit, a, b, c) jit_add_op(jit, JIT_BOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
-
-#define jit_bosubr(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bosubi(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
-
-/* conditions */
-
-#define jit_ltr(jit, a, b, c) jit_add_op(jit, JIT_LT | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lti(jit, a, b, c) jit_add_op(jit, JIT_LT | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_ltr_u(jit, a, b, c) jit_add_op(jit, JIT_LT | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lti_u(jit, a, b, c) jit_add_op(jit, JIT_LT | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_ler(jit, a, b, c) jit_add_op(jit, JIT_LE | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lei(jit, a, b, c) jit_add_op(jit, JIT_LE | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_ler_u(jit, a, b, c) jit_add_op(jit, JIT_LE | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lei_u(jit, a, b, c) jit_add_op(jit, JIT_LE | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_gtr(jit, a, b, c) jit_add_op(jit, JIT_GT | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gti(jit, a, b, c) jit_add_op(jit, JIT_GT | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_gtr_u(jit, a, b, c) jit_add_op(jit, JIT_GT | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gti_u(jit, a, b, c) jit_add_op(jit, JIT_GT | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_ger(jit, a, b, c) jit_add_op(jit, JIT_GE | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gei(jit, a, b, c) jit_add_op(jit, JIT_GE | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_ger_u(jit, a, b, c) jit_add_op(jit, JIT_GE | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gei_u(jit, a, b, c) jit_add_op(jit, JIT_GE | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_eqr(jit, a, b, c) jit_add_op(jit, JIT_EQ | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_eqi(jit, a, b, c) jit_add_op(jit, JIT_EQ | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-#define jit_ner(jit, a, b, c) jit_add_op(jit, JIT_NE | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_nei(jit, a, b, c) jit_add_op(jit, JIT_NE | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-
-/* memory operations */
-
-#define jit_ldr(jit, a, b, c) jit_add_op(jit, JIT_LD | REG | SIGNED, SPEC(TREG, REG, NO), a, b, 0, c) 
-#define jit_ldi(jit, a, b, c) jit_add_op(jit, JIT_LD | IMM | SIGNED, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c) 
-#define jit_ldxr(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, d) 
-#define jit_ldxi(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d) 
-#define jit_ldr_u(jit, a, b, c) jit_add_op(jit, JIT_LD | REG | UNSIGNED, SPEC(TREG, REG, NO), a, b, 0, c) 
-#define jit_ldi_u(jit, a, b, c) jit_add_op(jit, JIT_LD | IMM | UNSIGNED, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c) 
-#define jit_ldxr_u(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, d) 
-#define jit_ldxi_u(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d) 
-
-
-#define jit_str(jit, a, b, c) jit_add_op(jit, JIT_ST | REG, SPEC(REG, REG, NO), a, b, 0, c) 
-#define jit_sti(jit, a, b, c) jit_add_op(jit, JIT_ST | IMM, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, c) 
-#define jit_stxr(jit, a, b, c, d) jit_add_op(jit, JIT_STX | REG, SPEC(REG, REG, REG), a, b, c, d) 
-#define jit_stxi(jit, a, b, c, d) jit_add_op(jit, JIT_STX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d) 
-
-#define jit_msg(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, 0)
-
-/* FPU */
-
-#define jit_fmovr(jit, a, b) jit_add_fop(jit, JIT_FMOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_fmovi(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, b, 0)
-
-#define jit_faddr(jit, a, b, c) jit_add_fop(jit, JIT_FADD | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_faddi(jit, a, b, c) jit_add_fop(jit, JIT_FADD | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_fsubr(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_fsubi(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_frsbr(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_frsbi(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_fmulr(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_fmuli(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_fdivr(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_fdivi(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-
-#define jit_fnegr(jit, a, b) jit_add_fop(jit, JIT_FNEG | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-
-#define jit_extr(jit, a, b) jit_add_fop(jit, JIT_EXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_truncr(jit, a, b) jit_add_fop(jit, JIT_TRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_floorr(jit, a, b) jit_add_fop(jit, JIT_FLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_ceilr(jit, a, b) jit_add_fop(jit, JIT_CEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_roundr(jit, a, b) jit_add_fop(jit, JIT_ROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-
-#define jit_fbltr(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fblti(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-#define jit_fbgtr(jit, a, b, c) jit_add_fop(jit, JIT_FBGT | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fbgti(jit, a, b, c) jit_add_fop(jit, JIT_FBGT | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-
-#define jit_fbler(jit, a, b, c) jit_add_fop(jit, JIT_FBLE | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fblei(jit, a, b, c) jit_add_fop(jit, JIT_FBLE | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-#define jit_fbger(jit, a, b, c) jit_add_fop(jit, JIT_FBGE | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fbgei(jit, a, b, c) jit_add_fop(jit, JIT_FBGE | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-
-#define jit_fbeqr(jit, a, b, c) jit_add_fop(jit, JIT_FBEQ | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fbeqi(jit, a, b, c) jit_add_fop(jit, JIT_FBEQ | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-
-#define jit_fbner(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | REG, SPEC(IMM, REG, REG), a, b, c, 0, 0)
-#define jit_fbnei(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | IMM, SPEC(IMM, REG, IMM), a, b, 0, c, 0)
-
-#define jit_fstr(jit, a, b, c) jit_add_op(jit, JIT_FST | REG, SPEC(REG, REG, NO), a, b, 0, c) 
-#define jit_fsti(jit, a, b, c) jit_add_op(jit, JIT_FST | IMM, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, c) 
-#define jit_fstxr(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | REG, SPEC(REG, REG, REG), a, b, c, d) 
-#define jit_fstxi(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d) 
-
-#define jit_fldr(jit, a, b, c) jit_add_op(jit, JIT_FLD | REG, SPEC(TREG, REG, NO), a, b, 0, c) 
-#define jit_fldi(jit, a, b, c) jit_add_op(jit, JIT_FLD | IMM, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c) 
-#define jit_fldxr(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | REG, SPEC(TREG, REG, REG), a, b, c, d) 
-#define jit_fldxi(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d) 
-
-#define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), (a), 0, 0, 0, (b))
-#define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, (a), (b))
-
-#define jit_fretr(jit, a, b) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, b)
-#define jit_freti(jit, a, b) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, b)
-
-#define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, b)
 
 static struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
@@ -704,15 +236,6 @@ static inline jit_op * jit_op_last(jit_op * op)
 	return op;
 }
 
-static inline jit_label * jit_get_label(struct jit * jit)
-{
-	jit_label * r = JIT_MALLOC(sizeof(jit_label));
-	jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
-	r->next = jit->labels;
-	jit->labels = r;
-	return r;
-}
-
 static inline int jit_is_label(struct jit * jit, void * ptr)
 {
 	jit_label * lab = jit->labels;
@@ -721,19 +244,6 @@ static inline int jit_is_label(struct jit * jit, void * ptr)
 		if (lab == ptr) return 1;
 		lab = lab->next;
 	}
-}
-
-static inline void jit_prolog(struct jit * jit, void * func)
-{
-	jit_op * op = jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0);
-	struct jit_func_info * info = JIT_MALLOC(sizeof(struct jit_func_info));
-	op->arg[1] = (long)info;
-
-	jit->current_func = op;
-
-	info->allocai_mem = 0;
-	info->general_arg_cnt = 0;
-	info->float_arg_cnt = 0;
 }
 
 static inline struct jit_func_info * jit_current_func_info(struct jit * jit)

@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 
 typedef jit_value (*plfv)(void);
 typedef jit_value (*plfl)(jit_value);
