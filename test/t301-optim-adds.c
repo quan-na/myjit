@@ -16,7 +16,8 @@ void test10()
 	jit_generate_code(p);
 
 	r = f1();
-	if (r == (15 * 2 + 123)) SUCCESS(1);
+
+	if (r == (15 * 2 + 123)) SUCCESS(10);
 	else FAIL(10);
 
 	jit_free(p);
@@ -36,7 +37,7 @@ void test20()
 	jit_generate_code(p);
 
 	r = f1();
-	if (r == (15 * 2 + 7)) SUCCESS(1);
+	if (r == (15 * 2 + 7)) SUCCESS(20);
 	else FAIL(20);
 
 	jit_free(p);
@@ -56,7 +57,7 @@ void test21()
 	jit_generate_code(p);
 
 	r = f1();
-	if (r == (15 * 2 + 7)) SUCCESS(1);
+	if (r == (15 * 2 + 7)) SUCCESS(21);
 	else FAIL(21);
 
 	jit_free(p);
@@ -147,6 +148,27 @@ void test34()
 	jit_free(p);
 }
 
+void test35()
+{
+	jit_value r;
+	struct jit * p = jit_init();
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(0), 7);
+	jit_movi(p, R(1), 15);
+	jit_addr(p, R(3), R(0), R(1));
+	jit_addi(p, R(2), R(3), 20);
+	jit_retr(p, R(2));
+	jit_generate_code(p);
+	jit_dump_code(p, 0);
+
+	r = f1();
+	if (r == (15 + 7 + 20)) SUCCESS(34);
+	else FAIL(34);
+
+	jit_free(p);
+}
+
 int main() 
 {
 	test10();
@@ -156,4 +178,5 @@ int main()
 	test31();
 	test33();
 	test34();
+	test35();
 }

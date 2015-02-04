@@ -215,6 +215,13 @@ typedef enum {
 	 JIT_FSTX	= (0x93 << 3),
 
 	 JIT_FRET	= (0x95 << 3),
+
+
+	// platform specific opcodes, for optimization purposes only
+	JIT_X86_STI     = (0x0100 << 3),
+	JIT_X86_STXI    = (0x0101 << 3),
+	JIT_X86_ADDMUL  = (0x0102 << 3),
+	JIT_X86_ADDIMM  = (0x0103 << 3)
 } jit_opcode;
 
 enum jit_inp_type {
@@ -496,7 +503,7 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, b)
 
 /*
- * INTERNAL AUXILIARY FUNCTIONS
+ * internal auxiliary functions 
  */
 
 // FIXME: replace memcpy with union 

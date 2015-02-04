@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * Common stuff for i386 and AMD64 platforms
  *
@@ -18,11 +18,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-#define JIT_X86_STI     (0x0100 << 3)
-#define JIT_X86_STXI    (0x0101 << 3)
-#define JIT_X86_ADDMUL	(0x0102 << 3)
-#define JIT_X86_ADDIMM	(0x0103 << 3)
 
 //
 // 
@@ -248,8 +243,7 @@ static int join_addr_addi(jit_op * op, jit_op * nextop)
 	nextop->code = JIT_X86_ADDIMM;
 	nextop->spec = SPEC(TREG, REG, REG);
 
-	// FIXME: je to - spravne?
-	nextop->arg[2] = -nextop->arg[2];
+	nextop->arg[2] = nextop->arg[2];
 	//nextop->flt_imm = *(double *)&(nextop->arg[2]);
 	memcpy(&nextop->flt_imm, &(nextop->arg[2]), sizeof(jit_value));
 	nextop->arg[1] = op->arg[1];
@@ -273,8 +267,7 @@ static int join_addi_addr(jit_op * op, jit_op * nextop)
 	nextop->spec = SPEC(TREG, REG, REG);
 
 	if (nextop->arg[1] == nextop->arg[2]) op->arg[2] *= 2;
-	//nextop->flt_imm = *(double *)&(op->arg[2]);
-	memcpy(&nextop->flt_imm, &(nextop->arg[2]), sizeof(jit_value));
+	memcpy(&nextop->flt_imm, &(op->arg[2]), sizeof(jit_value));
 
 	if (nextop->arg[1] == op->arg[0]) nextop->arg[1] = op->arg[1];
 	if (nextop->arg[2] == op->arg[0]) nextop->arg[2] = op->arg[1];

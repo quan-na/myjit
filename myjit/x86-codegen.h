@@ -317,10 +317,10 @@ typedef union {
 			x86_imm_emit32 ((inst), (disp));	\
 		} else if ((disp) == 0 && (basereg) != X86_EBP) {	\
 			x86_address_byte ((inst), 0, (r), 4);	\
-			x86_address_byte ((inst), (shift), (indexreg), (basereg));	\
+			x86_address_byte ((inst), (shift), (indexreg), ((basereg)&0x7));	\
 		} else if (x86_is_imm8((disp))) {	\
 			x86_address_byte ((inst), 1, (r), 4);	\
-			x86_address_byte ((inst), (shift), (indexreg), (basereg));	\
+			x86_address_byte ((inst), (shift), (indexreg), ((basereg)&0x7));	\
 			x86_imm_emit8 ((inst), (disp));	\
 		} else {	\
 			x86_address_byte ((inst), 2, (r), 4);	\

@@ -1358,7 +1358,11 @@ do {     \
 #define amd64_mov_memindex_imm_size(inst,basereg,disp,indexreg,shift,imm,size) do { amd64_emit_rex ((inst),(size),0,(indexreg),(basereg)); x86_mov_memindex_imm((inst),((basereg)&0x7),(disp),((indexreg)&0x7),(shift),(imm),(size) == 8 ? 4 : (size)); } while (0)
 #define amd64_lea_mem_size(inst,reg,mem,size) do { amd64_emit_rex ((inst),(size),0,0,(reg)); x86_lea_mem((inst),((reg)&0x7),(mem)); } while (0)
 //#define amd64_lea_membase_size(inst,reg,basereg,disp,size) do { amd64_emit_rex ((inst),(size),0,0,(basereg)); x86_lea_membase((inst),((reg)&0x7),((basereg)&0x7),(disp)); } while (0)
-#define amd64_lea_memindex_size(inst,reg,basereg,disp,indexreg,shift,size) do { amd64_emit_rex ((inst),(size),(reg),(indexreg),(basereg)); x86_lea_memindex((inst),((reg)&0x7),((basereg)&0x7),(disp),((indexreg)&0x7),(shift)); } while (0)
+//#define amd64_lea_memindex_size(inst,reg,basereg,disp,indexreg,shift,size) do { amd64_emit_rex ((inst),(size),(reg),(indexreg),(basereg)); x86_lea_memindex((inst),((reg)&0x7),((basereg)&0x7),(disp),((indexreg)&0x7),(shift)); } while (0)
+
+#define amd64_lea_memindex_size(inst,reg,basereg,disp,indexreg,shift,size) do { amd64_emit_rex ((inst),(size),(reg),(indexreg),(basereg)); x86_lea_memindex((inst),((reg)&0x7),(basereg),(disp),((indexreg)&0x7),(shift)); } while (0)
+
+
 #define amd64_widen_reg_size(inst,dreg,reg,is_signed,is_half,size) do { amd64_emit_rex ((inst),(size),(dreg),0,(reg)); x86_widen_reg((inst),((dreg)&0x7),((reg)&0x7),(is_signed),(is_half)); } while (0)
 #define amd64_widen_mem_size(inst,dreg,mem,is_signed,is_half,size) do { amd64_emit_rex ((inst),(size),(dreg),0,0); x86_widen_mem((inst),((dreg)&0x7),(mem),(is_signed),(is_half)); } while (0)
 #define amd64_widen_membase_size(inst,dreg,basereg,disp,is_signed,is_half,size) do { amd64_emit_rex ((inst),(size),(dreg),0,(basereg)); x86_widen_membase((inst),((dreg)&0x7),((basereg)&0x7),(disp),(is_signed),(is_half)); } while (0)
