@@ -149,7 +149,7 @@ struct jit {
 	unsigned int optimizations;
 };
 
-void jit_get_reg_name(char * r, int reg);
+//void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 
 void jit_collect_statistics(struct jit * jit);

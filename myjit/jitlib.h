@@ -239,6 +239,7 @@ enum jit_inp_type {
 #define JIT_DEBUG_LOADS         (0x01)
 #define JIT_DEBUG_ASSOC         (0x02)
 #define JIT_DEBUG_LIVENESS      (0x04)
+#define JIT_DEBUG_COMPILABLE    (0x08)
 
 #define JIT_OPT_OMIT_FRAME_PTR                  (0x01)
 #define JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS        (0x02)
