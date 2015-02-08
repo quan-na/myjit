@@ -213,11 +213,19 @@ static inline rb_node * rb_clone(rb_node * root)
 }
 
 /////////////////
+
+static void rb_walk(rb_node *h, void (*func)(rb_key_t key, value_t value, void *thunk), void *thunk)
+{
+        if (!h) return;
+	rb_walk(h->left, func, thunk);
+        func(h->key, h->value, thunk);
+	rb_walk(h->right, func, thunk);
+}
+
 static inline void rb_print_tree(rb_node * h, int level)
 {
-	int i;
 	if (h == NULL) return;
-	for (i = 0; i < level; i++)
+	for (int i = 0; i < level; i++)
 		printf(" ");
 
 	printf("%i:%li\n", (int)h->key, (long)h->value);
@@ -243,4 +251,5 @@ static int rb_equal(rb_node * r1, rb_node * r2)
 {
 	return rb_subset(r1, r2) && rb_subset(r2, r1);
 }
+
 #endif
