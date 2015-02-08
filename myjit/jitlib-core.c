@@ -345,7 +345,12 @@ void jit_generate_code(struct jit * jit)
 
 	for (struct jit_op * op = jit->ops; op != NULL; op = op->next) {
 		if (jit->buf_capacity - (jit->ip - jit->buf) < MINIMAL_BUF_SPACE) __buf_expand(jit);
-		jit_gen_op(jit, op);
+		// platform unspecific opcodes
+		switch (GET_OP(op)) {
+			case JIT_DATA_BYTE: *(jit->ip)++ = (unsigned char) op->arg[0]; break;
+			// platform specific opcodes
+			default: jit_gen_op(jit, op);
+		}
 	}
 
 	/* moves the code to its final destination */

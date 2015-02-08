@@ -794,6 +794,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_RETVAL: break; // reg. allocator takes care of the proper register assignment
 		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
 
+		case JIT_CODE_ALIGN: 
+				while (((unsigned long) jit->ip) % op->arg[0])
+					common86_nop(jit->ip);
+				break;
+
+		// platform independent opcodes handled in the jitlib-core.c
+		case JIT_DATA_BYTE: break;
+
+
 		default: found = 0;
 	}
 
@@ -851,6 +860,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_CODESTART: break;
 		case JIT_NOP: break;
+
 
 		// platform specific opcodes; used by optimizer
 		case (JIT_X86_STI | IMM): common86_mov_mem_imm(jit->ip, a1, a2, op->arg_size); break;

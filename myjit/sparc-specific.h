@@ -667,6 +667,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_ALLOCA: break;
 
+		case JIT_CODE_ALIGN: 
+			assert(op->arg[0] % 4);
+			while (((unsigned long) jit->ip) % op->arg[0])
+			        common86_nop(jit->ip);
+			break;
+
+		 // platform independent opcodes handled in the jitlib-core.c
+		case JIT_DATA_BYTE: break;
+
 		default: found = 0;
 	}
 

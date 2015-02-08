@@ -23,6 +23,7 @@ test/t109
 test/t200
 test/t201
 test/t301
+test/t401
 sse-test
 debug
 core

@@ -109,112 +109,115 @@ typedef struct {
  * Opcodes
  */
 typedef enum {
-	 JIT_CODESTART	= (0x00 << 3),
-	 JIT_UREG	= (0x01 << 3),
-	 JIT_LREG	= (0x02 << 3),
-	 JIT_SYNCREG	= (0x03 << 3),
-	 JIT_RENAMEREG	= (0x0f << 3), 
+	JIT_CODESTART	= (0x00 << 3),
+	JIT_UREG	= (0x01 << 3),
+	JIT_LREG	= (0x02 << 3),
+	JIT_SYNCREG	= (0x03 << 3),
+	JIT_RENAMEREG	= (0x0f << 3), 
 
-	 JIT_DECL_ARG	= (0x04 << 3),
-	 JIT_ALLOCA	= (0x05 << 3),
+	JIT_DECL_ARG	= (0x04 << 3),
+	JIT_ALLOCA	= (0x05 << 3),
 
-	 JIT_MOV 	= (0x06 << 3),
-	 JIT_LD		= (0x07 << 3),
-	 JIT_LDX	= (0x08 << 3),
-	 JIT_ST		= (0x09 << 3),
-	 JIT_STX	= (0x0a << 3),
+	JIT_MOV 	= (0x06 << 3),
+	JIT_LD		= (0x07 << 3),
+	JIT_LDX		= (0x08 << 3),
+	JIT_ST		= (0x09 << 3),
+	JIT_STX		= (0x0a << 3),
 
-	 JIT_JMP 	= (0x10 << 3),
-	 JIT_PATCH 	= (0x11 << 3),
-	 JIT_PREPARE 	= (0x12 << 3),
-	 JIT_PUTARG 	= (0x15 << 3),
-	 JIT_CALL 	= (0x16 << 3),
-	 JIT_RET	= (0x17 << 3),
-	 JIT_PROLOG	= (0x18 << 3),
-	 JIT_LEAF	= (0x19 << 3),
-	 JIT_GETARG	= (0x1a << 3),
-	 JIT_RETVAL	= (0x1b << 3),
-	 JIT_LABEL	= (0x1c << 3),
+	JIT_JMP 	= (0x10 << 3),
+	JIT_PATCH 	= (0x11 << 3),
+	JIT_PREPARE 	= (0x12 << 3),
+	JIT_PUTARG 	= (0x15 << 3),
+	JIT_CALL 	= (0x16 << 3),
+	JIT_RET		= (0x17 << 3),
+	JIT_PROLOG	= (0x18 << 3),
+	JIT_LEAF	= (0x19 << 3),
+	JIT_GETARG	= (0x1a << 3),
+	JIT_RETVAL	= (0x1b << 3),
+	JIT_LABEL	= (0x1c << 3),
 
-	 JIT_ADD 	= (0x20 << 3),
-	 JIT_ADDC	= (0x21 << 3),
-	 JIT_ADDX	= (0x22 << 3),
-	 JIT_SUB	= (0x23 << 3),
-	 JIT_SUBC	= (0x24 << 3),
-	 JIT_SUBX	= (0x25 << 3),
-	 JIT_RSB	= (0x26 << 3),
-	 JIT_NEG 	= (0x27 << 3),
-	 JIT_MUL	= (0x28 << 3),
-	 JIT_HMUL	= (0x29 << 3),
-	 JIT_DIV	= (0x2a << 3),
-	 JIT_MOD	= (0x2b << 3),
+	JIT_ADD 	= (0x20 << 3),
+	JIT_ADDC	= (0x21 << 3),
+	JIT_ADDX	= (0x22 << 3),
+	JIT_SUB		= (0x23 << 3),
+	JIT_SUBC	= (0x24 << 3),
+	JIT_SUBX	= (0x25 << 3),
+	JIT_RSB		= (0x26 << 3),
+	JIT_NEG 	= (0x27 << 3),
+	JIT_MUL		= (0x28 << 3),
+	JIT_HMUL	= (0x29 << 3),
+	JIT_DIV		= (0x2a << 3),
+	JIT_MOD		= (0x2b << 3),
 
-	 JIT_OR	 	= (0x30 << 3),
-	 JIT_XOR 	= (0x31 << 3),
-	 JIT_AND	= (0x32 << 3),
-	 JIT_LSH	= (0x33 << 3),
-	 JIT_RSH	= (0x34 << 3),
-	 JIT_NOT	= (0x35 << 3),
+	JIT_OR	 	= (0x30 << 3),
+	JIT_XOR 	= (0x31 << 3),
+	JIT_AND		= (0x32 << 3),
+	JIT_LSH		= (0x33 << 3),
+	JIT_RSH		= (0x34 << 3),
+	JIT_NOT		= (0x35 << 3),
 
-	 JIT_LT		= (0x40 << 3),
-	 JIT_LE		= (0x41 << 3),
-	 JIT_GT		= (0x42 << 3),
-	 JIT_GE		= (0x43 << 3),
-	 JIT_EQ		= (0x44 << 3),
-	 JIT_NE		= (0x45 << 3),
+	JIT_LT		= (0x40 << 3),
+	JIT_LE		= (0x41 << 3),
+	JIT_GT		= (0x42 << 3),
+	JIT_GE		= (0x43 << 3),
+	JIT_EQ		= (0x44 << 3),
+	JIT_NE		= (0x45 << 3),
 
-	 JIT_BLT 	= (0x50 << 3),
-	 JIT_BLE	= (0x51 << 3),
-	 JIT_BGT	= (0x52 << 3),
-	 JIT_BGE	= (0x53 << 3),
-	 JIT_BEQ	= (0x54 << 3),
-	 JIT_BNE	= (0x55 << 3),
-	 JIT_BMS	= (0x56 << 3),	
-	 JIT_BMC	= (0x57 << 3),	
-	 JIT_BOADD	= (0x58 << 3),	
-	 JIT_BOSUB	= (0x59 << 3),	
+	JIT_BLT 	= (0x50 << 3),
+	JIT_BLE		= (0x51 << 3),
+	JIT_BGT		= (0x52 << 3),
+	JIT_BGE		= (0x53 << 3),
+	JIT_BEQ		= (0x54 << 3),
+	JIT_BNE		= (0x55 << 3),
+	JIT_BMS		= (0x56 << 3),	
+	JIT_BMC		= (0x57 << 3),	
+	JIT_BOADD	= (0x58 << 3),	
+	JIT_BOSUB	= (0x59 << 3),	
 
-	 JIT_MSG	= (0x60 << 3),
-	 JIT_NOP	= (0xff << 3),
+	JIT_MSG		= (0x60 << 3),
+	JIT_NOP		= (0xff << 3),
 
-	 JIT_FMOV	= (0x70 << 3),
-	 JIT_FADD	= (0x71 << 3),
-	 JIT_FSUB	= (0x72 << 3),
-	 JIT_FRSB 	= (0x73 << 3),
-	 JIT_FMUL	= (0x74 << 3),
-	 JIT_FDIV	= (0x75 << 3),
-	 JIT_FNEG	= (0x76 << 3),
-	 JIT_FRETVAL	= (0x77 << 3),
-	 JIT_FPUTARG	= (0x78 << 3),
+	JIT_FMOV	= (0x70 << 3),
+	JIT_FADD	= (0x71 << 3),
+	JIT_FSUB	= (0x72 << 3),
+	JIT_FRSB 	= (0x73 << 3),
+	JIT_FMUL	= (0x74 << 3),
+	JIT_FDIV	= (0x75 << 3),
+	JIT_FNEG	= (0x76 << 3),
+	JIT_FRETVAL	= (0x77 << 3),
+	JIT_FPUTARG	= (0x78 << 3),
 
-	 JIT_EXT	= (0x79 << 3),
-	 JIT_ROUND	= (0x7a << 3),
-	 JIT_TRUNC	= (0x7b << 3),
-	 JIT_FLOOR	= (0x7c << 3),
-	 JIT_CEIL	= (0x7d << 3),
+	JIT_EXT		= (0x79 << 3),
+	JIT_ROUND	= (0x7a << 3),
+	JIT_TRUNC	= (0x7b << 3),
+	JIT_FLOOR	= (0x7c << 3),
+	JIT_CEIL	= (0x7d << 3),
 
 /*
-	 JIT_FLT 	= (0x80 << 3),
-	 JIT_FLE	= (0x81 << 3),
-	 JIT_FGT	= (0x82 << 3),
-	 JIT_FGE	= (0x83 << 3),
-	 JIT_FEQ	= (0x84 << 3),
-	 JIT_FNE	= (0x85 << 3),
+	JIT_FLT 	= (0x80 << 3),
+	JIT_FLE		= (0x81 << 3),
+	JIT_FGT		= (0x82 << 3),
+	JIT_FGE		= (0x83 << 3),
+	JIT_FEQ		= (0x84 << 3),
+	JIT_FNE		= (0x85 << 3),
 */
 
-	 JIT_FBLT 	= (0x86 << 3),
-	 JIT_FBLE	= (0x87 << 3),
-	 JIT_FBGT	= (0x88 << 3),
-	 JIT_FBGE	= (0x89 << 3),
-	 JIT_FBEQ	= (0x8a << 3),
-	 JIT_FBNE	= (0x8b << 3),
+	JIT_FBLT 	= (0x86 << 3),
+	JIT_FBLE	= (0x87 << 3),
+	JIT_FBGT	= (0x88 << 3),
+	JIT_FBGE	= (0x89 << 3),
+	JIT_FBEQ	= (0x8a << 3),
+	JIT_FBNE	= (0x8b << 3),
 
-	 JIT_FLD	= (0x90 << 3),
-	 JIT_FLDX	= (0x91 << 3),
-	 JIT_FST	= (0x92 << 3),
-	 JIT_FSTX	= (0x93 << 3),
+	JIT_FLD		= (0x90 << 3),
+	JIT_FLDX	= (0x91 << 3),
+	JIT_FST		= (0x92 << 3),
+	JIT_FSTX	= (0x93 << 3),
 
-	 JIT_FRET	= (0x95 << 3),
+	JIT_FRET	= (0x95 << 3),
+
+	JIT_DATA_BYTE	= (0xa0 << 3),
+	JIT_CODE_ALIGN	= (0xa1 << 3),
 
 
 	// platform specific opcodes, for optimization purposes only
@@ -502,6 +505,20 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_freti(jit, a, b) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, b)
 
 #define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, b)
+
+/*
+ * direct data and code emission 
+ */
+#define jit_code_align(jit, a) jit_add_op(jit, JIT_CODE_ALIGN| IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+#define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+#define jit_data_str(jit, a)        jit_data_bytes(jit, strlen(a) + 1, ((unsigned char *)a))
+
+static inline void jit_data_bytes(struct jit *jit, int count, unsigned char *data)
+{
+	for (int i = 0; i < count; i++, data++)
+		jit_data_byte(jit, *(data));
+} 
+
 
 /*
  * internal auxiliary functions 

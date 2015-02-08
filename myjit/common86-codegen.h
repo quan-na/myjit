@@ -90,6 +90,9 @@
 #define common86_push_reg(ptr, reg) 			x86_push_reg(ptr, reg)
 #define common86_pop_reg(ptr, reg) 			x86_pop_reg(ptr, reg)
 
+
+#define common86_nop(ptr)				x86_nop(ptr)
+
 #endif
 
 
@@ -165,5 +168,7 @@
 
 #define common86_push_reg(ptr, reg) 			amd64_push_reg(ptr, reg)
 #define common86_pop_reg(ptr, reg) 			amd64_pop_reg(ptr, reg)
+
+#define common86_nop(ptr)				amd64_nop(ptr)
 
 #endif

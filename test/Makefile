@@ -6,7 +6,7 @@ fp: t101 t102 t103 t104 t105 t107 t108 t109
 
 optim: t301
 
-misc: t200 t201
+misc: t200 t201 t401
 
 CFLAGS = -g -std=c99 -Wall -pedantic -D_XOPEN_SOURCE=600
 
@@ -74,6 +74,8 @@ t201: t201-functions.c jitlib-core.o tests.h
 t301: t301-optim-adds.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t301 t301-optim-adds.c jitlib-core.o
 
+t401: t401-data-in-code.c jitlib-core.o tests.h
+	$(CC) $(CFLAGS) -o t401 t401-data-in-code.c jitlib-core.o
 
 
 
@@ -104,3 +106,4 @@ clean:
 	rm -f t200
 	rm -f t201
 	rm -f t301
+	rm -f t401
