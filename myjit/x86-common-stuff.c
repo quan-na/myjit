@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdint.h>
+#define IS_32BIT_VALUE(x) ((((long)(x)) >= INT32_MIN) && (((long)(x)) <= INT32_MAX))
+
 //
 // 
 // Optimizations
@@ -31,6 +34,7 @@ void jit_optimize_st_ops(struct jit * jit)
 		&& (op->prev)
 		&& (op->prev->code == (JIT_MOV | IMM))
 		&& (op->arg[1] == op->prev->arg[0])
+		&& (IS_32BIT_VALUE(op->prev->arg[1]))
 		&& (!jitset_get(op->live_out, op->arg[1])))
 		{
 			if (!IS_IMM(op)) {
@@ -49,6 +53,7 @@ void jit_optimize_st_ops(struct jit * jit)
 		&& (op->prev)
 		&& (op->prev->code == (JIT_MOV | IMM))
 		&& (op->arg[2] == op->prev->arg[0])
+		&& (IS_32BIT_VALUE(op->prev->arg[1]))
 		&& (!jitset_get(op->live_out, op->arg[2])))
 		{
 			if (!IS_IMM(op)) {
@@ -177,6 +182,7 @@ static inline int make_addmuli(jit_op * op, jit_op * nextop)
 // addmuli r3, r2*size, r1	... lea reg, [reg*size + imm]
 static int join_muli_addi(jit_op * op, jit_op * nextop)
 {
+	if (!IS_32BIT_VALUE(nextop->arg[2])) return 0;
 	if (!is_suitable_mul(op)) return 0;
 	return make_addmuli(op, nextop);
 }
@@ -197,7 +203,7 @@ static int join_muli_ori(jit_op * op, jit_op * nextop)
 
 // combines:
 // muli r1, r2, [2, 4, 8] (or lsh r1, r2, [1, 2, 3])
-// addi r3, r1, r4
+// addr r3, r1, r4
 // -->
 // addmulr r3, r2*size, r4	... lea reg, [reg*size + reg]
 static int join_muli_addr(jit_op * op, jit_op * nextop)
@@ -238,6 +244,7 @@ int jit_optimize_join_addmul(struct jit * jit)
 // addimm r4, r2, r3, imm  i.e., r4 := r2 + r3 + imm
 static int join_addr_addi(jit_op * op, jit_op * nextop)
 {
+	if (!IS_32BIT_VALUE(nextop->arg[2])) return 0;
 	make_nop(op);
 
 	nextop->code = JIT_X86_ADDIMM;
@@ -259,6 +266,7 @@ static int join_addr_addi(jit_op * op, jit_op * nextop)
 // addimm r3, r2, r4, imm  i.e., r3 := r2 + r4 + imm
 static int join_addi_addr(jit_op * op, jit_op * nextop)
 {
+	if (!IS_32BIT_VALUE(op->arg[2])) return 0;
 	if (GET_OP(op) == JIT_SUB) op->arg[2] = -op->arg[2];
 
 	make_nop(op);
