@@ -75,7 +75,6 @@ void jit_dump_code(struct jit * jit, int verbosity)
 
 typedef struct jit_disasm {
 	struct jit *jit;
-	char *indent_template;
 	char *reg_template;
 	char *freg_template;
 	char *arg_template;
@@ -157,8 +156,6 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_SYNCREG:	return ".syncreg";
 		case JIT_MSG:		return "msg";
 		case JIT_NOP:		return "nop";
-		case JIT_CODE_ALIGN:	return ".align";
-		case JIT_DATA_BYTE:	return ".byte";
 
 		case JIT_FMOV:	return "fmov";
 		case JIT_FADD: 	return "fadd";
@@ -395,21 +392,9 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 	}
 */
 
-
 	char * op_name = jit_get_op_name(op);
-	if (op_name[0] != '.')  strcat(linebuf, disasm->indent_template);
+	if (op_name[0] != '.')  strcat(linebuf, "    ");
 	else {
-		switch (GET_OP(op)) {
-			case JIT_DATA_BYTE:
-			case JIT_CODE_ALIGN:
-				bufprint(linebuf, "%s%s ", disasm->indent_template, op_name);
-				while (strlen(linebuf) < 13) strcat(linebuf, " ");
-				bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
-				goto print;
-			default: 
-				goto print;
-				
-		}
 /*
 		if (verbosity & JIT_DEBUG_LOADS) {
 			switch (GET_OP(op)) {
@@ -444,6 +429,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 	//	strcat(linebuf, op_name);
 	//
 */
+		goto print;
 	}
 	strcat(linebuf, op_name);
 
@@ -503,33 +489,19 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 	}
 
 	if (GET_OP(op) == JIT_LABEL) {
-		bufprint(linebuf, "%sjit_label * ", disasm->indent_template);
+		bufprint(linebuf, "\tjit_label * ");
 		bufprint(linebuf, disasm->label_template, __find_label(disasm->jit, labels, op));
 		bufprint(linebuf, " = jit_get_label(p");
 		goto print;
 	}
 
 	if (GET_OP(op) == JIT_PATCH) {
-		bufprint(linebuf, "%sjit_patch  (p, op_%li", disasm->indent_template, ((unsigned long)op->arg[0]) >> 4);
-		goto print;
-	}
-
-
-	if (GET_OP(op) == JIT_DATA_BYTE) {
-		bufprint(linebuf, "%sjit_data_byte(p, ", disasm->indent_template);
-		bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
-		goto print;
-	}
-
-
-	if (GET_OP(op) == JIT_CODE_ALIGN) {
-		bufprint(linebuf, "%sjit_align  (p, ", disasm->indent_template);
-		bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
+		bufprint(linebuf, "\tjit_patch  (p, op_%li", ((unsigned long)op->arg[0]) >> 4);
 		goto print;
 	}
 
 	char * op_name = jit_get_op_name(op);
-	if (op_name[0] != '.')  strcat(linebuf, disasm->indent_template);
+	if (op_name[0] != '.')  strcat(linebuf, "\t");
 	else goto direct_print;
 
 	if (__is_cflow(op) && ((void *)op->arg[0] == JIT_FORWARD))
@@ -537,17 +509,16 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 
 
 
-	char *suffix = "";
+	bufprint(linebuf, "jit_%s", op_name);
 	if (GET_OP(op) == JIT_CALL) goto no_suffix;
 
-	if (GET_OP_SUFFIX(op) & IMM) suffix = "i";
-	if (GET_OP_SUFFIX(op) & REG) suffix = "r";
-	if (GET_OP_SUFFIX(op) & UNSIGNED) suffix = "_u";
+	if (GET_OP_SUFFIX(op) & IMM) strcat(linebuf, "i");
+	if (GET_OP_SUFFIX(op) & REG) strcat(linebuf, "r");
+	if (GET_OP_SUFFIX(op) & UNSIGNED) strcat(linebuf, "_u");
+
 no_suffix:
 
-	bufprint(linebuf, "jit_%s%s", op_name, suffix);
-
-	while (strlen(linebuf) < 15) strcat(linebuf, " ");
+	while (strlen(linebuf) < 12) strcat(linebuf, " ");
 	if (GET_OP(op) == JIT_PREPARE) {
 		strcat(linebuf, "(p");
 		goto print;
@@ -602,7 +573,6 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 	rb_node * labels = prepare_labels(jit);
 	struct jit_disasm general_disasm = (struct jit_disasm) {
 		.jit = jit,
-		.indent_template = "    ",   
 		.reg_template = "r%i",
 		.freg_template = "fr%i",
 		.arg_template = "arg%i",
@@ -619,7 +589,6 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 	};
 	struct jit_disasm compilable_disasm = (struct jit_disasm) {
 		.jit = jit,
-		.indent_template = "    ",   
 		.reg_template = "R(%i)",
 		.freg_template = "FR(%i)",
 		.arg_template = "arg(%i)",
