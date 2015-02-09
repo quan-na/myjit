@@ -22,6 +22,7 @@
 
 #define _XOPEN_SOURCE 600
 
+#include <stdint.h>
 #include <string.h> // FIXME: get rid of memcpy 
 #include "cpu-detect.h"
 
@@ -511,7 +512,15 @@ int jit_allocai(struct jit * jit, int size);
  */
 #define jit_code_align(jit, a) jit_add_op(jit, JIT_CODE_ALIGN| IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
 #define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_data_str(jit, a)        jit_data_bytes(jit, strlen(a) + 1, ((unsigned char *)a))
+#define jit_data_str(jit, a)   jit_data_bytes(jit, strlen(a) + 1, ((unsigned char *)a))
+
+#define jit_data_word(jit, a)  do { short __x = (a); jit_data_bytes(jit, 2, (unsigned char*) &__x); } while(0)
+#define jit_data_dword(jit, a)  do { int __x = (a); jit_data_bytes(jit, 4, (unsigned char*) &__x); } while(0)
+#define jit_data_qword(jit, a)  do { long long __x = (a); jit_data_bytes(jit, 8, (unsigned char*) &__x); } while(0)
+#define jit_data_emptyarea(jit, count) \
+	do {  \
+		for (int i = 0; i < count; i++) jit_data_byte(jit, 0x00);\
+	} while(0) 
 
 static inline void jit_data_bytes(struct jit *jit, int count, unsigned char *data)
 {

@@ -13,6 +13,9 @@ void test10()
 	jit_data_byte(p, 0xaa);
 	jit_data_byte(p, 0xbb);
 	jit_data_str(p, "Hello!");
+
+	jit_data_emptyarea(p, 10);
+	jit_data_qword(p, 0xaabbccdd00112233);
 	jit_code_align(p, 16);
 
 	jit_patch(p, skip_data);
