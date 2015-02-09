@@ -345,6 +345,35 @@ Branch operations represent conditional jumps and all have three operands. The f
 	fbner     imm, freg, freg     if (O2 != O3) goto O1
 	fbnei     imm, freg, fimm     if (O2 != O3) goto O1
 
+Misc
+----
+There is an operation that allows to emit raw bytes of data into a generated code:
+
+::
+
+	data_byte imm
+
+This operation emits only one byte to a generated code. For convenience, there are two auxiliary functions emitting a sequence of bytes and a string of chars (including the trailing \0), respectively.
+
+::
+	
+	jit_data_bytes(struct jit *jit, int count, unsigned char *data)
+	jit_data_str(jit, a)
+
+If you are emitting raw data into a code, it is your responsibility to properly align code. For this purpose there is an operation:
+
+::
+
+	jit_align imm
+
+
+This operation takes care of proper code alignment. Note that particular platforms have their specific requirements. On SPARC all instructions have to be aligned to 4 bytes, AMD64 favors alignment to 16 bytes, but it is not mandatory, etc. Safe bet is to use 16 as an argument for this operation.
+
+Mixing code and data may not be a generally good idea and may lead to various issues, e.g. poor performance, weird behavior, etc. Albeit this feature is part of the library, users are encouraged to use data that are not part of the code and are allocated elsewhere, for instance, with ordinary ``malloc``.
+
+	
+
+
 Getting Started
 ---------------
 
@@ -405,7 +434,7 @@ We assume that the code above is quite (self-)explanatory, and thus, we do not i
 
 For instance, to build a program with ``gcc`` you may use the following steps:
 
-.. sourcecode:: shell
+.. sourcecode:: bash 
 
 	gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 demo1.c
 	gcc -c -g -Winline -Wall -std=c99 -pedantic -D_XOPEN_SOURCE=600 myjit/jitlib-core.c
@@ -497,7 +526,7 @@ Notes on Development
 
 + Despite the fact that the library is almost complete, it is still under development and the API may slightly (but not much) change in the near future.
 
-+ Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be easy and straigtforward.
++ Only the i386, AMD64, and SPARC platforms are supported right now, however, port to other architecture should be easy and straightforward.
 
 + At this moment, MyJIT has support for floating point arithmetics. However, i386 port supports only processors having SSE2 unit, i.e., floating-point operations won't work on legacy CPUs without this unit.
 

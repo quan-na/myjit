@@ -2,9 +2,9 @@ all: readme.htm  ga.htm sflogo.htm
 
 readme.htm: ../README main.css
 	#pygmentize -S default -f html > final-style.css
-	pygmentize -S default -f html > final-style.css
-	cat main.css >> final-style.css
-	rst2html.py -d -t --embed-stylesheet --stylesheet-path="final-style.css" ../README > readme.htm
+#	pygmentize -S default -f html > final-style.css
+	cat main.css code-style.css >> final-style.css
+	rst2html -d -t --embed-stylesheet --stylesheet-path="final-style.css" ../README > readme.htm
 	cp readme.htm ../
 
 web: readme.htm
