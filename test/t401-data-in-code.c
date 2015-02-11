@@ -63,7 +63,7 @@ void test11()
 	// code
 	jit_patch(p, skip_data);
 	
-	jit_code_addr(p, R(0), label_string); 
+	jit_data_addr(p, R(0), label_string); 
 
 	jit_prepare(p);
 	jit_putargr(p, R(0));
@@ -93,7 +93,7 @@ void test12()
 	plfv f1;
 	jit_prolog(p, &f1);
 
-	jit_op * label_string = jit_code_addr(p, R(0), JIT_FORWARD);
+	jit_op * label_string = jit_data_addr(p, R(0), JIT_FORWARD);
 	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_call(p, check_func);

@@ -220,6 +220,7 @@ typedef enum {
 	JIT_DATA_BYTE	= (0xa0 << 3),
 	JIT_CODE_ALIGN	= (0xa1 << 3),
 	JIT_CODE_ADDR	= (0xa2 << 3),
+	JIT_DATA_ADDR	= (0xa3 << 3),
 
 
 	// platform specific opcodes, for optimization purposes only
@@ -513,6 +514,7 @@ int jit_allocai(struct jit * jit, int size);
  */
 
 #define jit_code_addr(jit, a, b) jit_add_op(jit, JIT_CODE_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
+#define jit_data_addr(jit, a, b) jit_add_op(jit, JIT_DATA_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
 
 #define jit_code_align(jit, a) jit_add_op(jit, JIT_CODE_ALIGN| IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
 #define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)

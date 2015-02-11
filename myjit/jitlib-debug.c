@@ -161,6 +161,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_CODE_ALIGN:	return ".align";
 		case JIT_DATA_BYTE:	return ".byte";
 		case JIT_CODE_ADDR:	return "code_addr";
+		case JIT_DATA_ADDR:	return "data_addr";
 
 		case JIT_FMOV:	return "fmov";
 		case JIT_FADD: 	return "fadd";
@@ -466,7 +467,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 		goto print;
 	}
 
-	if (GET_OP(op) == JIT_CODE_ADDR) {
+	if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_ADDR)) {
 		strcat(linebuf, " ");
 		print_arg(disasm, linebuf, op, 1);
 		strcat(linebuf, ", ");
@@ -532,8 +533,9 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 		goto print;
 	}
 
-	if (GET_OP(op) == JIT_CODE_ADDR) {
-		bufprint(linebuf, "%sjit_op * op_%li = jit_code_addr(p, ", disasm->indent_template, ((unsigned long)op) >> 4);
+	if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_ADDR)) {
+		char * op_name = jit_get_op_name(op);
+		bufprint(linebuf, "%sjit_op * op_%li = jit_%s(p, ", disasm->indent_template, ((unsigned long)op) >> 4, op_name);
 		print_arg(disasm, linebuf, op, 1);
 		strcat(linebuf, ", ");
 		print_addr(disasm, linebuf, labels, op, 1); 
