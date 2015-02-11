@@ -688,6 +688,17 @@ int jit_allocai(struct jit * jit, int size)
 	return -(jit_current_func_info(jit)->allocai_mem);
 }
 
+void jit_patch_local_addrs(struct jit *jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (GET_OP(op) == JIT_CODE_ADDR) {
+			unsigned char *buf = jit->buf + (long) op->patch_addr;
+			jit_value addr = jit_is_label(jit, (void *)op->arg[1]) ? ((jit_label *)op->arg[1])->pos : op->arg[1];
+			common86_mov_reg_imm(buf, op->r_arg[0], jit->buf + addr);
+		}
+	}
+}
+
 //
 //
 // Main switch 
@@ -757,8 +768,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_CALL: 	__funcall(jit, op, imm); break;
 		case JIT_PATCH: do {
-					jit_value pa = ((struct jit_op *)a1)->patch_addr;
-					common86_patch(jit->buf + pa, jit->ip);
+					struct jit_op *target = (struct jit_op *) a1;
+					if (GET_OP(target) == JIT_CODE_ADDR) {
+						target->arg[1] = __PATCH_ADDR(jit);
+					} else {
+						jit_value pa = target->patch_addr;
+						common86_patch(jit->buf + pa, jit->ip);
+					}
+					
 				} while (0);
 				break;
 		case JIT_JMP:
@@ -798,6 +815,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				while (((unsigned long) jit->ip) % op->arg[0])
 					common86_nop(jit->ip);
 				break;
+
+		case JIT_CODE_ADDR: 
+			op->patch_addr = __PATCH_ADDR(jit);
+			common86_mov_reg_imm_size(jit->ip, a1, 0xdeadbeefcafebabe, 8);
+			break;
 
 		// platform independent opcodes handled in the jitlib-core.c
 		case JIT_DATA_BYTE: break;

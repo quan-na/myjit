@@ -151,6 +151,7 @@ struct jit {
 
 //void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
+void jit_patch_local_addrs(struct jit *jit);
 
 void jit_collect_statistics(struct jit * jit);
 

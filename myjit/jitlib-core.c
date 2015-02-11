@@ -366,6 +366,7 @@ void jit_generate_code(struct jit * jit)
 	jit->ip = jit->buf + pos;
 
 	jit_patch_external_calls(jit);
+	jit_patch_local_addrs(jit);
 
 	/* assigns functions */
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {

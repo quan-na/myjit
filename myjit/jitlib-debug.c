@@ -155,10 +155,12 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_CODESTART:	return ".code";
 		case JIT_LABEL:		return ".label";
 		case JIT_SYNCREG:	return ".syncreg";
+		case JIT_RENAMEREG:	return ".renamereg";
 		case JIT_MSG:		return "msg";
 		case JIT_NOP:		return "nop";
 		case JIT_CODE_ALIGN:	return ".align";
 		case JIT_DATA_BYTE:	return ".byte";
+		case JIT_CODE_ADDR:	return "code_addr";
 
 		case JIT_FMOV:	return "fmov";
 		case JIT_FADD: 	return "fadd";
@@ -290,13 +292,13 @@ static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
 	return -1;
 }
 
-static int __find_label(struct jit * jit, rb_node * labels, jit_op * op)
+static int __find_label(struct jit * jit, rb_node * labels, jit_label *label)
 {
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_LABEL) continue;
 
 		// label found
-		if (xop->arg[0] == op->arg[0]) {
+		if (xop->arg[0] == (jit_value) label) {
 			// looks for an operation associated with the label
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
@@ -309,14 +311,14 @@ static int __find_label(struct jit * jit, rb_node * labels, jit_op * op)
 	return -1;
 }
 
-static inline void print_addr(struct jit_disasm *disasm, char *buf, rb_node *labels, jit_op *op)
+static inline void print_addr(struct jit_disasm *disasm, char *buf, rb_node *labels, jit_op *op, int arg_pos)
 {
-	void *arg = (void *)op->arg[0];
+	void *arg = (void *)op->arg[arg_pos];
 	struct jit *jit = disasm->jit;
 	if (arg == NULL)
 		bufprint(buf, disasm->label_forward_template, __find_patch(jit, labels, op));
 	else if (jit_is_label(jit, arg)) 
-		bufprint(buf, disasm->label_template, __find_label(jit, labels, op));
+		bufprint(buf, disasm->label_template, __find_label(jit, labels, arg));
 	else 
 		bufprint(buf, disasm->generic_addr_template, arg);
 }
@@ -373,8 +375,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 	rb_node * lab = rb_search(labels, (long)op);
 	if (lab) {
 		bufprint(linebuf, disasm->label_template, (long)lab->value);
-		bufprint(linebuf, ":");
-		goto print;
+		bufprint(linebuf, ":\n");
 	}
 
 	/*
@@ -465,6 +466,15 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 		goto print;
 	}
 
+	if (GET_OP(op) == JIT_CODE_ADDR) {
+		strcat(linebuf, " ");
+		print_arg(disasm, linebuf, op, 1);
+		strcat(linebuf, ", ");
+		print_addr(disasm, linebuf, labels, op, 1); 
+		goto print;
+	}
+
+
 	if (GET_OP(op) == JIT_DECL_ARG) {
 		switch (op->arg[0]) {
 			case JIT_SIGNED_NUM: strcat(linebuf, " integer"); break;
@@ -478,9 +488,10 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 		goto print;
 	}
 
+
 	if (ARG_TYPE(op, 1) != NO) {
 		strcat(linebuf, " ");
-		if (__is_cflow(op)) print_addr(disasm, linebuf, labels, op); 
+		if (__is_cflow(op)) print_addr(disasm, linebuf, labels, op, 0); 
 		else print_arg(disasm, linebuf, op, 1);
 	} if (ARG_TYPE(op, 2) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 2);
 	if (ARG_TYPE(op, 3) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 3);
@@ -504,7 +515,7 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 
 	if (GET_OP(op) == JIT_LABEL) {
 		bufprint(linebuf, "%sjit_label * ", disasm->indent_template);
-		bufprint(linebuf, disasm->label_template, __find_label(disasm->jit, labels, op));
+		bufprint(linebuf, disasm->label_template, __find_label(disasm->jit, labels, (jit_label *)op->arg[0]));
 		bufprint(linebuf, " = jit_get_label(p");
 		goto print;
 	}
@@ -521,6 +532,13 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 		goto print;
 	}
 
+	if (GET_OP(op) == JIT_CODE_ADDR) {
+		bufprint(linebuf, "%sjit_op * op_%li = jit_code_addr(p, ", disasm->indent_template, ((unsigned long)op) >> 4);
+		print_arg(disasm, linebuf, op, 1);
+		strcat(linebuf, ", ");
+		print_addr(disasm, linebuf, labels, op, 1); 
+		goto print;
+	}
 
 	if (GET_OP(op) == JIT_CODE_ALIGN) {
 		bufprint(linebuf, "%sjit_align  (p, ", disasm->indent_template);
@@ -579,7 +597,7 @@ no_suffix:
 
 	if (ARG_TYPE(op, 1) != NO) {
 		strcat(linebuf, " ");
-		if (__is_cflow(op)) print_addr(disasm, linebuf, labels, op); 
+		if (__is_cflow(op)) print_addr(disasm, linebuf, labels, op, 0); 
 		else print_arg(disasm, linebuf, op, 1);
 	} if (ARG_TYPE(op, 2) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 2);
 	if (ARG_TYPE(op, 3) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 3);
