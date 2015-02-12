@@ -351,7 +351,19 @@ void jit_patch_external_calls(struct jit * jit)
 		if ((op->code == (JIT_CALL | IMM)) && (!jit_is_label(jit, (void *)op->arg[0])))
 			sparc_patch(jit->buf + (long)op->patch_addr, (long)op->r_arg[0]);
 		if (GET_OP(op) == JIT_MSG)
-			sparc_patch(jit->buf + (long)op->patch_addr, (unsigned char *)printf);
+			sparc_patch(jit->buf + (long)op->patch_addr, printf);
+	}
+}
+
+void jit_patch_local_addrs(struct jit *jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+	
+		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_ADDR)) {
+			unsigned char *buf = jit->buf + (long) op->patch_addr;
+			jit_value addr = jit_is_label(jit, (void *)op->arg[1]) ? ((jit_label *)op->arg[1])->pos : op->arg[1];
+			sparc_set32x(buf, jit->buf + addr, op->r_arg[0]);
+		}
 	}
 }
 
@@ -637,10 +649,16 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
 
 		case JIT_PATCH: do {
+				struct jit_op *target = (struct jit_op *) a1;
+				if ((GET_OP(target) == JIT_CODE_ADDR) || (GET_OP(target) == JIT_DATA_ADDR)) {
+					target->arg[1] = __PATCH_ADDR(jit);
+				} else { 
 					long pa = ((struct jit_op *)a1)->patch_addr;
 					sparc_patch(jit->buf + pa, jit->ip);
-				} while (0);
-				break;
+				}
+			} while (0);
+			break;
+
 		case JIT_JMP:
 			op->patch_addr = __PATCH_ADDR(jit);
 			if (op->code & REG) sparc_jmp(jit->ip, a1, sparc_g0);
@@ -667,11 +685,25 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_ALLOCA: break;
 
-		case JIT_CODE_ALIGN: 
-			assert(op->arg[0] % 4);
-			while (((unsigned long) jit->ip) % op->arg[0])
-			        common86_nop(jit->ip);
+		case JIT_CODE_ALIGN: { 
+				int count = op->arg[0]; 
+				assert(!(count % 4));
+				while ((unsigned long)jit->ip % 4) {
+					*jit->ip = 0;
+					jit->ip++;
+					count--;
+				}
+				for (int i = 0; i < count / 4; i++)
+				        sparc_nop(jit->ip);
+				break;
+			}
+
+		case JIT_CODE_ADDR:
+		case JIT_DATA_ADDR:
+			op->patch_addr = __PATCH_ADDR(jit);
+			sparc_set32x(jit->ip, 0xdeadbeef, a1);
 			break;
+
 
 		 // platform independent opcodes handled in the jitlib-core.c
 		case JIT_DATA_BYTE: break;
@@ -988,7 +1020,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 
 	jit_hw_reg * reg_i7 = malloc(sizeof(jit_hw_reg));
 	
-	*reg_i7 = (jit_hw_reg) { sparc_i7, 0, "iX", 1, 0, 0 };
+	*reg_i7 = (jit_hw_reg) { sparc_i7, "iX", 1, 0, 0 };
 
 	a->fp_reg = sparc_fp;
 	a->ret_reg = NULL;

@@ -861,6 +861,11 @@ typedef struct {
 #define sparc_restore_simple(ins) sparc_restore((ins),sparc_g0,sparc_g0,sparc_g0)
 #define sparc_rett_simple(ins) sparc_rett_imm((ins),sparc_i7,8)
 
+#define sparc_set32x(ins,val,reg) do { \
+		sparc_sethi((ins),(uint32_t)(val),(reg));	\
+		sparc_or_imm((ins),FALSE,(reg),(uint32_t)(val)&0x3ff,(reg));	\
+	} while (0)
+
 #define sparc_set32(ins,val,reg)	\
 	do {	\
         if ((val) == 0) \
@@ -869,10 +874,7 @@ typedef struct {
 			sparc_sethi((ins),(uint32_t)(val),(reg));	\
 		else if (((int32_t)(val) >= -4096) && ((int32_t)(val) <= 4095))	\
 			sparc_or_imm((ins),FALSE,sparc_g0,(int32_t)(val),(reg));	\
-		else {	\
-			sparc_sethi((ins),(uint32_t)(val),(reg));	\
-			sparc_or_imm((ins),FALSE,(reg),(uint32_t)(val)&0x3ff,(reg));	\
-		}	\
+		else sparc_set32x(ins,val,reg); \
 	} while (0)
 
 #ifdef SPARCV9

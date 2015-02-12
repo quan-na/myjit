@@ -819,7 +819,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_CODE_ADDR: 
 		case JIT_DATA_ADDR: 
 			op->patch_addr = __PATCH_ADDR(jit);
-			common86_mov_reg_imm_size(jit->ip, a1, 0xdeadbeefcafebabe, 8);
+			common86_mov_reg_imm_size(jit->ip, a1, 0xdeadbeefcafebabe, sizeof(void *));
 			break;
 
 		// platform independent opcodes handled in the jitlib-core.c
