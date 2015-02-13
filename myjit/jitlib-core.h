@@ -131,6 +131,7 @@ struct jit_func_info {			// collection of information related to one function
 	int gp_reg_count;		// total number of GP registers used in the processed function
 	int fp_reg_count;		// total number of FP registers used in the processed function
 	int uses_frame_ptr;		// this flag indicates whether there is an operation using frame pointer
+	struct jit_op *first_op;	// first operation of the function
 };
 
 struct jit {

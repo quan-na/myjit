@@ -239,6 +239,20 @@ static void spill_ret_retreg(jit_op * op, jit_hw_reg * ret_reg)
 	}
 }
 
+static int assign_jmp(jit_op * op, struct jit_reg_allocator * al)
+{
+	if (op->code == (JIT_JMP | IMM)) return 0; 
+	jit_value reg;
+	// FIXME: dodelat FP registry
+	for (int i = 0; i < al->gp_reg_cnt; i++) {
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
+		if (hreg && jitset_get(op->live_out, reg)) {
+			sync_reg(op, hreg, reg);
+		}
+	}
+	return 0;
+}
+
 static int assign_call(jit_op * op, struct jit_reg_allocator * al)
 {
 	spill_ret_retreg(op, al->ret_reg);
@@ -250,7 +264,6 @@ static int assign_call(jit_op * op, struct jit_reg_allocator * al)
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
 		if (hreg) {
 			unload_reg(op, hreg, reg);
-			//jit_regpool_put(al->fp_regpool, hreg);
 			rmap_unassoc(op->regmap, reg, 1);
 		}
 	}
@@ -324,6 +337,22 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 #endif
 		case JIT_GETARG: skip = assign_getarg(op, al); break;
 		case JIT_CALL: skip = assign_call(op, al); break;
+		case JIT_JMP: skip = assign_jmp(op, al); break;
+		case JIT_FULL_SPILL: {
+					     jit_value reg;
+					     // FIXME: dodelat FP registry
+					     for (int i = 0; i < al->gp_reg_cnt; i++) {
+						     jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
+						     if (hreg && (jitset_get(op->live_out, reg))) {
+				
+							     unload_reg(op, hreg, reg);
+							     rmap_unassoc(op->regmap, reg, 1);
+						     }
+					     }
+						skip = 1;
+						break;
+
+		};
 		default: break;
 	}
 
@@ -442,7 +471,6 @@ void jit_allocator_hints_free(struct rb_node * hints)
 }
 //////////////////////////////////////////////////////////////////
 
-
 /**
  * This function adjusts association of registers to the state
  * which is expected at the destination address of the jump
@@ -450,12 +478,13 @@ void jit_allocator_hints_free(struct rb_node * hints)
  */
 static inline void jump_adjustment(struct jit * jit, jit_op * op)
 {
-	if (GET_OP(op) != JIT_JMP) return;
-	rmap_t * cur_regmap = op->regmap;
-	rmap_t * tgt_regmap = op->jmp_addr->regmap;
+	if (op->code == (JIT_JMP | IMM)) {
+		rmap_t * cur_regmap = op->regmap;
+		rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
-	rmap_sync(op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
-	rmap_sync(op, tgt_regmap, cur_regmap, RMAP_LOAD);
+		rmap_sync(op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
+		rmap_sync(op, tgt_regmap, cur_regmap, RMAP_LOAD);
+	}
 }
 
 /**

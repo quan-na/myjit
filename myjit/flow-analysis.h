@@ -101,8 +101,20 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 		goto skip;
 	}
 
-	if (GET_OP(op) == JIT_JMP) {
+	if ((op->code == (JIT_JMP | IMM)) && op->jmp_addr) {
 		op->live_out = jitset_clone(op->jmp_addr->live_in);
+		goto skip;
+	}
+
+	if (op->code == (JIT_JMP | REG)) {
+		jit_op *xop = func_info->first_op->next;
+		op->live_out = jitset_new();
+		while (xop && (GET_OP(xop) != JIT_PROLOG)) {
+			if (GET_OP(xop) == JIT_CODE_ADDR) {
+				jitset_or(op->live_out, xop->jmp_addr->live_in);
+			}
+			xop = xop->next;
+		}
 		goto skip;
 	}
 

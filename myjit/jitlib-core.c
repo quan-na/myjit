@@ -87,6 +87,7 @@ void jit_prolog(struct jit * jit, void * func)
 
         jit->current_func = op;
 
+	info->first_op = op;
         info->allocai_mem = 0;
         info->general_arg_cnt = 0;
         info->float_arg_cnt = 0;
@@ -317,6 +318,16 @@ void jit_generate_code(struct jit * jit)
 	jit_correct_float_imms(jit);
 	__initialize_reg_counts(jit);
 	__initialize_arguments(jit);
+
+
+	// FIXME: vlastni funkce
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
+		if (GET_OP(op) == JIT_CODE_ADDR) {
+			jit_op * newop = __new_op(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
+			jit_op_prepend(op->jmp_addr, newop);
+		}
+
+	
 	jit_flw_analysis(jit);
 
 	if (jit->optimizations & JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS) jit_optimize_unused_assignments(jit);

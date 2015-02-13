@@ -824,6 +824,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		// platform independent opcodes handled in the jitlib-core.c
 		case JIT_DATA_BYTE: break;
+		case JIT_FULL_SPILL: break;
 
 
 		default: found = 0;

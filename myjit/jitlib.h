@@ -221,6 +221,7 @@ typedef enum {
 	JIT_CODE_ALIGN	= (0xa1 << 3),
 	JIT_CODE_ADDR	= (0xa2 << 3),
 	JIT_DATA_ADDR	= (0xa3 << 3),
+	JIT_FULL_SPILL	= (0xa4 << 3),
 
 
 	// platform specific opcodes, for optimization purposes only
