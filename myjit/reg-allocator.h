@@ -239,16 +239,21 @@ static void spill_ret_retreg(jit_op * op, jit_hw_reg * ret_reg)
 	}
 }
 
+/**
+ * Spills registers that are in use before JMPR is performed
+ */
 static int assign_jmp(jit_op * op, struct jit_reg_allocator * al)
 {
 	if (op->code == (JIT_JMP | IMM)) return 0; 
 	jit_value reg;
-	// FIXME: dodelat FP registry
 	for (int i = 0; i < al->gp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
-		if (hreg && jitset_get(op->live_out, reg)) {
-			sync_reg(op, hreg, reg);
-		}
+		if (hreg && jitset_get(op->live_out, reg)) sync_reg(op, hreg, reg);
+	}
+
+	for (int i = 0; i < al->fp_reg_cnt; i++) {
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[i].id, 1, &reg);
+		if (hreg && jitset_get(op->live_out, reg)) sync_reg(op, hreg, reg);
 	}
 	return 0;
 }
@@ -276,6 +281,29 @@ static int assign_call(jit_op * op, struct jit_reg_allocator * al)
 	return 0;
 #endif
 }
+
+static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
+{
+	jit_value reg;
+	for (int i = 0; i < al->gp_reg_cnt; i++) {
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
+		if (hreg && (jitset_get(op->live_out, reg))) {
+			unload_reg(op, hreg, reg);
+			rmap_unassoc(op->regmap, reg, 0);
+		}
+	}
+
+	for (int i = 0; i < al->fp_reg_cnt; i++) {
+		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[i].id, 1, &reg);
+		if (hreg && (jitset_get(op->live_out, reg))) {
+			unload_reg(op, hreg, reg);
+			rmap_unassoc(op->regmap, reg, 1);
+		}
+	}
+
+	return 1;
+}
+
 
 static void associate_register_alias(struct jit_reg_allocator * al, jit_op * op, int i)
 {
@@ -338,21 +366,7 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 		case JIT_GETARG: skip = assign_getarg(op, al); break;
 		case JIT_CALL: skip = assign_call(op, al); break;
 		case JIT_JMP: skip = assign_jmp(op, al); break;
-		case JIT_FULL_SPILL: {
-					     jit_value reg;
-					     // FIXME: dodelat FP registry
-					     for (int i = 0; i < al->gp_reg_cnt; i++) {
-						     jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
-						     if (hreg && (jitset_get(op->live_out, reg))) {
-				
-							     unload_reg(op, hreg, reg);
-							     rmap_unassoc(op->regmap, reg, 1);
-						     }
-					     }
-						skip = 1;
-						break;
-
-		};
+		case JIT_FULL_SPILL: skip = spill_all_registers(op, al); break;
 		default: break;
 	}
 

@@ -301,6 +301,15 @@ static inline void __initialize_arguments(struct jit * jit)
 
 }
 
+static inline void __spill_on_jmpr_targets(struct jit *jit)
+{
+	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
+		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_CADDR))  {
+			jit_op * newop = __new_op(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
+			jit_op_prepend(op->jmp_addr, newop);
+		}
+}
+
 static inline void __buf_expand(struct jit * jit)
 {
 	long pos = jit->ip - jit->buf;
@@ -318,15 +327,7 @@ void jit_generate_code(struct jit * jit)
 	jit_correct_float_imms(jit);
 	__initialize_reg_counts(jit);
 	__initialize_arguments(jit);
-
-
-	// FIXME: vlastni funkce
-	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
-		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_CADDR))  {
-			jit_op * newop = __new_op(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
-			jit_op_prepend(op->jmp_addr, newop);
-		}
-
+	__spill_on_jmpr_targets(jit);
 	
 	jit_flw_analysis(jit);
 
