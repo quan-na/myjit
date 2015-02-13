@@ -216,6 +216,66 @@ void test14()
 }
 
 
+void test15() 
+{
+	jit_value r;
+	struct jit * p = jit_init();
+	jit_disable_optimization(p, JIT_OPT_ALL);
+
+	plfl f1;
+	jit_prolog(p, &f1);
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
+
+	jit_op *skip = jit_jmpi(p, JIT_FORWARD);
+	jit_code_align(p, 16);
+
+	// data
+	jit_label *data_addr = jit_get_label(p);
+	jit_op *target1_addr = jit_data_caddr(p, JIT_FORWARD);
+	jit_op *target2_addr = jit_data_caddr(p, JIT_FORWARD);
+	jit_code_align(p, 16);
+
+	
+	// code
+	jit_patch(p, skip);
+	jit_movi(p, R(0), 10);
+	jit_getarg(p, R(1), 0);
+	jit_data_addr(p, R(2), data_addr);
+
+	jit_muli(p, R(3), R(1), PTR_SIZE);
+	jit_ldxr(p, R(2), R(2), R(3), PTR_SIZE);
+
+	jit_jmpr(p, R(2));
+
+	jit_patch(p, target1_addr);
+	jit_addr(p, R(0), R(0), R(1));
+	jit_retr(p, R(0));
+
+	jit_patch(p, target2_addr);
+	jit_subr(p, R(0), R(0), R(1));
+	jit_retr(p, R(0));
+
+//	jit_dump_ops(p, 0);
+	jit_generate_code(p);
+//	jit_dump_code(p, 0);
+
+	r = f1(0);
+
+	if (r == (10)) SUCCESS(15);
+	else FAIL(15);
+
+
+	r = f1(1);
+	if (r == (9)) SUCCESS(15);
+	else FAIL(15);
+
+	jit_free(p);
+}
+
+
+
+
+
 int main() 
 {
 	test10();
@@ -223,4 +283,5 @@ int main()
 	test12();
 	test13();
 	test14();
+	test15();
 }

@@ -222,6 +222,8 @@ typedef enum {
 	JIT_CODE_ADDR	= (0xa2 << 3),
 	JIT_DATA_ADDR	= (0xa3 << 3),
 	JIT_FULL_SPILL	= (0xa4 << 3),
+	JIT_DATA_CADDR  = (0xa5 << 3),
+	JIT_DATA_DADDR  = (0xa6 << 3),
 
 
 	// platform specific opcodes, for optimization purposes only
@@ -521,13 +523,19 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
 #define jit_data_str(jit, a)   jit_data_bytes(jit, strlen(a) + 1, ((unsigned char *)a))
 
+#define jit_data(jit, a)  do { jit_value __x = (jit_value)(a); jit_data_bytes(jit, sizeof(jit_value), (unsigned char*) &__x); } while(0)
 #define jit_data_word(jit, a)  do { short __x = (a); jit_data_bytes(jit, 2, (unsigned char*) &__x); } while(0)
 #define jit_data_dword(jit, a)  do { int __x = (a); jit_data_bytes(jit, 4, (unsigned char*) &__x); } while(0)
-#define jit_data_qword(jit, a)  do { long long __x = (a); jit_data_bytes(jit, 8, (unsigned char*) &__x); } while(0)
+#define jit_data_qword(jit, a)  do { int64_t __x = (a); jit_data_bytes(jit, 8, (unsigned char*) &__x); } while(0)
+#define jit_data_ptr(jit, a)  do { void * __x = (void *)(a); jit_data_bytes(jit, sizeof(void *), (unsigned char*) &__x); } while(0)
+#define jit_data_caddr(jit, a)	jit_add_op(jit, JIT_DATA_CADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+#define jit_data_daddr(jit, a)	jit_add_op(jit, JIT_DATA_DADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+
 #define jit_data_emptyarea(jit, count) \
 	do {  \
 		for (int i = 0; i < count; i++) jit_data_byte(jit, 0x00);\
 	} while(0) 
+
 
 static inline void jit_data_bytes(struct jit *jit, int count, unsigned char *data)
 {

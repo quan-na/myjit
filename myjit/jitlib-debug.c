@@ -160,6 +160,8 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_NOP:		return "nop";
 		case JIT_CODE_ALIGN:	return ".align";
 		case JIT_DATA_BYTE:	return ".byte";
+		case JIT_DATA_CADDR:	return ".caddr";
+		case JIT_DATA_DADDR:	return ".daddr";
 		case JIT_CODE_ADDR:	return "code_addr";
 		case JIT_DATA_ADDR:	return "data_addr";
 
@@ -408,6 +410,12 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 				while (strlen(linebuf) < 13) strcat(linebuf, " ");
 				bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
 				goto print;
+			case JIT_DATA_CADDR:
+			case JIT_DATA_DADDR:
+				bufprint(linebuf, "%s%s ", disasm->indent_template, op_name);
+				while (strlen(linebuf) < 13) strcat(linebuf, " ");
+				print_addr(disasm, linebuf, labels, op, 0); 
+				goto print;
 			default: 
 				goto print;
 				
@@ -475,7 +483,6 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 		goto print;
 	}
 
-
 	if (GET_OP(op) == JIT_DECL_ARG) {
 		switch (op->arg[0]) {
 			case JIT_SIGNED_NUM: strcat(linebuf, " integer"); break;
@@ -539,6 +546,14 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 		print_arg(disasm, linebuf, op, 1);
 		strcat(linebuf, ", ");
 		print_addr(disasm, linebuf, labels, op, 1); 
+		goto print;
+	}
+
+	if ((GET_OP(op) == JIT_DATA_CADDR) || (GET_OP(op) == JIT_DATA_DADDR)) {
+		char * op_name = jit_get_op_name(op);
+		op_name++; // skips leading '.'
+		bufprint(linebuf, "%sjit_op * op_%li = jit_data_%s(p, ", disasm->indent_template, ((unsigned long)op) >> 4, op_name);
+		print_addr(disasm, linebuf, labels, op, 0); 
 		goto print;
 	}
 

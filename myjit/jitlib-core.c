@@ -322,7 +322,7 @@ void jit_generate_code(struct jit * jit)
 
 	// FIXME: vlastni funkce
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
-		if (GET_OP(op) == JIT_CODE_ADDR) {
+		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_CADDR))  {
 			jit_op * newop = __new_op(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
 			jit_op_prepend(op->jmp_addr, newop);
 		}
@@ -359,6 +359,11 @@ void jit_generate_code(struct jit * jit)
 		// platform unspecific opcodes
 		switch (GET_OP(op)) {
 			case JIT_DATA_BYTE: *(jit->ip)++ = (unsigned char) op->arg[0]; break;
+			case JIT_DATA_CADDR: 
+			case JIT_DATA_DADDR: 
+				op->patch_addr = __PATCH_ADDR(jit);
+				jit->ip += sizeof(void *);
+				break; 
 			// platform specific opcodes
 			default: jit_gen_op(jit, op);
 		}

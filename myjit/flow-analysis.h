@@ -110,7 +110,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 		jit_op *xop = func_info->first_op->next;
 		op->live_out = jitset_new();
 		while (xop && (GET_OP(xop) != JIT_PROLOG)) {
-			if (GET_OP(xop) == JIT_CODE_ADDR) {
+			if ((GET_OP(xop) == JIT_CODE_ADDR) || (GET_OP(xop) == JIT_DATA_CADDR)) {
 				jitset_or(op->live_out, xop->jmp_addr->live_in);
 			}
 			xop = xop->next;
