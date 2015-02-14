@@ -272,6 +272,65 @@ void test15()
 	jit_free(p);
 }
 
+void test16() 
+{
+	struct jit * p = jit_init();
+	jit_disable_optimization(p, JIT_OPT_ALL);
+
+	ppfl f1;
+	jit_prolog(p, &f1);
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
+
+	jit_op *skip = jit_jmpi(p, JIT_FORWARD);
+	jit_code_align(p, 16);
+
+	// data
+	jit_label *lb_mon = jit_get_label(p);
+	jit_data_str(p, "Monday");	
+	jit_label *lb_tue = jit_get_label(p);
+	jit_data_str(p, "Tuesday");	
+	jit_label *lb_wed = jit_get_label(p);
+	jit_data_str(p, "Wednesday");	
+	jit_label *lb_thr = jit_get_label(p);
+	jit_data_str(p, "Thursday");	
+	jit_label *lb_fri = jit_get_label(p);
+	jit_data_str(p, "Friday");	
+	jit_code_align(p, 16);
+
+
+	jit_label *data_addr = jit_get_label(p);
+	jit_data_daddr(p, lb_mon);
+	jit_data_daddr(p, lb_tue);
+	jit_data_daddr(p, lb_wed);
+	jit_data_daddr(p, lb_thr);
+	jit_data_daddr(p, lb_fri);
+	jit_code_align(p, 16);
+
+	
+	// code
+	jit_patch(p, skip);
+	jit_getarg(p, R(1), 0);
+	jit_data_addr(p, R(2), data_addr);
+
+	jit_muli(p, R(3), R(1), PTR_SIZE);
+	jit_ldxr(p, R(0), R(2), R(3), PTR_SIZE);
+
+	jit_retr(p, R(0));
+
+//	jit_dump_ops(p, 0);
+	jit_generate_code(p);
+//	jit_dump_code(p, 0);
+
+	char *r = f1(2);
+
+	if (!strcmp(r, "Wednesday")) SUCCESS(16);
+	else FAIL(16);
+
+
+
+	jit_free(p);
+}
+
 
 
 
@@ -284,4 +343,5 @@ int main()
 	test13();
 	test14();
 	test15();
+	test16();
 }

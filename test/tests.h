@@ -5,6 +5,7 @@ typedef jit_value (*plfv)(void);
 typedef jit_value (*plfl)(jit_value);
 typedef jit_value (*plfll)(jit_value, jit_value);
 typedef double (*pdfv)(void);
+typedef void * (*ppfl)(jit_value);
 
 #define SUCCESS(x) printf("%s:\ttest%i\thas succeeded\n", __FILE__, x)
 #define FAIL(x) printf("%s:\ttest%i\thas failed\n", __FILE__, x)
