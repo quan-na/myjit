@@ -134,6 +134,10 @@ static void jit_correct_long_imms(struct jit * jit)
 		if (GET_OP(op) == JIT_PUTARG) continue;
 		if (GET_OP(op) == JIT_MSG) continue;
 		if (GET_OP(op) == JIT_PROLOG) continue;
+		if (GET_OP(op) == JIT_DATA_CADDR) continue;
+		if (GET_OP(op) == JIT_DATA_DADDR) continue;
+		if (GET_OP(op) == JIT_DATA_ADDR) continue;
+		if (GET_OP(op) == JIT_CODE_ADDR) continue;
 		int imm_arg;
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
@@ -363,7 +367,10 @@ void jit_generate_code(struct jit * jit)
 			case JIT_DATA_CADDR: 
 			case JIT_DATA_DADDR: 
 				op->patch_addr = __PATCH_ADDR(jit);
-				jit->ip += sizeof(void *);
+				for (int i = 0; i < sizeof(void *); i++) {
+					*jit->ip = 0;
+					jit->ip++;
+				}
 				break; 
 			// platform specific opcodes
 			default: jit_gen_op(jit, op);

@@ -364,6 +364,12 @@ void jit_patch_local_addrs(struct jit *jit)
 			jit_value addr = jit_is_label(jit, (void *)op->arg[1]) ? ((jit_label *)op->arg[1])->pos : op->arg[1];
 			sparc_set32x(buf, jit->buf + addr, op->r_arg[0]);
 		}
+
+		if ((GET_OP(op) == JIT_DATA_CADDR) || (GET_OP(op) == JIT_DATA_DADDR)) {
+			unsigned char *buf = jit->buf + (long) op->patch_addr;
+			jit_value addr = jit_is_label(jit, (void *)op->arg[0]) ? ((jit_label *)op->arg[0])->pos : op->arg[0];
+			*((jit_value *)buf) = (jit_value) (jit->buf + addr);
+		}
 	}
 }
 
@@ -650,11 +656,19 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_PATCH: do {
 				struct jit_op *target = (struct jit_op *) a1;
-				if ((GET_OP(target) == JIT_CODE_ADDR) || (GET_OP(target) == JIT_DATA_ADDR)) {
-					target->arg[1] = __PATCH_ADDR(jit);
-				} else { 
-					long pa = ((struct jit_op *)a1)->patch_addr;
-					sparc_patch(jit->buf + pa, jit->ip);
+				switch (GET_OP(target)) {
+					case JIT_CODE_ADDR:
+					case JIT_DATA_ADDR:
+						target->arg[1] = __PATCH_ADDR(jit);
+						break;
+					case JIT_DATA_CADDR:
+					case JIT_DATA_DADDR:
+						target->arg[0] = __PATCH_ADDR(jit);
+						break;
+					default: {
+						long pa = ((struct jit_op *)a1)->patch_addr;
+						sparc_patch(jit->buf + pa, jit->ip);
+					}
 				}
 			} while (0);
 			break;
@@ -688,15 +702,15 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_CODE_ALIGN: { 
 				int count = op->arg[0]; 
 				assert(!(count % 4));
-				while ((unsigned long)jit->ip % 4) {
-					*jit->ip = 0;
-					jit->ip++;
-					count--;
-				}
-				for (int i = 0; i < count / 4; i++)
-				        sparc_nop(jit->ip);
-				break;
+				while ((unsigned long)jit->ip % count) {
+					if ((unsigned long)jit->ip % 4) {
+						*jit->ip = 0;
+						jit->ip++;
+					}
+				        else sparc_nop(jit->ip);
+				}	
 			}
+			break;
 
 		case JIT_CODE_ADDR:
 		case JIT_DATA_ADDR:
@@ -707,6 +721,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		 // platform independent opcodes handled in the jitlib-core.c
 		case JIT_DATA_BYTE: break;
+		case JIT_FULL_SPILL: break;
 
 		default: found = 0;
 	}
