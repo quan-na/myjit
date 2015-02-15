@@ -425,6 +425,17 @@ static void __free_labels(jit_label * lab)
 	JIT_FREE(lab);
 }
 
+static int is_cond_branch_op(jit_op *op)
+{
+	jit_opcode code = GET_OP(op);
+	return (code == JIT_BLT) || (code == JIT_BLE) || (code == JIT_BGT)
+	|| (code == JIT_BGE) || (code == JIT_BEQ) ||  (code == JIT_BNE)
+	|| (code == JIT_FBLT) || (code == JIT_FBLE) || (code == JIT_FBGT)
+	|| (code == JIT_FBGE) || (code == JIT_FBEQ) ||  (code == JIT_FBNE)
+	|| (code == JIT_BOADD) || (code == JIT_BOSUB);
+}
+
+
 void jit_enable_optimization(struct jit * jit, int opt)
 {
 	jit->optimizations |= opt;

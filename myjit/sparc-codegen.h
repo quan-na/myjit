@@ -138,7 +138,7 @@ typedef enum {
 	sparc_bgu  = 12,
 	sparc_bcc  = 13, sparc_bgeu = 13,
 	sparc_bpos = 14,
-	sparc_bvc  = 15
+	sparc_bvc  = 15, sparc_bnoverflow = 15
 } SparcCond;
 
 typedef enum {

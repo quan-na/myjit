@@ -613,14 +613,15 @@ static void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, 
 	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
-static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm)
+static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
 {
 	if (imm) common86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 
 	op->patch_addr = __PATCH_ADDR(jit);
 
-	common86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	if (!negation) common86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	else common86_branch_disp32(jit->ip, X86_CC_NO, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 /* determines whether the argument value was spilled out or not,
@@ -765,8 +766,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BMS: 	emit_branch_mask_op(jit, op, X86_CC_NZ, imm); break;
 		case JIT_BMC: 	emit_branch_mask_op(jit, op, X86_CC_Z, imm); break;
 
-		case JIT_BOADD: emit_branch_overflow_op(jit, op, X86_ADD, imm); break;
-		case JIT_BOSUB: emit_branch_overflow_op(jit, op, X86_SUB, imm); break;
+		case JIT_BOADD: emit_branch_overflow_op(jit, op, X86_ADD, imm, 0); break;
+		case JIT_BOSUB: emit_branch_overflow_op(jit, op, X86_SUB, imm, 0); break;
+
+		case JIT_BNOADD: emit_branch_overflow_op(jit, op, X86_ADD, imm, 1); break;
+		case JIT_BNOSUB: emit_branch_overflow_op(jit, op, X86_SUB, imm, 1); break;
 
 		case JIT_MUL: 	emit_mul_op(jit, op, imm, sign, 0); break;
 		case JIT_HMUL: 	emit_mul_op(jit, op, imm, sign, 1); break;

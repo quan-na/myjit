@@ -517,9 +517,7 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
  */
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
 {
-	if ((GET_OP(op) != JIT_BEQ) && (GET_OP(op) != JIT_BGT) && (GET_OP(op) != JIT_BGE)
-	   && (GET_OP(op) != JIT_BNE) && (GET_OP(op) != JIT_BLT) && (GET_OP(op) != JIT_BLE)) return;
-
+	if (!is_cond_branch_op(op)) return;
 	rmap_t * cur_regmap = op->regmap;
 	rmap_t * tgt_regmap = op->jmp_addr->regmap;
 
@@ -531,6 +529,11 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 			case JIT_BNE: op->code = JIT_BEQ | (op->code & 0x7); break;
 			case JIT_BLT: op->code = JIT_BGE | (op->code & 0x7); break;
 			case JIT_BLE: op->code = JIT_BGT | (op->code & 0x7); break;
+
+			case JIT_BOADD: op->code = JIT_BNOADD | (op->code & 0x7); break;
+			case JIT_BOSUB: op->code = JIT_BNOSUB | (op->code & 0x7); break;
+			case JIT_BNOADD: op->code = JIT_BOADD | (op->code & 0x7); break;
+			case JIT_BNOSUB: op->code = JIT_BOSUB | (op->code & 0x7); break;
 
 			case JIT_FBEQ: op->code = JIT_FBNE | (op->code & 0x7); break;
 			case JIT_FBGT: op->code = JIT_FBLE | (op->code & 0x7); break;

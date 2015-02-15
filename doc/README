@@ -322,13 +322,13 @@ Branch operations represent conditional jumps and all have three operands. The f
 
 	boaddr    imm, reg, reg       O2 += O3, goto O1 on overflow
 	boaddi    imm, reg, imm       O2 += O3, goto O1 on overflow
-	boaddr_u  imm, reg, reg       O2 += O3, goto O1 on overflow
-	boaddi_u  imm, reg, imm       O2 += O3, goto O1 on overflow
+	bnoaddr   imm, reg, reg       O2 += O3, goto O1 on not overflow
+	bnoaddi   imm, reg, imm       O2 += O3, goto O1 on not overflow
 
 	bosubr    imm, reg, reg       O2 -= O3, goto O1 on overflow
-	bosubi    reg, reg, imm       O2 -= O3, goto O1 on overflow
-	bosubr_u  imm, reg, reg       O2 -= O3, goto O1 on overflow
-	bosubi_u  imm, reg, imm       O2 -= O3, goto O1 on overflow
+	bosubi    imm, reg, imm       O2 -= O3, goto O1 on overflow
+	bnosubr   imm, reg, reg       O2 -= O3, goto O1 on not overflow
+	bnosubi   imm, reg, imm       O2 -= O3, goto O1 on not overflow
 
 	fbltr     imm, freg, freg     if (O2 <  O3) goto O1
 	fblti     imm, freg, fimm     if (O2 <  O3) goto O1

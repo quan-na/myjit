@@ -161,6 +161,7 @@ int jit_optimize_join_addmul(struct jit * jit);
 int jit_optimize_join_addimm(struct jit * jit);
 void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
+static int is_cond_branch_op(jit_op *op);
 
 /**
  * Initialize argpos-th argument.

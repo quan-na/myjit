@@ -174,6 +174,8 @@ typedef enum {
 	JIT_BMC		= (0x57 << 3),	
 	JIT_BOADD	= (0x58 << 3),	
 	JIT_BOSUB	= (0x59 << 3),	
+	JIT_BNOADD	= (0x5a << 3),	
+	JIT_BNOSUB	= (0x5b << 3),	
 
 	JIT_MSG		= (0x60 << 3),
 	JIT_NOP		= (0xff << 3),
@@ -405,6 +407,12 @@ int jit_allocai(struct jit * jit, int size);
 
 #define jit_bosubr(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
 #define jit_bosubi(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
+
+#define jit_bnoaddr(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
+#define jit_bnoaddi(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
+
+#define jit_bnosubr(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
+#define jit_bnosubi(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
 
 /* conditions */
 
