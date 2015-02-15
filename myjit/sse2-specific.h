@@ -318,7 +318,7 @@ static void emit_sse_fst_op(struct jit * jit, jit_op * op, jit_value a1, jit_val
 		// we are using the given XMM register for this.
 		// however, if the value in the register is supposed to be used later,
 		// i.e., it's `live', we store it for a while into the upper half of the XMM register
-		int live = jitset_get(op->live_out, op->arg[1]);
+		int live = jit_set_get(op->live_out, op->arg[1]);
 		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 0);
 		sse_cvtsd2ss_reg_reg(jit->ip, a2, a2);
 
@@ -366,7 +366,7 @@ static void emit_sse_fstx_op(struct jit * jit, jit_op * op, jit_value a1, jit_va
 		// however, if the value in the register is supposed to be used later,
 		// i.e., it's `live', we store it for a while into the upper half of the XMM register
 
-		int live = jitset_get(op->live_out, op->arg[2]);
+		int live = jit_set_get(op->live_out, op->arg[2]);
 		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a3, a3, 0);
 		sse_cvtsd2ss_reg_reg(jit->ip, a3, a3);
 

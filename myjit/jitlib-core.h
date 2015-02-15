@@ -104,9 +104,9 @@ typedef struct jit_prepared_args {
 	} * args;
 } jit_prepared_args;
 
-typedef struct jitset {
+typedef struct jit_set {
 	rb_node * root;
-} jitset;
+} jit_set;
 
 struct jit_func_info {			// collection of information related to one function
 	int general_arg_cnt;		// number of non-FP arguments
@@ -162,7 +162,7 @@ int jit_optimize_join_addimm(struct jit * jit);
 void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
 static int is_cond_branch_op(jit_op *op);
-static inline void jitset_free(jitset * s);
+static inline void jit_set_free(jit_set * s);
 
 /**
  * Initialize argpos-th argument.
@@ -242,8 +242,8 @@ static inline jit_op * jit_op_last(jit_op * op)
 
 static inline void jit_free_op(struct jit_op *op)
 {
-        if (op->live_in) jitset_free(op->live_in);
-        if (op->live_out) jitset_free(op->live_out);
+        if (op->live_in) jit_set_free(op->live_in);
+        if (op->live_out) jit_set_free(op->live_out);
         rmap_free(op->regmap);
         jit_allocator_hints_free(op->allocator_hints);
 

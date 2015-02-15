@@ -64,7 +64,7 @@ static jit_hw_reg * make_free_reg(struct jit_reg_allocator * al, jit_op * op, ji
 	jit_hw_reg * hreg = rmap_spill_candidate(al, op, for_reg, &spill, &spill_candidate, 0);
 
 	if (spill) {
-		if (jitset_get(op->live_in, spill_candidate))
+		if (jit_set_get(op->live_in, spill_candidate))
 			unload_reg(op, hreg, spill_candidate);
 		rmap_unassoc(op->regmap, spill_candidate, JIT_REG(for_reg).type == JIT_RTYPE_FLOAT);
 	}
@@ -148,7 +148,7 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 		// checks whether there is a free callee-saved register
 		// that can be used to take over content from eax register
 		
-		int alive = (jitset_get(op->live_out, r) || (jitset_get(op->live_in, r)));
+		int alive = (jit_set_get(op->live_out, r) || (jit_set_get(op->live_in, r)));
 		if (!alive) goto skip;
 		int spill;
 		jit_value spill_reg;
@@ -209,7 +209,7 @@ static int assign_getarg(jit_op * op, struct jit_reg_allocator * al)
 	int arg_id = op->arg[1];
 	struct jit_inp_arg * arg = &(al->current_func_info->args[arg_id]);
 	int reg_id = jit_mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
-	if (!jitset_get(op->live_out, reg_id)) {
+	if (!jit_set_get(op->live_out, reg_id)) {
 		if (((arg->type != JIT_FLOAT_NUM) && (arg->size == REG_SIZE))
 #ifdef JIT_ARCH_AMD64
 				|| ((arg->type == JIT_FLOAT_NUM) && (arg->size == sizeof(double)))
@@ -248,12 +248,12 @@ static int assign_jmp(jit_op * op, struct jit_reg_allocator * al)
 	jit_value reg;
 	for (int i = 0; i < al->gp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
-		if (hreg && jitset_get(op->live_out, reg)) sync_reg(op, hreg, reg);
+		if (hreg && jit_set_get(op->live_out, reg)) sync_reg(op, hreg, reg);
 	}
 
 	for (int i = 0; i < al->fp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[i].id, 1, &reg);
-		if (hreg && jitset_get(op->live_out, reg)) sync_reg(op, hreg, reg);
+		if (hreg && jit_set_get(op->live_out, reg)) sync_reg(op, hreg, reg);
 	}
 	return 0;
 }
@@ -287,7 +287,7 @@ static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
 	jit_value reg;
 	for (int i = 0; i < al->gp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
-		if (hreg && (jitset_get(op->live_out, reg))) {
+		if (hreg && (jit_set_get(op->live_out, reg))) {
 			if (op->in_use) unload_reg(op, hreg, reg);
 			rmap_unassoc(op->regmap, reg, 0);
 		}
@@ -295,7 +295,7 @@ static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
 
 	for (int i = 0; i < al->fp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[i].id, 1, &reg);
-		if (hreg && (jitset_get(op->live_out, reg))) {
+		if (hreg && (jit_set_get(op->live_out, reg))) {
 			if (op->in_use) unload_reg(op, hreg, reg);
 			rmap_unassoc(op->regmap, reg, 1);
 		}
@@ -321,7 +321,7 @@ static void associate_register(struct jit_reg_allocator * al, jit_op * op, int i
 		rmap_assoc(op->regmap, op->arg[i], reg);
 
 		op->r_arg[i] = reg->id;
-		if (jitset_get(op->live_in, op->arg[i]))
+		if (jit_set_get(op->live_in, op->arg[i]))
 			load_reg(op, rmap_get(op->regmap, op->arg[i]), op->arg[i]);
 	}
 }
@@ -390,7 +390,7 @@ static void mark_calleesaved_regs(struct rb_node * hint, jit_op * op)
 	if (hint == NULL) return;
 	struct jit_allocator_hint * h = (struct jit_allocator_hint *) hint->value;
 	jit_value reg = (jit_value) hint->key;
-	if (jitset_get(op->live_out, reg)) h->should_be_calleesaved++;
+	if (jit_set_get(op->live_out, reg)) h->should_be_calleesaved++;
 
 	mark_calleesaved_regs(hint->left, op);
 	mark_calleesaved_regs(hint->right, op);
@@ -549,8 +549,8 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 
 		o->regmap = rmap_clone(op->regmap);
 	
-		o->live_in = jitset_clone(op->live_in); 
-		o->live_out = jitset_clone(op->live_out); 
+		o->live_in = jit_set_clone(op->live_in); 
+		o->live_out = jit_set_clone(op->live_out); 
 		o->jmp_addr = op->jmp_addr;
 
 		if (!jit_is_label(jit, (void *)op->r_arg[0])) {
@@ -601,7 +601,7 @@ int jit_reg_in_use(jit_op * op, int reg, int fp)
 {
 	jit_value virt_reg;
 	if (rmap_is_associated(op->regmap, reg, fp, &virt_reg)
-	&& ((jitset_get(op->live_in, virt_reg) || (jitset_get(op->live_out, virt_reg))))) return 1;
+	&& ((jit_set_get(op->live_in, virt_reg) || (jit_set_get(op->live_out, virt_reg))))) return 1;
 	else return 0;
 }
 

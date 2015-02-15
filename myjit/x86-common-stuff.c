@@ -35,7 +35,7 @@ void jit_optimize_st_ops(struct jit * jit)
 		&& (op->prev->code == (JIT_MOV | IMM))
 		&& (op->arg[1] == op->prev->arg[0])
 		&& (IS_32BIT_VALUE(op->prev->arg[1]))
-		&& (!jitset_get(op->live_out, op->arg[1])))
+		&& (!jit_set_get(op->live_out, op->arg[1])))
 		{
 			if (!IS_IMM(op)) {
 				op->code = JIT_X86_STI | REG;
@@ -54,7 +54,7 @@ void jit_optimize_st_ops(struct jit * jit)
 		&& (op->prev->code == (JIT_MOV | IMM))
 		&& (op->arg[2] == op->prev->arg[0])
 		&& (IS_32BIT_VALUE(op->prev->arg[1]))
-		&& (!jitset_get(op->live_out, op->arg[2])))
+		&& (!jit_set_get(op->live_out, op->arg[2])))
 		{
 			if (!IS_IMM(op)) {
 				op->code = JIT_X86_STXI | REG;
@@ -94,7 +94,7 @@ void jit_optimize_unused_assignments(struct jit * jit)
 			if ((GET_OP(op) == JIT_ADDC) || (GET_OP(op) == JIT_ADDX)
 			|| (GET_OP(op) == JIT_SUBC) || (GET_OP(op) == JIT_SUBX)) continue;
 
-			if (!jitset_get(op->live_out, op->arg[0])) {
+			if (!jit_set_get(op->live_out, op->arg[0])) {
 				op->code = JIT_NOP;
 				op->spec = SPEC(NO, NO, NO);
 			}
@@ -118,7 +118,7 @@ static jit_op * get_related_op(jit_op * op, int result_reg)
 {
 	jit_op * nextop = op->next; 
 
-	if ((nextop->arg[0] != result_reg) && (jitset_get(nextop->live_out, result_reg))) return NULL;
+	if ((nextop->arg[0] != result_reg) && (jit_set_get(nextop->live_out, result_reg))) return NULL;
 
 	int used = 0;
 	for (int i = 0; i < 3; i++)

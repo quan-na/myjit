@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,43 +24,47 @@
 
 #include "jitlib-core.h"
 
-static inline jitset * jitset_new()
+static inline jit_set * jit_set_new()
 {
-	jitset * s = JIT_MALLOC(sizeof(jitset));
+	jit_set * s = JIT_MALLOC(sizeof(jit_set));
 	s->root = NULL;
 	return s;
 }
 
-static inline jitset * jitset_clone(jitset * s)
+static inline jit_set * jit_set_clone(jit_set * s)
 {
-	jitset * clone = jitset_new();
+	jit_set * clone = jit_set_new();
 	clone->root = rb_clone(s->root);
 	return clone;
 }
 
-static inline void jitset_free(jitset * s)
+static inline void jit_set_free(jit_set * s)
 {
 	rb_free(s->root);
 	JIT_FREE(s);
 }
 
-static inline void jitset_or(jitset * target, jitset * s)
+static inline void jit_set_addall(jit_set * target, jit_set * s)
 {
 	target->root = rb_addall(target->root, s->root);
 }
 
-static inline int jitset_get(jitset * s, int bit)
+static inline int jit_set_get(jit_set * s, int value)
 {
-	return (rb_search(s->root, bit) != NULL);
+	return (rb_search(s->root, value) != NULL);
 }
 
-static inline void jitset_set(jitset * s, int bit, int value)
+static inline void jit_set_add(jit_set * s, int value)
 {
-	if (value) s->root = rb_insert(s->root, bit, (void *)1, NULL);
-	else s->root = rb_delete(s->root, bit, NULL);
+	s->root = rb_insert(s->root, value, (void *)1, NULL);
 }
 
-static inline int jitset_equal(jitset * s1, jitset * s2) 
+static inline void jit_set_remove(jit_set * s, int value)
+{
+	s->root = rb_delete(s->root, value, NULL);
+}
+
+static inline int jit_set_equal(jit_set * s1, jit_set * s2) 
 {
 	return rb_equal(s1->root, s2->root);
 }

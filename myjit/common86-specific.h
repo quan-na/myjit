@@ -134,7 +134,7 @@ static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int r
 	for (int i = 0; i < reg_count; i++) {
 		if ((regs[i].id == skip_reg_id) || (regs[i].callee_saved)) continue;
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) emit_push_reg(jit, hreg), count++;
+		if (hreg && jit_set_get(op->live_in, reg)) emit_push_reg(jit, hreg), count++;
 	}
 	return count;
 }
@@ -161,7 +161,7 @@ static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int re
 	for (int i = reg_count - 1; i >= 0; i--) {
 		if ((regs[i].id == skip_reg_id) || (regs[i].callee_saved)) continue;
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, regs[i].id, fp, &reg);
-		if (hreg && jitset_get(op->live_in, reg)) emit_pop_reg(jit, hreg), count++;
+		if (hreg && jit_set_get(op->live_in, reg)) emit_pop_reg(jit, hreg), count++;
 	}
 	return count;
 }

@@ -22,8 +22,8 @@ static inline void jit_flw_initialize(struct jit * jit)
 {
 	jit_op * op = jit_op_first(jit->ops);
 	while (op) {
-		op->live_in = jitset_new();
-		op->live_out = jitset_new();
+		op->live_in = jit_set_new();
+		op->live_out = jit_set_new();
 		op = op->next;
 	}
 }
@@ -31,14 +31,14 @@ static inline void jit_flw_initialize(struct jit * jit)
 static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_info * func_info)
 {
 	int result;
-	jitset * in1 = jitset_clone(op->live_in);
-	jitset * out1 = jitset_clone(op->live_out);
+	jit_set * in1 = jit_set_clone(op->live_in);
+	jit_set * out1 = jit_set_clone(op->live_out);
 
-	jitset_free(op->live_in);
-	op->live_in = jitset_clone(op->live_out);
+	jit_set_free(op->live_in);
+	op->live_in = jit_set_clone(op->live_out);
 
 	for (int i = 0; i < 3; i++)
-		if (ARG_TYPE(op, i + 1) == TREG) jitset_set(op->live_in, op->arg[i], 0);
+		if (ARG_TYPE(op, i + 1) == TREG) jit_set_remove(op->live_in, op->arg[i]);
 
 // FIXME: should be generic for all architectures
 // marks registers which are used to pass arguments
@@ -47,11 +47,11 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 		func_info = (struct jit_func_info *)op->arg[1];
 		int argcount = MIN(func_info->general_arg_cnt, jit->reg_al->gp_arg_reg_cnt);
 		for (int j = 0; j < argcount; j++)
-			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0); 
+			jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j)); 
 
 		argcount = MIN(func_info->float_arg_cnt, jit->reg_al->fp_arg_reg_cnt);
 		for (int j = 0; j < argcount; j++)
-			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0); 
+			jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j)); 
 	}
 #endif
 
@@ -63,13 +63,13 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 		for (int j = 0; j < argcount; j++) {
 			if (assoc_gp >= jit->reg_al->gp_arg_reg_cnt) break;
 			if (func_info->args[j].type != JIT_FLOAT_NUM) {
-				jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0);	
+				jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j));	
 				assoc_gp++;
 			} else {
-				jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0);	
+				jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j));	
 				assoc_gp++;
 				if (func_info->args[j].size == sizeof(double)) {
-					jitset_set(op->live_in, jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0);	
+					jit_set_remove(op->live_in, jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j));	
 					assoc_gp++;
 				}
 			}
@@ -79,54 +79,54 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 
 	for (int i = 0; i < 3; i++)
 		if (ARG_TYPE(op, i + 1) == REG)
-			jitset_set(op->live_in, op->arg[i], 1);
+			jit_set_add(op->live_in, op->arg[i]);
 
 #if defined(JIT_ARCH_AMD64) || defined(JIT_ARCH_SPARC)
 	if (GET_OP(op) == JIT_GETARG) {
 		int arg_id = op->arg[1];
 		if (func_info->args[arg_id].type != JIT_FLOAT_NUM) {
-			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id), 1); 
+			jit_set_add(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id)); 
 		} else {
-			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
+			jit_set_add(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id));
 			if (func_info->args[arg_id].overflow)
-				jitset_set(op->live_in, jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
+				jit_set_add(op->live_in, jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id)); 
 		}
 	}
 #endif
 
-	jitset_free(op->live_out);
+	jit_set_free(op->live_out);
 
 	if ((GET_OP(op) == JIT_RET) || (GET_OP(op) == JIT_FRET)) {
-		op->live_out = jitset_new(); 
+		op->live_out = jit_set_new(); 
 		goto skip;
 	}
 
 	if ((op->code == (JIT_JMP | IMM)) && op->jmp_addr) {
-		op->live_out = jitset_clone(op->jmp_addr->live_in);
+		op->live_out = jit_set_clone(op->jmp_addr->live_in);
 		goto skip;
 	}
 
 	if (op->code == (JIT_JMP | REG)) {
 		jit_op *xop = func_info->first_op->next;
-		op->live_out = jitset_new();
+		op->live_out = jit_set_new();
 		while (xop && (GET_OP(xop) != JIT_PROLOG)) {
 			if ((GET_OP(xop) == JIT_CODE_ADDR) || (GET_OP(xop) == JIT_DATA_CADDR)) {
-				jitset_or(op->live_out, xop->jmp_addr->live_in);
+				jit_set_addall(op->live_out, xop->jmp_addr->live_in);
 			}
 			xop = xop->next;
 		}
 		goto skip;
 	}
 
-	if (op->next) op->live_out = jitset_clone(op->next->live_in);
-	else op->live_out = jitset_new();
+	if (op->next) op->live_out = jit_set_clone(op->next->live_in);
+	else op->live_out = jit_set_new();
 
-	if (op->jmp_addr) jitset_or(op->live_out, op->jmp_addr->live_in);
+	if (op->jmp_addr) jit_set_addall(op->live_out, op->jmp_addr->live_in);
 skip:
 
-	result = !(jitset_equal(in1, op->live_in) && jitset_equal(out1, op->live_out));
-	jitset_free(in1);
-	jitset_free(out1);
+	result = !(jit_set_equal(in1, op->live_in) && jit_set_equal(out1, op->live_out));
+	jit_set_free(in1);
+	jit_set_free(out1);
 	return result;
 }
 

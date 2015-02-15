@@ -93,8 +93,8 @@ static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
 	if (current == NULL) return 1;
 
 	// ignores mappings of register which are not live
-	jitset * tgt_livein = op->jmp_addr->live_in;
-	if (!jitset_get(tgt_livein, current->key) && !jitset_get(op->live_out, current->key)) goto skip;
+	jit_set * tgt_livein = op->jmp_addr->live_in;
+	if (!jit_set_get(tgt_livein, current->key) && !jit_set_get(op->live_out, current->key)) goto skip;
 
 	rb_node * found = rb_search(target, current->key);
 	if ((!found) || (current->value != found->value)) return 0;
@@ -125,10 +125,10 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 	if (current == NULL) return;
 
 	// if the given register does not have relevant content, then ignore it
-	if ((mode == RMAP_LOAD) && (!jitset_get(op->live_out, current->key))) goto skip;
+	if ((mode == RMAP_LOAD) && (!jit_set_get(op->live_out, current->key))) goto skip;
 
 	// if the register is not used in the destination, then ignore it
-	if ((mode == RMAP_UNLOAD) && (!jitset_get(op->jmp_addr->live_in, current->key))) goto skip;
+	if ((mode == RMAP_UNLOAD) && (!jit_set_get(op->jmp_addr->live_in, current->key))) goto skip;
 
 	rb_node * found = rb_search(target, current->key);
 	int i = current->key;
@@ -161,7 +161,7 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 
 	int alive = 0;
 	if (hw_associated) {
-		alive = (jitset_get(op->live_in, x) || jitset_get(op->live_out, x));
+		alive = (jit_set_get(op->live_in, x) || jit_set_get(op->live_out, x));
 	}
 	if (!alive) score += 10000;		// prefers registers which are not live
 
