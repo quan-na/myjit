@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -96,7 +96,7 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 
 	jitset_free(op->live_out);
 
-	if (GET_OP(op) == JIT_RET) {
+	if ((GET_OP(op) == JIT_RET) || (GET_OP(op) == JIT_FRET)) {
 		op->live_out = jitset_new(); 
 		goto skip;
 	}
@@ -146,4 +146,51 @@ static inline void jit_flw_analysis(struct jit * jit)
 			op = op->next;
 		}
 	} while (changed);
+}
+
+static inline void mark_livecode(jit_op *op)
+{
+	while (op) {
+		if (op->in_use) return;
+		op->in_use = 1;
+		if (op->jmp_addr) mark_livecode(op->jmp_addr);
+		if (GET_OP(op) == JIT_RET) return;
+		if (GET_OP(op) == JIT_FRET) return;
+		if (GET_OP(op) == JIT_JMP) return;
+		op = op->next;
+	}	
+}
+
+
+static void jit_dead_code_analysis(struct jit *jit) 
+{
+	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
+		op->in_use = 0;
+		if (GET_OP(op) == JIT_CODESTART) op->in_use = 1; 
+		if (GET_OP(op) == JIT_LABEL) op->in_use = 1; 
+		if (GET_OP(op) == JIT_DATA_BYTE) op->in_use = 1;
+		if (GET_OP(op) == JIT_DATA_CADDR) op->in_use = 1; 
+		if (GET_OP(op) == JIT_DATA_DADDR) op->in_use = 1; 
+		if (GET_OP(op) == JIT_CODE_ALIGN) op->in_use = 1; 
+	}
+
+	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
+		if (GET_OP(op) == JIT_PROLOG) mark_livecode(op);
+		if (GET_OP(op) == JIT_DATA_CADDR) mark_livecode(op->jmp_addr);
+	}
+
+	jit_op *op = jit_op_first(jit->ops);
+
+	while (op) {
+		if (!op->in_use) {
+			if (GET_OP(op) == JIT_FULL_SPILL) goto skip; /* only marks whether code is accessible or not */
+			jit_op *next = op->next;
+			jit_op_delete(op);
+			op = next;
+			continue;
+		} 
+skip:
+		op = op->next;
+	}
+
 }

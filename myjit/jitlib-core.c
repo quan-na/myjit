@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -332,8 +332,10 @@ void jit_generate_code(struct jit * jit)
 	__initialize_reg_counts(jit);
 	__initialize_arguments(jit);
 	__spill_on_jmpr_targets(jit);
-	
+
+	jit_dead_code_analysis(jit);	
 	jit_flw_analysis(jit);
+
 
 	if (jit->optimizations & JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS) jit_optimize_unused_assignments(jit);
 
@@ -403,19 +405,8 @@ static void __free_ops(struct jit_op * op)
 {
 	if (op == NULL) return;
 	__free_ops(op->next);
+	jit_free_op(op);
 
-	if (op->live_in) jitset_free(op->live_in);
-	if (op->live_out) jitset_free(op->live_out);
-	rmap_free(op->regmap);
-	jit_allocator_hints_free(op->allocator_hints);
-
-	if (GET_OP(op) == JIT_PROLOG) {
-		struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
-		JIT_FREE(info->args);
-		JIT_FREE(info);
-	}
-
-	JIT_FREE(op);
 }
 
 static void __free_labels(jit_label * lab)
