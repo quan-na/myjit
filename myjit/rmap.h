@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -31,14 +31,14 @@ static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg
 
 ///////////////////////////////////////////////////////////////////////
 
-static inline rmap_t * rmap_init()
+static inline jit_rmap * rmap_init()
 {
-	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
+	jit_rmap * res = JIT_MALLOC(sizeof(jit_rmap));
 	res->map = NULL;
 	return res;
 }
 
-jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg)
+jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg)
 {
 	rb_node * found = rb_search(rmap->map, reg);
 	if (found) return (jit_hw_reg *) found->value;
@@ -66,24 +66,24 @@ static inline jit_hw_reg * __is_associated(rb_node * n, int reg_id, int fp, jit_
  * If so, returns a pointer to this register and sets the id of the virtual
  * register
  */
-static jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg)
+static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_value * virt_reg)
 {
 	return __is_associated(rmap->map, reg_id, fp, virt_reg);
 }
 
-static void rmap_assoc(rmap_t * rmap, jit_value reg, jit_hw_reg * hreg)
+static void rmap_assoc(jit_rmap * rmap, jit_value reg, jit_hw_reg * hreg)
 {
 	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
 }
 
-static void rmap_unassoc(rmap_t * rmap, jit_value reg, int fp)
+static void rmap_unassoc(jit_rmap * rmap, jit_value reg, int fp)
 {
 	rmap->map = rb_delete(rmap->map, reg, NULL);
 }
 
-static rmap_t * rmap_clone(rmap_t * rmap)
+static jit_rmap * rmap_clone(jit_rmap * rmap)
 {
-	rmap_t * res = JIT_MALLOC(sizeof(rmap_t));
+	jit_rmap * res = JIT_MALLOC(sizeof(jit_rmap));
 	res->map = rb_clone(rmap->map);
 	return res;
 }
@@ -107,7 +107,7 @@ skip:
  * Compares whether register mappings in the target destination
  * are the same as the current
  */
-static int rmap_equal(jit_op * op, rmap_t * current, rmap_t * target)
+static int rmap_equal(jit_op * op, jit_rmap * current, jit_rmap * target)
 {
 //	return rb_equal(current->map, target->map);
 	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
@@ -146,7 +146,7 @@ skip:
 	__sync(current->right, target, op, mode);
 }
 
-static void rmap_sync(jit_op * op, rmap_t * current, rmap_t * target, int mode)
+static void rmap_sync(jit_op * op, jit_rmap * current, jit_rmap * target, int mode)
 {
 	__sync(current->map, target->map, op, mode);
 }
@@ -242,7 +242,7 @@ static jit_hw_reg * rmap_spill_candidate(struct jit_reg_allocator * al, jit_op *
 	return result;
 }
 
-void rmap_free(rmap_t * regmap)
+void rmap_free(jit_rmap * regmap)
 {
 	if (!regmap) return;
 	rb_free(regmap->map);

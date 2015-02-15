@@ -493,8 +493,8 @@ void jit_allocator_hints_free(struct rb_node * hints)
 static inline void jump_adjustment(struct jit * jit, jit_op * op)
 {
 	if (op->code == (JIT_JMP | IMM)) {
-		rmap_t * cur_regmap = op->regmap;
-		rmap_t * tgt_regmap = op->jmp_addr->regmap;
+		jit_rmap * cur_regmap = op->regmap;
+		jit_rmap * tgt_regmap = op->jmp_addr->regmap;
 
 		rmap_sync(op, cur_regmap, tgt_regmap, RMAP_UNLOAD);
 		rmap_sync(op, tgt_regmap, cur_regmap, RMAP_LOAD);
@@ -518,8 +518,8 @@ static inline void jump_adjustment(struct jit * jit, jit_op * op)
 static inline void branch_adjustment(struct jit * jit, jit_op * op)
 {
 	if (!is_cond_branch_op(op)) return;
-	rmap_t * cur_regmap = op->regmap;
-	rmap_t * tgt_regmap = op->jmp_addr->regmap;
+	jit_rmap * cur_regmap = op->regmap;
+	jit_rmap * tgt_regmap = op->jmp_addr->regmap;
 
 	if (!rmap_equal(op, cur_regmap, tgt_regmap)) {
 		switch (GET_OP(op)) {

@@ -74,9 +74,9 @@ struct jit_reg_allocator {
 	struct jit_func_info * current_func_info; // information on currently processed function
 };
 
-typedef struct rmap_t {
+typedef struct jit_rmap {
 	struct rb_node * map;		// R/B tree which maps virtual registers to hardware registers
-} rmap_t;
+} jit_rmap;
 
 struct jit_allocator_hint {
 	int last_pos;
@@ -180,7 +180,7 @@ void jit_gen_op(struct jit * jit, jit_op * op);
 char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg, int fp);
 jit_hw_reg * jit_get_unused_reg(struct jit_reg_allocator * al, jit_op * op, int fp);
-void rmap_free(rmap_t * regmap);
+void rmap_free(jit_rmap * regmap);
 void jit_allocator_hints_free(struct rb_node *);
 
 

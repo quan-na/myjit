@@ -47,7 +47,7 @@
  */
 struct rb_node;
 struct jitset;
-struct rmap_t;
+struct jit_rmap;
 typedef struct jit_op {
         unsigned short code;            // operation code
         unsigned char spec;             // argument types, e.g REG+REG+IMM
@@ -64,7 +64,7 @@ typedef struct jit_op {
         struct jit_op * prev;
         struct jitset * live_in;
         struct jitset * live_out;
-        struct rmap_t * regmap;                // register mappings 
+        struct jit_rmap * regmap;                // register mappings 
         int normalized_pos;             // number of operations from the end of the function
         struct rb_node * allocator_hints; // reg. allocator to collect statistics on used registers
 } jit_op;

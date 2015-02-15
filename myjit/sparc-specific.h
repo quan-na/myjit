@@ -1,6 +1,6 @@
 /*
  * MyJIT 
- * Copyright (C) 2010, 2011 Petr Krajca, <krajcap@inf.upol.cz>
+ * Copyright (C) 2010, 2011, 2015 Petr Krajca, <petr.krajca@upol.cz>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,7 @@
 
 #define EXTRA_SPACE (16)
 
-inline jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg);
+inline jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg);
 
 static inline int __GET_REG_POS(struct jit * jit, int r)
 {

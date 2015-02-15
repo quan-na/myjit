@@ -26,8 +26,8 @@ static int __pop_callee_saved_regs(struct jit * jit);
 static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
 
 
-static jit_hw_reg * rmap_is_associated(rmap_t * rmap, int reg_id, int fp, jit_value * virt_reg);
-static jit_hw_reg * rmap_get(rmap_t * rmap, jit_value reg);
+static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_value * virt_reg);
+static jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg);
 
 
 #define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
