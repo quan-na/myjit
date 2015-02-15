@@ -288,7 +288,7 @@ static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
 	for (int i = 0; i < al->gp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
 		if (hreg && (jitset_get(op->live_out, reg))) {
-			unload_reg(op, hreg, reg);
+			if (op->in_use) unload_reg(op, hreg, reg);
 			rmap_unassoc(op->regmap, reg, 0);
 		}
 	}
@@ -296,7 +296,7 @@ static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
 	for (int i = 0; i < al->fp_reg_cnt; i++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[i].id, 1, &reg);
 		if (hreg && (jitset_get(op->live_out, reg))) {
-			unload_reg(op, hreg, reg);
+			if (op->in_use) unload_reg(op, hreg, reg);
 			rmap_unassoc(op->regmap, reg, 1);
 		}
 	}

@@ -162,6 +162,7 @@ int jit_optimize_join_addimm(struct jit * jit);
 void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
 static int is_cond_branch_op(jit_op *op);
+static inline void jitset_free(jitset * s);
 
 /**
  * Initialize argpos-th argument.
@@ -237,6 +238,29 @@ static inline jit_op * jit_op_last(jit_op * op)
 {
 	while (op->next != NULL) op = op->next;
 	return op;
+}
+
+static inline void jit_free_op(struct jit_op *op)
+{
+        if (op->live_in) jitset_free(op->live_in);
+        if (op->live_out) jitset_free(op->live_out);
+        rmap_free(op->regmap);
+        jit_allocator_hints_free(op->allocator_hints);
+
+        if (GET_OP(op) == JIT_PROLOG) {
+                struct jit_func_info * info = (struct jit_func_info *)op->arg[1];
+                JIT_FREE(info->args);
+                JIT_FREE(info);
+        }
+
+        JIT_FREE(op);
+}
+
+static inline void jit_op_delete(jit_op *op)
+{
+	op->prev->next = op->next;
+	if (op->next) op->next->prev = op->prev;
+	jit_free_op(op);
 }
 
 static inline int jit_is_label(struct jit * jit, void * ptr)
