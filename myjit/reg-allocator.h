@@ -86,11 +86,11 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 	for (int i = 0; i < info->general_arg_cnt + info->float_arg_cnt; i++) {
 		int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
 		if (!isfp_arg && (assoc_gp_regs < al->gp_arg_reg_cnt)) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), al->gp_arg_regs[i]);
+			rmap_assoc(op->regmap, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), al->gp_arg_regs[i]);
 			assoc_gp_regs++;
 		}
 		if (isfp_arg && (assoc_fp_regs < al->fp_arg_reg_cnt)) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), al->fp_arg_regs[i]);
+			rmap_assoc(op->regmap, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), al->fp_arg_regs[i]);
 			assoc_fp_regs++;
 		}
 	}
@@ -120,15 +120,15 @@ static void assign_regs_for_args(struct jit_reg_allocator * al, jit_op * op)
 		int isfp_arg = (info->args[i].type == JIT_FLOAT_NUM);
 
 		if (!isfp_arg) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), al->gp_arg_regs[assoc_gp_regs]);
+			rmap_assoc(op->regmap, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i), al->gp_arg_regs[assoc_gp_regs]);
 			assoc_gp_regs++;
 		}
 		if (isfp_arg) {
-			rmap_assoc(op->regmap, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), al->gp_arg_regs[assoc_gp_regs]);
+			rmap_assoc(op->regmap, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i), al->gp_arg_regs[assoc_gp_regs]);
 			assoc_gp_regs++;
 			// initializes the second part of the register
 			if ((info->args[i].size == sizeof(double)) && (assoc_gp_regs < al->gp_reg_cnt)) {
-				jit_value r = __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i);
+				jit_value r = jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i);
 				rmap_assoc(op->regmap, (int)r, al->gp_arg_regs[assoc_gp_regs]);
 				assoc_gp_regs++;
 			}
@@ -208,7 +208,7 @@ static int assign_getarg(jit_op * op, struct jit_reg_allocator * al)
 	// optimization which eliminates undesirable assignments
 	int arg_id = op->arg[1];
 	struct jit_inp_arg * arg = &(al->current_func_info->args[arg_id]);
-	int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+	int reg_id = jit_mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 	if (!jitset_get(op->live_out, reg_id)) {
 		if (((arg->type != JIT_FLOAT_NUM) && (arg->size == REG_SIZE))
 #ifdef JIT_ARCH_AMD64

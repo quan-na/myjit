@@ -30,8 +30,8 @@
 #include "llrb.c"
 
 
-#define FR_IMM	(__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_IMM, 0))
-#define R_IMM	(__mkreg(JIT_RTYPE_INT, JIT_RTYPE_IMM, 0)) // used by amd64 and sparc
+#define FR_IMM	(jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_IMM, 0))
+#define R_IMM	(jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_IMM, 0)) // used by amd64 and sparc
 
 #define GET_OP(op) ((jit_opcode) (op->code & 0xfff8))
 #define GET_OP_SUFFIX(op) (op->code & 0x0007)

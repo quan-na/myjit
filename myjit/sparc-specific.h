@@ -314,7 +314,7 @@ static void __get_arg_double(struct jit * jit, jit_op * op, struct jit_inp_arg *
 	}
 
 	// moves the second part
-	int reg_id = __mkreg_ex(arg->type == JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id);
+	int reg_id = jit_mkreg_ex(arg->type == JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id);
 	associated = (rmap_get(op->regmap, reg_id) == NULL);
 
 	struct jit_inp_arg arg2;
@@ -334,7 +334,7 @@ static void __get_arg(struct jit * jit, jit_op * op)
 	int arg_id = op->r_arg[1];
 
 	struct jit_inp_arg * arg = &(jit_current_func_info(jit)->args[arg_id]);
-	int reg_id = __mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+	int reg_id = jit_mkreg(arg->type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 
 	int associated = (rmap_get(op->regmap, reg_id) != NULL);
 	

@@ -47,11 +47,11 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 		func_info = (struct jit_func_info *)op->arg[1];
 		int argcount = MIN(func_info->general_arg_cnt, jit->reg_al->gp_arg_reg_cnt);
 		for (int j = 0; j < argcount; j++)
-			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0); 
+			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0); 
 
 		argcount = MIN(func_info->float_arg_cnt, jit->reg_al->fp_arg_reg_cnt);
 		for (int j = 0; j < argcount; j++)
-			jitset_set(op->live_in, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0); 
+			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0); 
 	}
 #endif
 
@@ -63,13 +63,13 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 		for (int j = 0; j < argcount; j++) {
 			if (assoc_gp >= jit->reg_al->gp_arg_reg_cnt) break;
 			if (func_info->args[j].type != JIT_FLOAT_NUM) {
-				jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0);	
+				jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j), 0);	
 				assoc_gp++;
 			} else {
-				jitset_set(op->live_in, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0);	
+				jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0);	
 				assoc_gp++;
 				if (func_info->args[j].size == sizeof(double)) {
-					jitset_set(op->live_in, __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0);	
+					jitset_set(op->live_in, jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j), 0);	
 					assoc_gp++;
 				}
 			}
@@ -85,11 +85,11 @@ static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_fun
 	if (GET_OP(op) == JIT_GETARG) {
 		int arg_id = op->arg[1];
 		if (func_info->args[arg_id].type != JIT_FLOAT_NUM) {
-			jitset_set(op->live_in, __mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id), 1); 
+			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id), 1); 
 		} else {
-			jitset_set(op->live_in, __mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
+			jitset_set(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
 			if (func_info->args[arg_id].overflow)
-				jitset_set(op->live_in, __mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
+				jitset_set(op->live_in, jit_mkreg_ex(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, arg_id), 1); 
 		}
 	}
 #endif

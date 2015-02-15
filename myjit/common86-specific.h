@@ -237,7 +237,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 
 	int size = arg->size;
 	int type = arg->type;
-	int reg_id = __mkreg(type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
+	int reg_id = jit_mkreg(type == JIT_FLOAT_NUM ? JIT_RTYPE_FLOAT : JIT_RTYPE_INT, JIT_RTYPE_ARG, arg_id);
 
 	int read_from_stack = 0;
 	int stack_pos;

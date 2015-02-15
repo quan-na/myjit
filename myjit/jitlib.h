@@ -88,6 +88,34 @@ typedef struct {
 
 
 /*
+ * internal auxiliary functions 
+ */
+
+// FIXME: replace memcpy with union 
+static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)
+{
+        jit_value v;
+        memcpy(&v, &r, sizeof(jit_reg));
+        return v;
+}
+
+static inline jit_reg JIT_REG(jit_value v)
+{
+        jit_reg r;
+        memcpy(&r, &v, sizeof(jit_value));
+        return r;
+}
+
+
+#ifndef JTI_ARCH_AMD64
+#define jit_mkreg(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 0 }))
+#define jit_mkreg_ex(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 1 }))
+#else
+#define jit_mkreg(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 0, reserved = 0}))
+#define jit_mkreg_ex(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 1, reserved = 0}))
+#endif
+
+/*
  * Registers
  */
 
@@ -99,11 +127,11 @@ typedef struct {
 #define JIT_RTYPE_INT   (0)
 #define JIT_RTYPE_FLOAT (1)
 
-#define R(x) (__mkreg(JIT_RTYPE_INT, JIT_RTYPE_REG, (x)))
-#define FR(x) (__mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_REG, (x)))
+#define R(x) (jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_REG, (x)))
+#define FR(x) (jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_REG, (x)))
 
-#define R_FP    (__mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 0))
-#define R_OUT   (__mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 1))
+#define R_FP    (jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 0))
+#define R_OUT   (jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ALIAS, 1))
 
 #define JIT_FORWARD    (NULL)
 
@@ -551,48 +579,5 @@ static inline void jit_data_bytes(struct jit *jit, int count, unsigned char *dat
 	for (int i = 0; i < count; i++, data++)
 		jit_data_byte(jit, *(data));
 } 
-
-
-/*
- * internal auxiliary functions 
- */
-
-// FIXME: replace memcpy with union 
-static inline jit_value JIT_REG_TO_JIT_VALUE(jit_reg r)
-{
-        jit_value v;
-        memcpy(&v, &r, sizeof(jit_reg));
-        return v;
-}
-
-static inline jit_value __mkreg(int type, int spec, int id)
-{
-        jit_reg r;
-        r.type = type;
-        r.spec = spec;
-        r.id = id;
-        r.part = 0;
-#ifdef JIT_ARCH_AMD64
-        r.reserved = 0;
-#endif
-        return JIT_REG_TO_JIT_VALUE(r);
-}
-
-static inline jit_value __mkreg_ex(int type, int spec, int id)
-{
-        jit_reg r;
-        r.type = type;
-        r.spec = spec;
-        r.id = id;
-        r.part = 1;
-        return JIT_REG_TO_JIT_VALUE(r);
-}
-
-static inline jit_reg JIT_REG(jit_value v)
-{
-        jit_reg r;
-        memcpy(&r, &v, sizeof(jit_value));
-        return r;
-}
 
 #endif
