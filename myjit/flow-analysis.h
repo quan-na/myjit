@@ -164,19 +164,19 @@ static inline void mark_livecode(jit_op *op)
 
 static void jit_dead_code_analysis(struct jit *jit) 
 {
-	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
+	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next)
 		op->in_use = 0;
-		if (GET_OP(op) == JIT_CODESTART) op->in_use = 1; 
-		if (GET_OP(op) == JIT_LABEL) op->in_use = 1; 
-		if (GET_OP(op) == JIT_DATA_BYTE) op->in_use = 1;
-		if (GET_OP(op) == JIT_DATA_CADDR) op->in_use = 1; 
-		if (GET_OP(op) == JIT_DATA_DADDR) op->in_use = 1; 
-		if (GET_OP(op) == JIT_CODE_ALIGN) op->in_use = 1; 
-	}
 
 	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
 		if (GET_OP(op) == JIT_PROLOG) mark_livecode(op);
 		if (GET_OP(op) == JIT_DATA_CADDR) mark_livecode(op->jmp_addr);
+
+		if (GET_OP(op) == JIT_CODESTART) op->in_use = 1; 
+		if (GET_OP(op) == JIT_DATA_BYTE) op->in_use = 1;
+		if (GET_OP(op) == JIT_DATA_CADDR) op->in_use = 1; 
+		if (GET_OP(op) == JIT_DATA_DADDR) op->in_use = 1; 
+		if (GET_OP(op) == JIT_CODE_ALIGN) op->in_use = 1; 
+		if (GET_OP(op) == JIT_LABEL) op->in_use = 1; 
 	}
 
 	jit_op *op = jit_op_first(jit->ops);
