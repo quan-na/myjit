@@ -383,11 +383,11 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 	if (verbosity & JIT_DEBUG_LOADS) {
 		char buf[256];
 		int is_load_op = 1;
-		struct __hw_reg * hreg;
+		jit_hw_reg * hreg;
 		switch (op_code) {
 			case JIT_SYNCREG: 
 				jit_get_reg_name(buf, op->arg[0]);
-				hreg = (struct __hw_reg *) rb_search(__get_prev_rmap(op), op->arg[0]);
+				hreg = (jit_hw_reg *) rb_search(__get_prev_rmap(op), op->arg[0]);
 				printf("\t.syncreg    %s <- %s", buf, hreg->name);
 				break;
 			default: is_load_op = 0;

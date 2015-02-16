@@ -240,7 +240,7 @@ struct jit_reg_allocator * jit_reg_allocator_create()
 #endif
 
 	reg = 0;
-	a->fp_regs = JIT_MALLOC(sizeof(struct __hw_reg) * a->fp_reg_cnt);
+	a->fp_regs = JIT_MALLOC(sizeof(jit_hw_reg) * a->fp_reg_cnt);
 
 	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM0, "xmm0", 0, 1, 1 };
 	a->fp_regs[reg++] = (jit_hw_reg) { X86_XMM1, "xmm1", 0, 1, 2 };

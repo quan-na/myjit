@@ -26,8 +26,8 @@
 #define RMAP_UNLOAD (1)
 #define RMAP_LOAD (2)
 
-static inline void unload_reg(jit_op * op,  struct __hw_reg * hreg, long virt_reg);
-static inline void load_reg(struct jit_op * op, struct __hw_reg * hreg, long reg);
+static inline void unload_reg(jit_op * op,  jit_hw_reg * hreg, long virt_reg);
+static inline void load_reg(struct jit_op * op, jit_hw_reg * hreg, long reg);
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -134,7 +134,7 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 	int i = current->key;
 
 	if ((!found) || (current->value != found->value)) {
-		struct __hw_reg * hreg = (struct __hw_reg *) current->value;
+		jit_hw_reg * hreg = (jit_hw_reg *) current->value;
 		switch (mode) {
 			case RMAP_UNLOAD: unload_reg(op, hreg, i); break;
 			case RMAP_LOAD: load_reg(op, hreg, i); break;

@@ -48,15 +48,13 @@
 #endif
 
 
-struct __hw_reg {
+typedef struct {
 	int id;
 	char * name;
 	char callee_saved;
 	char fp;
 	short priority;
-};
-
-typedef struct __hw_reg jit_hw_reg;
+} jit_hw_reg;
 
 struct jit_reg_allocator {
 	int gp_reg_cnt;				// number of general purpose registers 

@@ -155,7 +155,7 @@ static inline void __fpbranch_op(struct jit * jit, struct jit_op * op, int cond,
 // FIXME: more general, should use information from the reg. allocator
 static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
-	struct __hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
+	jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 	if (hreg) {
 		*reg = hreg->id;
 		return 0;
