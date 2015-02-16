@@ -1,46 +1,33 @@
 #include <limits.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
-void test1()
+DEFINE_TEST(test1)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_reti(p, 123);
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (r == 123) SUCCESS(1);
-	else FAIL(1);
-
-	jit_free(p);
+	ASSERT_EQ(123, f1());
+	return 0;
 }
 
-void test2()
+DEFINE_TEST(test2)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
 	jit_addi(p, R(0), R(0), 200);
 	jit_addi(p, R(1), R(0), 200);
 	jit_retr(p, R(1));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (r == 500) SUCCESS(2);
-	else FAIL(2);
-
-	jit_free(p);
+	ASSERT_EQ(500, f1());
+	return 0;
 }
 
-void test3()
+DEFINE_TEST(test3)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
@@ -48,19 +35,14 @@ void test3()
 	jit_subi(p, R(1), R(0), 50);
 	jit_subr(p, R(2), R(1), R(0));
 	jit_retr(p, R(2));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (r == -50) SUCCESS(3);
-	else FAIL(3);
-
-	jit_free(p);
+	ASSERT_EQ(-50, f1());
+	return 0;
 }
 
-void test4()
+DEFINE_TEST(test4)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
@@ -68,19 +50,14 @@ void test4()
 	jit_addcr(p, R(2), R(0), R(1));
 	jit_addxr(p, R(2), R(0), R(0));
 	jit_retr(p, R(2));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (r == 201) SUCCESS(4);
-	else FAIL(4);
-
-	jit_free(p);
+	ASSERT_EQ(201, f1());
+	return 0;
 }
 
-void test5()
+DEFINE_TEST(test5)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), -100);
@@ -88,20 +65,18 @@ void test5()
 	jit_subcr(p, R(2), R(0), R(1));
 	jit_subxr(p, R(2), R(0), R(0));
 	jit_retr(p, R(2));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (r == -1) SUCCESS(5);
-	else FAIL(5);
-
-	jit_free(p);
+	ASSERT_EQ(-1, f1());
+	return 0;
 }
 
-int main() 
+void test_setup()
 {
-	test1();
-	test2();
-	test3();
-	test4();
-	test5();
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
+	SETUP_TEST(test2);
+	SETUP_TEST(test3);
+	SETUP_TEST(test4);
+	SETUP_TEST(test5);
 }
