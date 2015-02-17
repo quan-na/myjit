@@ -1,26 +1,53 @@
-#include <limits.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
-#define CREATE_TEST_REG(testname, __data_type, __ji_op, __operator) \
-void testname(int id, int eql, int negative, int greater)\
+#define CREATE_TEST_SUITE_REG(testname, _data_type, _jit_op, _operator) \
+        CREATE_TEST_CASE_REG(testname ## 0, _data_type, _jit_op, _operator, 0, 0, 0) \
+        CREATE_TEST_CASE_REG(testname ## 1, _data_type, _jit_op, _operator, 0, 0, 1) \
+        CREATE_TEST_CASE_REG(testname ## 2, _data_type, _jit_op, _operator, 0, 1, 0) \
+        CREATE_TEST_CASE_REG(testname ## 3, _data_type, _jit_op, _operator, 0, 1, 1) \
+        CREATE_TEST_CASE_REG(testname ## 4, _data_type, _jit_op, _operator, 1, 0, 0) \
+        CREATE_TEST_CASE_REG(testname ## 5, _data_type, _jit_op, _operator, 1, 0, 1) \
+        CREATE_TEST_CASE_REG(testname ## 6, _data_type, _jit_op, _operator, 1, 1, 0) \
+        CREATE_TEST_CASE_REG(testname ## 7, _data_type, _jit_op, _operator, 1, 1, 1) \
+
+#define CREATE_TEST_SUITE_IMM(testname, _data_type, _jit_op, _operator) \
+        CREATE_TEST_CASE_IMM(testname ## 0, _data_type, _jit_op, _operator, 0, 0, 0) \
+        CREATE_TEST_CASE_IMM(testname ## 1, _data_type, _jit_op, _operator, 0, 0, 1) \
+        CREATE_TEST_CASE_IMM(testname ## 2, _data_type, _jit_op, _operator, 0, 1, 0) \
+        CREATE_TEST_CASE_IMM(testname ## 3, _data_type, _jit_op, _operator, 0, 1, 1) \
+        CREATE_TEST_CASE_IMM(testname ## 4, _data_type, _jit_op, _operator, 1, 0, 0) \
+        CREATE_TEST_CASE_IMM(testname ## 5, _data_type, _jit_op, _operator, 1, 0, 1) \
+        CREATE_TEST_CASE_IMM(testname ## 6, _data_type, _jit_op, _operator, 1, 1, 0) \
+        CREATE_TEST_CASE_IMM(testname ## 7, _data_type, _jit_op, _operator, 1, 1, 1) \
+
+#define SETUP_TESTS(testname) \
+        SETUP_TEST(testname ## 0); \
+        SETUP_TEST(testname ## 1); \
+        SETUP_TEST(testname ## 2); \
+        SETUP_TEST(testname ## 3); \
+        SETUP_TEST(testname ## 4); \
+        SETUP_TEST(testname ## 5); \
+        SETUP_TEST(testname ## 6); \
+        SETUP_TEST(testname ## 7);
+
+
+#define CREATE_TEST_CASE_REG(testname, _data_type, _jit_op, _operator, _equal, _negative, _greater) \
+DEFINE_TEST(testname)\
 {\
-	double r;\
-	struct jit * p = jit_init();\
 	pdfv f1;\
 	jit_prolog(p, &f1);\
 \
-	__data_type firstval = 42;\
-	__data_type secval = 28;\
-	if (eql) secval = firstval;\
-	if (greater) secval = 60;\
-	if (negative) secval *= -1;\
+	_data_type firstval = 42;\
+	_data_type secval = 28;\
+	if (_equal) secval = firstval;\
+	if (_greater) secval = 60;\
+	if (_negative) secval *= -1;\
 \
 	jit_fmovi(p, FR(1), firstval);\
 	jit_fmovi(p, FR(2), secval);\
 \
 	jit_op * br; \
-	br = __ji_op(p, 0, FR(1), FR(2));\
+	br = _jit_op(p, 0, FR(1), FR(2));\
 	jit_fmovi(p, FR(3), -10); \
 	jit_op * e = jit_jmpi(p, 0); \
 	\
@@ -29,34 +56,30 @@ void testname(int id, int eql, int negative, int greater)\
 	jit_patch(p, e); \
 	jit_fretr(p, FR(3), sizeof(double)); \
 \
-	jit_generate_code(p);\
-	r = f1();\
-	int testid = id * 10000 + eql * 100 + negative * 10 + greater;\
-	if ((equal(r, -10.0, 0.001)) && !(firstval __operator secval)) SUCCESS(testid);\
-	else if ((equal(r, 10.0, 0.001)) && (firstval __operator secval)) SUCCESS(testid);\
-	else FAIL(testid);\
-	jit_free(p);\
+        JIT_GENERATE_CODE(p);\
+\
+        if (firstval _operator secval) ASSERT_EQ_DOUBLE(10.0, f1()); \
+        if (!(firstval _operator secval)) ASSERT_EQ_DOUBLE(-10.0, f1()); \
+        return 0; \
 }
 
-#define CREATE_TEST_IMM(testname, __data_type, __ji_op, __operator) \
-void testname(int id, int eql, int negative, int greater)\
+#define CREATE_TEST_CASE_IMM(testname, _data_type, _jit_op, _operator, _equal, _negative, _greater) \
+DEFINE_TEST(testname)\
 {\
-	double r;\
-	struct jit * p = jit_init();\
 	pdfv f1;\
 	jit_prolog(p, &f1);\
 \
-	__data_type firstval = 42;\
-	__data_type secval = 28;\
-	if (eql) secval = firstval;\
-	if (greater) secval = 60;\
-	if (negative) secval *= -1;\
+	_data_type firstval = 42;\
+	_data_type secval = 28;\
+	if (_equal) secval = firstval;\
+	if (_greater) secval = 60;\
+	if (_negative) secval *= -1;\
 	\
 	jit_fmovi(p, FR(1), firstval);\
 	jit_fmovi(p, FR(2), secval);\
 \
 	jit_op * br; \
-	br = __ji_op(p, 0, FR(1), secval);\
+	br = _jit_op(p, 0, FR(1), secval);\
 	jit_fmovi(p, FR(3), -10); \
 	jit_op * e = jit_jmpi(p, 0); \
 	\
@@ -65,53 +88,42 @@ void testname(int id, int eql, int negative, int greater)\
 	jit_patch(p, e); \
 	jit_fretr(p, FR(3), sizeof(double)); \
 \
-	jit_generate_code(p);\
-	r = f1();\
-	int testid = id * 10000 + eql * 100 + negative * 10 + greater;\
-	if (equal(r, -10.0, 0.001) && !(firstval __operator secval)) SUCCESS(testid);\
-	else if (equal(r, 10.0, 0.001) && (firstval __operator secval)) SUCCESS(testid);\
-	else FAIL(testid);\
-	jit_free(p);\
+        JIT_GENERATE_CODE(p);\
+\
+        if (firstval _operator secval) ASSERT_EQ_DOUBLE(10.0, f1()); \
+        if (!(firstval _operator secval)) ASSERT_EQ_DOUBLE(-10.0, f1()); \
+        return 0; \
 }
 
-#define TEST_SET(testname, id) \
-	testname(id, 0, 0, 0);\
-	testname(id, 0, 0, 1);\
-	testname(id, 0, 1, 0);\
-	testname(id, 0, 1, 1);\
-	testname(id, 1, 0, 0);\
-	testname(id, 1, 0, 1);\
-	testname(id, 1, 1, 0);\
-	testname(id, 1, 1, 1);
+CREATE_TEST_SUITE_REG(test01reg, double, jit_fbltr, <)
+CREATE_TEST_SUITE_REG(test02reg, double, jit_fbler, <=)
+CREATE_TEST_SUITE_REG(test03reg, double, jit_fbger, >=)
+CREATE_TEST_SUITE_REG(test04reg, double, jit_fbgtr, >)
+CREATE_TEST_SUITE_REG(test05reg, double, jit_fbeqr, ==)
+CREATE_TEST_SUITE_REG(test06reg, double, jit_fbner, !=)
 
+CREATE_TEST_SUITE_IMM(test21imm, double, jit_fblti, <)
+CREATE_TEST_SUITE_IMM(test22imm, double, jit_fblei, <=)
+CREATE_TEST_SUITE_IMM(test23imm, double, jit_fbgei, >=)
+CREATE_TEST_SUITE_IMM(test24imm, double, jit_fbgti, >)
+CREATE_TEST_SUITE_IMM(test25imm, double, jit_fbeqi, ==)
+CREATE_TEST_SUITE_IMM(test26imm, double, jit_fbnei, !=)
 
-CREATE_TEST_REG(test01reg, double, jit_fbltr, <)
-CREATE_TEST_REG(test02reg, double, jit_fbler, <=)
-CREATE_TEST_REG(test03reg, double, jit_fbger, >=)
-CREATE_TEST_REG(test04reg, double, jit_fbgtr, >)
-CREATE_TEST_REG(test05reg, double, jit_fbeqr, ==)
-CREATE_TEST_REG(test06reg, double, jit_fbner, !=)
-
-CREATE_TEST_IMM(test21imm, double, jit_fblti, <)
-CREATE_TEST_IMM(test22imm, double, jit_fblei, <=)
-CREATE_TEST_IMM(test23imm, double, jit_fbgei, >=)
-CREATE_TEST_IMM(test24imm, double, jit_fbgti, >)
-CREATE_TEST_IMM(test25imm, double, jit_fbeqi, ==)
-CREATE_TEST_IMM(test26imm, double, jit_fbnei, !=)
-
-int main()
+void test_setup()
 {
-	TEST_SET(test01reg, 1);
-	TEST_SET(test02reg, 2);
-	TEST_SET(test03reg, 3);
-	TEST_SET(test04reg, 4);
-	TEST_SET(test05reg, 5);
-	TEST_SET(test06reg, 6);
+        test_filename = __FILE__;
+        SETUP_TESTS(test01reg);
+        SETUP_TESTS(test02reg);
+        SETUP_TESTS(test03reg);
+        SETUP_TESTS(test04reg);
+        SETUP_TESTS(test05reg);
+        SETUP_TESTS(test06reg);
 
-	TEST_SET(test21imm, 21);
-	TEST_SET(test22imm, 22);
-	TEST_SET(test23imm, 23);
-	TEST_SET(test24imm, 24);
-	TEST_SET(test25imm, 25);
-	TEST_SET(test26imm, 26);
+        SETUP_TESTS(test21imm);
+        SETUP_TESTS(test22imm);
+        SETUP_TESTS(test23imm);
+        SETUP_TESTS(test24imm);
+        SETUP_TESTS(test25imm);
+        SETUP_TESTS(test26imm);
 }
+

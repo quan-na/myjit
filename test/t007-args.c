@@ -1,14 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
-
-#include "../myjit/jitlib.h"
+#include "tests.h"
 
 typedef long (* plf10s)(short, short, short, short, short, short, short, short, short, short);
 
-int main()
+DEFINE_TEST(test1)
 {
-	struct jit * p = jit_init();
-
 	plf10s foo;
 
 	jit_prolog(p, &foo);
@@ -61,14 +56,14 @@ int main()
 
 	jit_retr(p, R(0));
 
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	jit_dump_code(p, 0);
-
-	// check
-	printf("Check #1: %li\n", foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-
-	// cleanup
-	jit_free(p);
+	ASSERT_EQ(109, foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 	return 0;
+}
+
+void test_setup()
+{
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
 }

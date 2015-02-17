@@ -1,32 +1,43 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include "tests.h"
 
-#include "../myjit/jitlib.h"
+int correct_result;
 
-typedef long (* plfv)();
-
-int foobar(double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8, double a9, double a10)
+static int foobar(double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8, double a9, double a10)
 {
-	double a11 = 666;
-	printf("A1:%f\n", a1);
-	printf("1:\t%f\n2:\t%f\n3:\t%f\n4:\t%f\n5:\t%f\n6:\t%f\n7:\t%f\n8:\t%f\n9:\t%f\n10:\t%f\n11:\t%f\n",
-		a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
-	return 666;
+	correct_result = 1;
+        if (a1 != -1) correct_result = 0;
+        if (a2 != 1) correct_result = 0;
+        if (a3 != 2) correct_result = 0;
+        if (a4 != 4) correct_result = 0;
+        if (a5 != 8) correct_result = 0;
+        if (a6 != 16) correct_result = 0;
+        if (a7 != 32) correct_result = 0;
+        if (a8 != 64) correct_result = 0;
+        if (a9 != 128) correct_result = 0;
+        if (a10 != 222.222) correct_result = 0;
+        return 666;
 }
 
-int barbaz(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, float a9, float a10, float a11)
+static int barbaz(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, float a9, float a10, float a11)
 {
-	//double a11 = 666;
-	printf("A1:%f\n", a1);
-	printf("1:\t%f\n2:\t%f\n3:\t%f\n4:\t%f\n5:\t%f\n6:\t%f\n7:\t%f\n8:\t%f\n9:\t%f\n10:\t%f\n11:\t%f\n",
-		a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
-	return 666;
+	correct_result = 1;
+        if (a1 != -1) correct_result = 0;
+        if (a2 != 1) correct_result = 0;
+        if (a3 != 2) correct_result = 0;
+        if (a4 != 4) correct_result = 0;
+        if (a5 != 8) correct_result = 0;
+        if (a6 != 16) correct_result = 0;
+        if (a7 != 32) correct_result = 0;
+        if (a8 != 64) correct_result = 0;
+        if (a9 != 128) correct_result = 0;
+        if (!equals(a10, 222.222, 0.0001)) correct_result = 0;
+        if (a11 != 256) correct_result = 0;
+        return 666;
 }
 
-int test1()
+DEFINE_TEST(test1)
 {
-	struct jit * p = jit_init();
-
+	correct_result = 2;
 	plfv foo;
 
 	jit_prolog(p, &foo);
@@ -59,23 +70,16 @@ int test1()
 
 	jit_reti(p, 0);
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, JIT_DEBUG_ASSOC);
-
-	jit_dump_code(p, 0);
-
-	// check
-	printf("Check #1: %li\n", foo());
-
-	// cleanup
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(0, foo());
+	ASSERT_EQ(1, correct_result);
 	return 0;
+
 }
 
-int test2()
+DEFINE_TEST(test2)
 {
-	struct jit * p = jit_init();
-
+	correct_result = 2;
 	plfv foo;
 
 	jit_prolog(p, &foo);
@@ -108,22 +112,16 @@ int test2()
 
 	jit_reti(p, 0);
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, JIT_DEBUG_ASSOC);
-
-	jit_dump_code(p, 0);
-
-	// check
-	printf("Check #2: %li\n", foo());
-
-	// cleanup
-	jit_free(p);
+	
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(0, foo());
+	ASSERT_EQ(1, correct_result);
 	return 0;
 }
 
-
-int main()
+void test_setup()
 {
-	test1();
-	test2();
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
+	SETUP_TEST(test2);
 }

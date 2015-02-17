@@ -1,19 +1,16 @@
-#include <limits.h>
 #include <stddef.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
+#include "simple-buffer.c"
+
 typedef jit_value (*plfsss)(short, short, short);
 typedef jit_value (*plfiui)(int, unsigned int);
 typedef jit_value (*plfuc)(unsigned char);
 typedef jit_value (*plfus)(unsigned short);
 typedef jit_value (*plfpcus)(char *, unsigned short);
-//typedef long (*plfv)(void);
 
 // function which computes an average of three numbers each occupying 2 bytes 
-void test1()
+DEFINE_TEST(test1)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfsss f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
@@ -26,25 +23,16 @@ void test1()
 	jit_addr(p, R(0), R(0), R(1));
 	jit_divi(p, R(0), R(0), 3);
 	jit_retr(p, R(0));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-//	jit_dump_code(p, 0);
-
-	r = f1(20, 20, -10);
-	printf("DD:%li\n", r);
-	if (r == 10) SUCCESS(10);
-	else FAIL(10);
-
-	jit_free(p);
+	ASSERT_EQ(10, f1(20, 20, -10));
+	return 0;
 }
 
 // function which computes n^m
-void test2()
+DEFINE_TEST(test2)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfiui f1;
-
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
 	jit_declare_arg(p, JIT_UNSIGNED_NUM, sizeof(int));
@@ -61,26 +49,16 @@ void test2()
 
 	jit_patch(p, end);	
 	jit_retr(p, R(2));
-	jit_generate_code(p);
-	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-
-	r = f1(3, 4);
-	if (r == 81) SUCCESS(21);
-	else FAIL(21);
-	
-	r = f1(-3, 3);
-	if (r == -27) SUCCESS(22);
-	else FAIL(22);
-
-	jit_free(p);
+	ASSERT_EQ(81, f1(3, 4));
+	ASSERT_EQ(-27, f1(-3, 3));
+	return 0;
 }
 
 // function which computes factorial
-void test3()
+DEFINE_TEST(test3)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfuc f1;
 
 	jit_prolog(p, &f1);
@@ -100,21 +78,15 @@ void test3()
 	jit_patch(p, end);
 	jit_retr(p, R(1));
 
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1(5);
-	if (r == 120) SUCCESS(31);
-	else FAIL(31);
-
-
-	jit_free(p);
+	ASSERT_EQ(120, f1(5));
+	return 0;
 }
 
 // function which computes fibonacci's number
-void test4()
+DEFINE_TEST(test4)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfus f1;
 
 	jit_label * fib = jit_get_label(p);
@@ -148,26 +120,14 @@ void test4()
 	jit_patch(p, br);
 	jit_reti(p, 1);
 
-	jit_generate_code(p);
-
-//	jit_dump_ops(p, 0); return;
-//	jit_dump_code(p, 0); return;
-	jit_dump_code(p, 0);
-
-
-	r = f1(30);
-	printf("::%li\n", r);
-	if (r == 832040) SUCCESS(41);
-	else FAIL(41);
-
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(832040, f1(30));
+	return 0;
 }
 
 // function which converts string to number
-void test5()
+DEFINE_TEST(test5)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfpcus f1; // string, radix -> long 
 
 	jit_prolog(p, &f1);
@@ -213,69 +173,54 @@ void test5()
 
 	jit_patch(p, end);
 	jit_retr(p, R(4));
-	jit_generate_code(p);
 
-//	jit_dump_ops(p, 0); return;
-//	jit_dump_code(p, 0); return;
-	r = f1("1f", 16);
-	printf("::%li\n", r);
-	if (r == 31) SUCCESS(51);
-	else FAIL(51);
-
-
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(31, f1("1f", 16));
+	return 0;
 }
 
 // prints ``hello, world!''
-void test6()
+DEFINE_TEST(test6)
 {
-	jit_value r;
-	static char * str = "Hello, World! Number of the day is %i!!!\n";
-	struct jit * p = jit_init();
+	static char *str = "Hello, World! Lucky number for today is %i!!!\n";
+	static char buf[120];
 	plfv f1; 
 
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), str);
 	
-	jit_movi(p, R(1), 12345);
-	jit_movi(p, R(2), 100);
-	jit_movi(p, R(3), 200);
-	jit_movi(p, R(4), 300);
-	jit_movi(p, R(5), 400);
+	jit_movi(p, R(1), 100);
+	jit_movi(p, R(2), 200);
+	jit_movi(p, R(3), 300);
+	jit_movi(p, R(4), 400);
+	jit_movi(p, R(5), 500);
 
-	jit_movi(p, R(2), printf);
+	jit_movi(p, R(2), sprintf);
 
 	jit_prepare(p);
+	jit_putargi(p, buf);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));
 	jit_callr(p, R(2));
 
 	jit_retval(p, R(3));
 
-	/*
-	jit_movi(p, R(2), 100);
-	jit_movi(p, R(3), 100);
-	jit_movi(p, R(4), 100);
-*/
+	jit_retr(p, R(4));
 
-	jit_retr(p, R(2));
-	jit_generate_code(p);
-//	jit_dump_ops(p, 0); return;
-//	jit_dump_code(p, 0); return;
-	r = f1();
-//	printf("::%i\n", r);
-
-
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(400, f1());
+	ASSERT_EQ_STR("Hello, World! Lucky number for today is 100!!!\n", buf);
+	return 0;
 }
 
 // prints numbers 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
-void test7()
+DEFINE_TEST(test7)
 {
 	static int ARR_SIZE = 10;
-	jit_value r;
-	static char * formatstr = "%i\n";
-	struct jit * p = jit_init();
+	static char * formatstr = "%i ";
+
+	simple_buffer(BUFFER_CLEAR, NULL);
+
 	plfv f1; 
 
 	jit_prolog(p, &f1);
@@ -302,26 +247,23 @@ void test7()
 
 	jit_label * loop2 = jit_get_label(p);
 
-	//jit_addi(p, R(0), R(0), 2 * REG_SIZE);
-
 	jit_ldr(p, R(1), R(0), REG_SIZE);
 	jit_prepare(p);
+	jit_putargi(p, BUFFER_PUT);
 	jit_putargi(p, formatstr);
 	jit_putargr(p, R(1));
-	jit_call(p, printf);
+	jit_call(p, simple_buffer);
 
 	jit_addi(p, R(0), R(0), REG_SIZE);
 	jit_subi(p, R(2), R(2), 1);
 	jit_bgei(p, loop2, R(2), 0);
 
 	jit_reti(p, 0);
-	jit_generate_code(p);
-//	jit_dump_ops(p, 0); return;
-//	jit_dump_code(p, 0); return;
-	r = f1();
-//	printf("::%i\n", r);
-	
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(0, f1());
+	ASSERT_EQ_STR("1 2 4 8 16 32 64 128 256 512 ", simple_buffer(BUFFER_GET, NULL));
+	return 0;
 }
 
 struct mystruct {
@@ -332,11 +274,10 @@ struct mystruct {
 };
 
 // sums integers in a an array and computes their sum and average (uses structs)
-void test8()
+DEFINE_TEST(test8)
 {
-	jit_value r;
-	static char * formatstr = "sum: %i\navg: %i\n";
-	struct jit * p = jit_init();
+	static char * formatstr = "avg: %i\nsum: %i\n";
+	simple_buffer(BUFFER_CLEAR, NULL);
 
 	static struct mystruct s = { NULL, 0, 0, 0};
 	s.items = (short []){1, 2, 3, 4, 5};
@@ -379,32 +320,34 @@ void test8()
 	jit_ldi(p, R(1), (unsigned char *)&s + offsetof(struct mystruct, sum), sizeof(short));
 
 	jit_prepare(p);
+	jit_putargi(p, BUFFER_PUT);
 	jit_putargi(p, formatstr);
 	jit_putargr(p, R(0));
 	jit_putargr(p, R(1));
 
-	jit_call(p, printf);
+	jit_call(p, simple_buffer);
 
 	jit_retr(p, R(1));
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, 0); return;
-//	jit_dump_code(p, 0); return;
-	r = f1();
+	JIT_GENERATE_CODE(p);
 
-	jit_free(p);
+	ASSERT_EQ(15, f1());
+	ASSERT_EQ_STR("avg: 3\nsum: 15\n", simple_buffer(BUFFER_GET, NULL));
+	ASSERT_EQ(15, s.sum);
+	ASSERT_EQ(3, s.avg);
+	return 0;
+
 }
 
-
-
-int main() 
+void test_setup()
 {
-	test1();
-	test2(); 
-	test3();
-	test4(); // XXX
-  	test5(); // XXX
-	test6(); // XXX
-	test7(); // XXX
-	test8(); 
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
+	SETUP_TEST(test2);
+	SETUP_TEST(test3);
+	SETUP_TEST(test4);
+	SETUP_TEST(test5);
+	SETUP_TEST(test6);
+	SETUP_TEST(test7);
+	SETUP_TEST(test8);
 }

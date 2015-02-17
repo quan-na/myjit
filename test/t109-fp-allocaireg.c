@@ -1,24 +1,31 @@
-#include <stdlib.h>
-#include <stdio.h>
-
 #define JIT_REGISTER_TEST
-#include "../myjit/jitlib.h"
+#include "tests.h"
+#include "simple-buffer.c"
 
 #define BLOCK_SIZE	(16)
 
-typedef long (* plfv)();
+int correct_result;
 
-int foobar(double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8, double a9, double a10)
+static int foobar(double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8, double a9, double a10)
 {
-	printf("A1:%f\n", a1);
-	printf("1:\t%f\n2:\t%f\n3:\t%f\n4:\t%f\n5:\t%f\n6:\t%f\n7:\t%f\n8:\t%f\n9:\t%f\n10:\t%f\n",
-		a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+        correct_result = 1;
+        if (a1 != -1) correct_result = 0;
+        if (a2 != 1) correct_result = 0;
+        if (a3 != 2) correct_result = 0;
+        if (a4 != 4) correct_result = 0;
+        if (a5 != 8) correct_result = 0;
+        if (a6 != 16) correct_result = 0;
+        if (a7 != 32) correct_result = 0;
+        if (a8 != 64) correct_result = 0;
+        if (a9 != 128) correct_result = 0;
+        if (a10 != 256) correct_result = 0;
 	return 666;
 }
-int main()
+
+DEFINE_TEST(test1)
 {
-	struct jit * p = jit_init();
-	static char * msg2 = "%u\n";
+	correct_result = 2;
+	static char * msg2 = "%u ";
 
 	plfv foo;
 
@@ -68,24 +75,26 @@ int main()
 	jit_ldxr(p, R(2), R(1), R(0), 1);
 
 	jit_prepare(p);
+	jit_putargi(p, BUFFER_PUT);
 	jit_putargi(p, msg2);
 	jit_putargr(p, R(2));
-	jit_call(p, printf);
+	jit_call(p, simple_buffer);
 
 	jit_addi(p, R(0), R(0), 1);
 	jit_blti(p, lab2, R(0), BLOCK_SIZE);
 
 	jit_retr(p, R(0));
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, 0);
 
-	jit_dump_code(p, 0);
-
-	// check
-	printf("Check #1: %li\n", foo());
-
-	// cleanup
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(16, foo());
+	ASSERT_EQ(1, correct_result);
+	ASSERT_EQ_STR("0 3 6 9 12 15 18 21 24 27 30 33 36 39 42 45 ", simple_buffer(BUFFER_GET, NULL));
 	return 0;
+}
+
+void test_setup()
+{
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
 }

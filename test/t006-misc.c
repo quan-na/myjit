@@ -1,14 +1,14 @@
-#include <limits.h>
-#include <stddef.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
 #define LOOP_CNT	(10000000)
+int value1 = 666;
+int value2 = 777;
+
+int cond_value = 10;
+
 // implements ternary operator (old-fashioned way); end tests efficiency
-void test1(long cond, long value1, long value2)
+DEFINE_TEST(test1)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfl f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
@@ -18,7 +18,7 @@ void test1(long cond, long value1, long value2)
 
 	jit_label * loop = jit_get_label(p);
 
-	jit_op * eq = jit_beqi(p, JIT_FORWARD, R(0), cond);
+	jit_op * eq = jit_beqi(p, JIT_FORWARD, R(0), cond_value);
 	jit_movi(p, R(2), value2);
 	jit_op * end = jit_jmpi(p, JIT_FORWARD);
 	jit_patch(p, eq);
@@ -29,20 +29,16 @@ void test1(long cond, long value1, long value2)
 	jit_bgti(p, loop, R(1), 0);
 
 	jit_retr(p, R(2));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1(10);
-	if (r == 666) SUCCESS(10);
-	else FAIL(10);
-
-	jit_free(p);
+	ASSERT_EQ(666, f1(10));
+	ASSERT_EQ(777, f1(20));
+	return 0;
 }
 
 // implements ternary operator (tricky); end tests efficiency
-void test2(long cond, long value1, long value2)
+DEFINE_TEST(test2)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfl f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
@@ -52,7 +48,7 @@ void test2(long cond, long value1, long value2)
 
 	jit_label * loop = jit_get_label(p);
 
-	jit_eqi(p, R(2), R(0), cond);
+	jit_eqi(p, R(2), R(0), cond_value);
 
 	jit_subi(p, R(2), R(2), 1);
 	jit_andi(p, R(2), R(2), value2 - value1);
@@ -63,20 +59,17 @@ void test2(long cond, long value1, long value2)
 	jit_bgti(p, loop, R(1), 0);
 
 	jit_retr(p, R(2));
-	jit_generate_code(p);
-//	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	r = f1(10);
-	printf(":::%li\n", r);
-	if (r == 666) SUCCESS(11);
-	else FAIL(11);
+	ASSERT_EQ(666, f1(10));
+	ASSERT_EQ(777, f1(20));
 
-	jit_free(p);
+	return 0;
 }
 
-
-int main() 
+void test_setup()
 {
-	test1(10, 666, 777);
-	test2(10, 666, 777);
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
+	SETUP_TEST(test2);
 }

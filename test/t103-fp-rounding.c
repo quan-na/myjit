@@ -1,40 +1,37 @@
-#include <limits.h>
 #include <math.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
-#define CREATE_TEST(__test_name,__jit_func,__fn) \
-void __test_name(double val, int id) \
+int count = 8;
+double test_data[] = { 2.0, 2.1, 2.5, 2.7, -2.0, -2.1, -2.5, -2.7 };
+
+#define CREATE_TEST(_test_name, _jit_func, _fn) \
+DEFINE_TEST(_test_name) \
 { \
-	long r;\
-	struct jit * p = jit_init(); \
-	plfv f1; \
+	plfd f1; \
+	jit_disable_optimization(p, JIT_OPT_ALL); \
 	jit_prolog(p, &f1); \
-	jit_fmovi(p, FR(0), val); \
-	__jit_func(p, R(0), FR(0)); \
+	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(double));\
+	jit_getarg(p, FR(0), 0); \
+	_jit_func(p, R(0), FR(0)); \
 	jit_retr(p, R(0)); \
-	jit_generate_code(p); \
+	JIT_GENERATE_CODE(p); \
 \
-	r = f1();\
-	double x = __fn (val);\
-	if (equal(r, x, 0.0001)) SUCCESS(id); \
-	else FAIL(id);\
+	for (int i = 0; i < count; i++) \
+		ASSERT_EQ_DOUBLE(_fn(test_data[i]), f1(test_data[i])); \
 \
-	jit_free(p);\
+	return 0;\
 }
 
-CREATE_TEST(trunc_test,jit_truncr,trunc)
-CREATE_TEST(round_test,jit_roundr,round)
-CREATE_TEST(ceil_test,jit_ceilr,ceil)
-CREATE_TEST(floor_test,jit_floorr,floor)
+CREATE_TEST(trunc_test, jit_truncr, trunc)
+CREATE_TEST(round_test, jit_roundr, round)
+CREATE_TEST(ceil_test, jit_ceilr, ceil)
+CREATE_TEST(floor_test, jit_floorr, floor)
 
-int main() 
+void test_setup()
 {
-	int count = 8;
-	static double test[] = { 2.0, 2.1, 2.5, 2.7, -2.0, -2.1, -2.5, -2.7 };
-
-	for (int i = 0; i < count; i++) trunc_test(test[i], 10 + i);
-	for (int i = 0; i < count; i++) round_test(test[i], 20 + i);
-	for (int i = 0; i < count; i++) ceil_test(test[i], 30 + i);
-	for (int i = 0; i < count; i++) floor_test(test[i], 40 + i);
+	test_filename = __FILE__;
+	SETUP_TEST(trunc_test);
+	SETUP_TEST(round_test);
+	SETUP_TEST(ceil_test);
+	SETUP_TEST(floor_test);
 }

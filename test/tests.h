@@ -1,12 +1,15 @@
-#include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
 #include "../myjit/jitlib.h"
 
 typedef jit_value (*plfv)(void);
 typedef jit_value (*plfl)(jit_value);
 typedef jit_value (*plfll)(jit_value, jit_value);
 typedef double (*pdfv)(void);
+typedef double (*pdfd)(double);
+typedef jit_value (*plfd)(double);
 typedef void * (*ppfl)(jit_value);
 
 #define DUMP_CODE       0x01
@@ -17,6 +20,7 @@ typedef void * (*ppfl)(jit_value);
 #define OPT_ALL         0x20
 
 
+#define TOLERANCE	0.00001
 #define MAX_NUMBER_OF_TEST      (1024)
 
 typedef int(*test_case_fn)(struct jit *, char *, int);
@@ -49,6 +53,24 @@ char *test_filename;
 	} \
 }
 
+#define ASSERT_EQ_DOUBLE(_expected, _actual) { \
+	if (!equals((_expected), (_actual),  TOLERANCE)) {\
+		fprintf(stderr, "%s: %s (expected: %f, actual: %f)\n", test_filename, test_name, (double)_expected, (double)_actual); \
+		return 1; \
+	} \
+}
+
+#define ASSERT_EQ_STR(_expected, _actual) { \
+	if (strcmp(_expected, _actual))  {\
+		fprintf(stderr, "%s: %s (expected: %s, actual: %s)\n", test_filename, test_name, (char *)_expected, (char *)_actual); \
+		return 1; \
+	} \
+}
+
+static inline int equals(double x, double y, double tolerance)
+{
+	return fabs(x - y) < tolerance;
+}
 
 void test_setup();
 
@@ -62,9 +84,11 @@ int run_test(int id, int options)
 
 void report_results_and_quit(int successful, int total)
 {       
-	printf("%s: %i/%i\n", test_filename, successful, total);
-	if (total != successful) exit(1);
-	else exit(0);
+	int ok = (total == successful);
+	if (ok) printf(" \033[1;32mOK\033[0m ");
+	else printf(" \033[1;31m!!\033[0m ");
+	printf("%-25s %i/%i\n", test_filename, successful, total);
+	exit(ok ? 0 : 1);
 }
 
 int main(int argc, char **argv)
@@ -126,8 +150,5 @@ int main(int argc, char **argv)
 #define FAILX(x, r, expt) printf("%s:\ttest%i\thas failed. Return value is `%li' but expected `%li':%i\n", __FILE__, x, r, (long)(expt), r == expt)
 #define FAILD(x, r, expt) printf("%s:\ttest%i\thas failed. Return value is `%f' but expected `%f':%i\n", __FILE__, x, r, expt, r == expt)
 
-static inline int equal(double x, double y, double tolerance)
-{
-	return fabs(x - y) < tolerance;
-}
+
 // </OBSOLETE>

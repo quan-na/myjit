@@ -1,7 +1,5 @@
-#include <limits.h>
-#include <stddef.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
+
 typedef jit_value (*plfsss)(short, short, short);
 typedef jit_value (*plfiui)(int, unsigned int);
 typedef jit_value (*plfuc)(unsigned char);
@@ -9,11 +7,8 @@ typedef jit_value (*plfus)(unsigned short);
 typedef jit_value (*plfpcus)(char *, unsigned short);
 
 // function which computes an average of three numbers each occupying 2 bytes 
-void test1()
+DEFINE_TEST(test1)
 {
-	jit_value r;
-	struct jit * p = jit_init();
-
 	plfsss f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(short));
@@ -152,38 +147,19 @@ void test1()
 	jit_patch(p, end3);
 	jit_retr(p, R(4));
 
-	jit_generate_code(p);
-	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-
-	r = f1(20, 20, -10);
-	if (r == 10) SUCCESS(10);
-	else FAIL(10);
-
-	r = f2(3, 4);
-	if (r == 81) SUCCESS(21);
-	else FAIL(21);
-	
-	r = f2(-3, 3);
-	if (r == -27) SUCCESS(22);
-	else FAIL(22);
-
-	r = f3(5);
-	if (r == 120) SUCCESS(31);
-	else FAIL(31);
-
-	r = f4(30);
-	if (r == 832040) SUCCESS(41);
-	else FAIL(41);
-
-	r = f5("1f", 16);
-	if (r == 31) SUCCESS(51);
-	else FAIL(51);
-
-	jit_free(p);
+	ASSERT_EQ(10, f1(20, 20, -10));
+	ASSERT_EQ(81, f2(3, 4));
+	ASSERT_EQ(-27, f2(-3, 3));
+	ASSERT_EQ(120, f3(5));
+	ASSERT_EQ(832040, f4(30));
+	ASSERT_EQ(31, f5("1f", 16));
+	return 0;
 }
 
-int main() 
+void test_setup() 
 {
-	test1();
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
 }
