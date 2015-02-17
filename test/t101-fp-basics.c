@@ -1,46 +1,32 @@
-#include <limits.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
-void test1()
+DEFINE_TEST(test1)
 {
-	double r;
-	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
 	jit_freti(p, 123, sizeof(double));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (equal(r, 123, 0.001)) SUCCESS(1);
-	else FAIL(1);
-
-	jit_free(p);
+	ASSERT_EQ_DOUBLE(123.0, f1());
+	return 0;
 }
 
-void test2()
+DEFINE_TEST(test2)
 {
-	double r;
-	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
 	jit_fmovi(p, FR(0), 100);
 	jit_faddi(p, FR(0), FR(0), 200);
 	jit_faddi(p, FR(1), FR(0), 200);
 	jit_fretr(p, FR(1), sizeof(double));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (equal(r, 500, 0.001)) SUCCESS(2);
-	else FAIL(2);
-
-	jit_free(p);
+	ASSERT_EQ_DOUBLE(500.0, f1());
+	return 0;
 }
 
-void test3()
+DEFINE_TEST(test3)
 {
-	double r;
-	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
 	jit_fmovi(p, FR(0), 100);
@@ -48,20 +34,14 @@ void test3()
 	jit_fsubi(p, FR(1), FR(0), 50);
 	jit_fsubr(p, FR(2), FR(1), FR(0));
 	jit_fretr(p, FR(2), sizeof(double));
-	jit_generate_code(p);
-	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (equal(r, -50, 0.001)) SUCCESS(3);
-	else FAIL(3);
-
-	jit_free(p);
+	ASSERT_EQ_DOUBLE(-50.0, f1());
+	return 0;
 }
 
-void test4()
+DEFINE_TEST(test4)
 {
-	double r;
-	struct jit * p = jit_init();
 	pdfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 100);
@@ -74,21 +54,18 @@ void test4()
 	jit_fsubr(p, FR(1), FR(0), FR(1));
 	jit_fsubr(p, FR(2), FR(1), FR(0));
 	jit_fretr(p, FR(2), sizeof(double));
-	jit_generate_code(p);
-	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-	if (equal(r, -50, 0.001)) SUCCESS(4);
-	else FAIL(4);
-
-	jit_free(p);
+	ASSERT_EQ_DOUBLE(-50.0, f1());
+	return 0;
 }
 
 
-int main() 
+void test_setup() 
 {
-	test1();
-	test2();
-	test3();
-	test4();
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
+	SETUP_TEST(test2);
+	SETUP_TEST(test3);
+	SETUP_TEST(test4);
 }

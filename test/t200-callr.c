@@ -1,5 +1,3 @@
-#include <limits.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
 static int foo(int a, int b)
@@ -7,10 +5,8 @@ static int foo(int a, int b)
 	return a * a + b * b;
 }
 
-void test1()
+DEFINE_TEST(test1)
 {
-	long r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(0), 10);
@@ -34,21 +30,16 @@ void test1()
 	jit_retval(p, R(0));
 	//jit_addr(p, R(0), R(0), R(11));
 	jit_retr(p, R(0));
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 	
-	jit_dump_ops(p, JIT_DEBUG_LIVENESS | JIT_DEBUG_ASSOC);
-	jit_dump_code(p, 0);
-
-	r = f1();
-	if (r == 13) SUCCESS(1);
-	else FAIL(1);
-
-	jit_free(p);
+	ASSERT_EQ(13, f1());
+	return 0;
 }
 
 
 
-int main() 
+void test_setup() 
 {
-	test1();
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
 }

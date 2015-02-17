@@ -1,14 +1,15 @@
-#include <stdlib.h>
-#include <stdio.h>
-
+#define _POSIX_C_SOURCE 200809L
 #define JIT_REGISTER_TEST
-#include "../myjit/jitlib.h"
+#include "tests.h"
 
-typedef long (* plfl)(long);
+#define BUF_SIZE	(4096)
 
-int main()
+DEFINE_TEST(test1)
 {
-	struct jit * p = jit_init();
+	char buf[BUF_SIZE];
+	FILE *old_stdout = stdout;
+	stdout = fmemopen(buf, BUF_SIZE, "w");
+
 	plfl factorial;
 	jit_prolog(p, &factorial);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(long));
@@ -29,12 +30,22 @@ int main()
 	jit_retr(p, R(1));
 
 	jit_generate_code(p);
-	jit_dump_ops(p, 0);
-	jit_dump_code(p, 0);
 
-	printf("Check #3: 6! = %li\n", factorial(6));
+	jit_value r =  factorial(6);
 
-	// cleanup
-	jit_free(p);
+	fclose(stdout);
+	stdout = old_stdout;
+
+	ASSERT_EQ(720, r);
+	ASSERT_EQ_STR("Check 1.\nCheck R(1): 1\nCheck R(1): 6\nCheck R(1): 30\nCheck R(1): 120\nCheck R(1): 360\nCheck R(1): 720\nCheck X.\n", buf);
+
+
+	//printf("Check #3: 6! = %li\n", factorial(6));
 	return 0;
+}
+
+void test_setup()
+{
+        test_filename = __FILE__;
+        SETUP_TEST(test1);
 }

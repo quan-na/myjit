@@ -1,11 +1,7 @@
-#include <limits.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
-void test10()
+DEFINE_TEST(test10)
 {
-	jit_value r;
-	struct jit * p = jit_init();
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_op *skip_data = jit_jmpi(p, JIT_FORWARD);
@@ -24,15 +20,10 @@ void test10()
 	jit_movi(p, R(1), 15);
 	jit_addr(p, R(2), R(0), R(1));
 	jit_retr(p, R(2));
-	jit_generate_code(p);
-	//jit_dump_ops(p, JIT_DEBUG_COMPILABLE);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-
-	if (r == (7 + 15)) SUCCESS(10);
-	else FAIL(10);
-
-	jit_free(p);
+	ASSERT_EQ(7 + 15, f1());
+	return 0;
 }
 
 int check_func(char *str) {
@@ -40,12 +31,8 @@ int check_func(char *str) {
 	return -1;
 }
 
-void test11()
+DEFINE_TEST(test11)
 {
-	jit_value r;
-	struct jit * p = jit_init();
-	jit_disable_optimization(p, JIT_OPT_ALL);
-
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_op *skip_data = jit_jmpi(p, JIT_FORWARD);
@@ -72,24 +59,14 @@ void test11()
 
 	jit_retr(p, R(0));
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, JIT_DEBUG_ASSOC);
-//	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-
-	if (r == 42) SUCCESS(11);
-	else FAIL(11);
-
-	jit_free(p);
+	ASSERT_EQ(42, f1());
+	return 0;
 }
 
-void test12()
+DEFINE_TEST(test12)
 {
-	jit_value r;
-	struct jit * p = jit_init();
-	jit_disable_optimization(p, JIT_OPT_ALL);
-
 	plfv f1;
 	jit_prolog(p, &f1);
 
@@ -108,24 +85,14 @@ void test12()
 	jit_patch(p, label_string);
 	jit_data_str(p, "ABCDEF!");
 
-//	jit_dump_ops(p, 0);
-	jit_generate_code(p);
-//	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	r = f1();
-
-	if (r == 42) SUCCESS(12);
-	else FAIL(12);
-
-	jit_free(p);
+	ASSERT_EQ(42, f1());
+	return 0;
 }
 
-void test13()
+DEFINE_TEST(test13)
 {
-	jit_value r;
-	struct jit * p = jit_init();
-	jit_disable_optimization(p, JIT_OPT_ALL);
-
 	plfv f1;
 	jit_prolog(p, &f1);
 
@@ -139,24 +106,13 @@ void test13()
 	jit_patch(p, target_addr);
 	jit_retr(p, R(0));
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, JIT_DEBUG_ASSOC);
-//	jit_dump_code(p, 0);
-
-	r = f1();
-
-	if (r == 0xaa) SUCCESS(13);
-	else FAIL(13);
-
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(0xaa, f1());
+	return 0;
 }
 
-void test14() 
+DEFINE_TEST(test14)
 {
-	jit_value r;
-	struct jit * p = jit_init();
-	jit_disable_optimization(p, JIT_OPT_ALL);
-
 	plfl f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
@@ -196,32 +152,16 @@ void test14()
 	
 	jit_retr(p, R(0));
 
+	JIT_GENERATE_CODE(p);
 
-
-	jit_generate_code(p);
-//	jit_dump_ops(p, JIT_DEBUG_LIVENESS | JIT_DEBUG_ASSOC);
-//	jit_dump_code(p, 0);
-
-	r = f1(1);
-
-	if (r == (10 + 1 + 20)) SUCCESS(14);
-	else FAIL(14);
-
-
-	r = f1(-1);
-	if (r == (10 + 1 - 40)) SUCCESS(14);
-	else FAIL(14);
-
-	jit_free(p);
+	ASSERT_EQ(10 + 1 + 20, f1(1));
+	ASSERT_EQ(10 + 1 - 40, f1(-1));
+	return 0;
 }
 
 
-void test15() 
+DEFINE_TEST(test15)
 {
-	jit_value r;
-	struct jit * p = jit_init();
-	jit_disable_optimization(p, JIT_OPT_ALL);
-
 	plfl f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
@@ -255,28 +195,15 @@ void test15()
 	jit_subr(p, R(0), R(0), R(1));
 	jit_retr(p, R(0));
 
-//	jit_dump_ops(p, 0);
-	jit_generate_code(p);
-//	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	r = f1(0);
-
-	if (r == (10)) SUCCESS(15);
-	else FAIL(15);
-
-
-	r = f1(1);
-	if (r == (9)) SUCCESS(15);
-	else FAIL(15);
-
-	jit_free(p);
+	ASSERT_EQ(10, f1(0));
+	ASSERT_EQ(9, f1(1));
+	return 0;
 }
 
-void test16() 
+DEFINE_TEST(test16)
 {
-	struct jit * p = jit_init();
-	jit_disable_optimization(p, JIT_OPT_ALL);
-
 	ppfl f1;
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
@@ -317,31 +244,22 @@ void test16()
 
 	jit_retr(p, R(0));
 
-//	jit_dump_ops(p, 0);
-	jit_generate_code(p);
-//	jit_dump_code(p, 0);
+	JIT_GENERATE_CODE(p);
 
-	char *r = f1(2);
-
-	if (!strcmp(r, "Wednesday")) SUCCESS(16);
-	else FAIL(16);
-
-
-
-	jit_free(p);
+	ASSERT_EQ_STR("Wednesday", f1(2));
+	return 0;
 }
 
 
 
-
-
-int main() 
+void test_setup() 
 {
-	test10();
-	test11();
-	test12();
-	test13();
-	test14();
-	test15();
-	test16();
+	test_filename = __FILE__;
+	SETUP_TEST(test10);
+	SETUP_TEST(test11);
+	SETUP_TEST(test12);
+	SETUP_TEST(test13);
+	SETUP_TEST(test14);
+	SETUP_TEST(test15);
+	SETUP_TEST(test16);
 }

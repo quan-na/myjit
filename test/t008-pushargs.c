@@ -1,23 +1,25 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include "tests.h"
 
-#include "../myjit/jitlib.h"
+int correct_result;
 
-typedef long (* plfv)();
-
-int foobar(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, int a10)
+static int foobar(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, int a10)
 {
-	printf("A1:%i\n", a1);
-	printf("1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n10:\t%i\n",
-		a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+	correct_result = 1;
+	if (a1 != -1) correct_result = 0;
+	if (a2 != 1) correct_result = 0;
+	if (a3 != 2) correct_result = 0;
+	if (a4 != 4) correct_result = 0;
+	if (a5 != 8) correct_result = 0;
+	if (a6 != 16) correct_result = 0;
+	if (a7 != 32) correct_result = 0;
+	if (a8 != 64) correct_result = 0;
+	if (a9 != 128) correct_result = 0;
+	if (a10 != 256) correct_result = 0;
 	return 666;
 }
-int main()
-{
-	struct jit * p = jit_init();
-	//static char * msg = "1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n10:\t%i\n";
-	static char * msg = "1:\t%i\n2:\t%i\n3:\t%i\n4:\t%i\n5:\t%i\n6:\t%i\n7:\t%i\n8:\t%i\n9:\t%i\n";
 
+DEFINE_TEST(test1)
+{
 	plfv foo;
 
 	jit_prolog(p, &foo);
@@ -32,7 +34,6 @@ int main()
 	jit_movi(p, R(7), 64);
 	jit_movi(p, R(8), 128);
 	jit_movi(p, R(9), 256);
-	jit_movi(p, R(10), msg);
 
 	jit_prepare(p);
 	jit_putargr(p, R(0));
@@ -49,15 +50,14 @@ int main()
 
 	jit_retr(p, R(0));
 
-	jit_generate_code(p);
-//	jit_dump_ops(p, 0);
-
-	jit_dump_code(p, 0);
-
-	// check
-	printf("Check #1: %li\n", foo());
-
-	// cleanup
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(-1, foo());
+	ASSERT_EQ(1, correct_result);
 	return 0;
+}
+
+void test_setup()
+{
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
 }

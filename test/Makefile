@@ -6,7 +6,8 @@ fp: t101 t102 t103 t104 t105 t107 t108 t109
 
 optim: t301
 
-misc: t200 t201 t401
+misc: t200 t201 t301 t401
+
 
 CFLAGS = -g -std=c99 -Wall -pedantic -D_XOPEN_SOURCE=600
 

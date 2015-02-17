@@ -1,17 +1,11 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include "../myjit/jitlib.h"
 #include "tests.h"
 
 typedef double (* pdf10f)(float, float, float, float, float, float, float, float, float, float);
 typedef double (* pdf10d)(double, double, double, double, double, double, double, double, double, double);
 
-int test1()
+DEFINE_TEST(test1)
 {
-	struct jit * p = jit_init();
-
 	pdf10f foo;
-
 	jit_prolog(p, &foo);
 
 	jit_declare_arg(p, JIT_FLOAT_NUM, sizeof(float));
@@ -62,26 +56,13 @@ int test1()
 
 	jit_fretr(p, FR(0), sizeof(double));
 
-	jit_generate_code(p);
-
-	jit_dump_code(p, 0);
-
-	// check
-	double r = foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-	printf("Check #1: %f\n", r);
-	if (equal(r, 109, 0.001)) SUCCESS(1);
-	else FAIL(1);
-
-
-	// cleanup
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ_DOUBLE(109.0, foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 	return 0;
 }
 
-int test2()
+DEFINE_TEST(test2)
 {
-	struct jit * p = jit_init();
-
 	pdf10d foo;
 
 	jit_prolog(p, &foo);
@@ -133,26 +114,15 @@ int test2()
 
 	jit_fretr(p, FR(0), sizeof(double));
 
-	jit_generate_code(p);
-
-	jit_dump_code(p, 0);
-	//jit_dump_ops(p, JIT_DEBUG_LIVENESS | JIT_DEBUG_ASSOC); 
-
-	// check
-	double r = foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-	printf("Check #2: %f\n", r);
-	if (equal(r, 109, 0.001)) SUCCESS(2);
-	else FAIL(2);
-
-
-	// cleanup
-	jit_free(p);
+	JIT_GENERATE_CODE(p);
+	
+	ASSERT_EQ_DOUBLE(109.0, foo(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 	return 0;
-
 }
 
-int main()
+void test_setup()
 {
-	test1();
-	test2();
+	test_filename = __FILE__;
+	SETUP_TEST(test1);
+	SETUP_TEST(test2);
 }
