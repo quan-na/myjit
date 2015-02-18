@@ -82,7 +82,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	}
 }
 
-static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int imm)
+static inline void emit_cond_op_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
 	if (imm) {
 		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -92,7 +92,7 @@ static inline void __cond_op(struct jit * jit, struct jit_op * op, int cond, int
 	sparc_movcc_imm(jit->ip, sparc_xcc, cond, 1, op->r_arg[0]);
 }
 
-static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, int imm)
+static inline void emit_branch_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
 	if (imm) {
 		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
@@ -103,7 +103,7 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, i
 	sparc_nop(jit->ip);
 }
 
-static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
+static inline void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
 {
 	if (imm) {
 		if (op->r_arg[2] != 0) sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
@@ -114,7 +114,7 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int co
 	sparc_nop(jit->ip);
 }
 
-static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
+static inline void emit_overflow_mask_op(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
 {
 	long a1 = op->r_arg[0];
 	long a2 = op->r_arg[1];
@@ -138,7 +138,7 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 	sparc_nop(jit->ip);
 }
 
-static inline void __fpbranch_op(struct jit * jit, struct jit_op * op, int cond, int arg1, int arg2)
+static inline void emit_fpbranch_op(struct jit * jit, struct jit_op * op, int cond, int arg1, int arg2)
 {
 	sparc_fcmpd(jit->ip, arg1, arg2);
 	op->patch_addr = JIT_BUFFER_OFFSET(jit);
@@ -248,7 +248,7 @@ static inline void __configure_args(struct jit * jit)
 	}
 }
 
-static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
+static inline void emit_funcall(struct jit * jit, struct jit_op * op, int imm)
 {
 	__configure_args(jit);
 	if (!imm) {
@@ -388,7 +388,7 @@ static inline int _bit_pop(unsigned int x) {
 /**
  * Generates multiplication using only the shift left and add operations
  */
-void __gener_mult(struct jit * jit, long a1, long a2, long a3)
+void emit_optimized_multiplication(struct jit * jit, long a1, long a2, long a3)
 {
 	int bits = _bit_pop(a3);
 	unsigned long ar = (unsigned long)a3;
@@ -419,7 +419,7 @@ void __gener_mult(struct jit * jit, long a1, long a2, long a3)
 }
 
 
-void __mul(struct jit * jit, jit_op * op)
+void emit_mul(struct jit * jit, jit_op * op)
 {
 	long a1 = op->r_arg[0];
 	long a2 = op->r_arg[1];
@@ -434,11 +434,11 @@ void __mul(struct jit * jit, jit_op * op)
 			return;
 		}
 		if ((a3 > 0) && (_bit_pop(a3) <= 5)) {
-			__gener_mult(jit, a1, a2, a3);
+			emit_optimized_multiplication(jit, a1, a2, a3);
 			return;
 		}
 		if ((a3 < 0) && (_bit_pop(-a3) <= 5)) {
-			__gener_mult(jit, a1, a2, -a3);
+			emit_optimized_multiplication(jit, a1, a2, -a3);
 			sparc_neg(jit->ip, a1);
 			return;
 		}
@@ -447,7 +447,7 @@ void __mul(struct jit * jit, jit_op * op)
 }
 
 // common function for floor & ceil ops
-static void __sparc_round(struct jit * jit, long a1, long a2)
+static void emit_sparc_round(struct jit * jit, long a1, long a2)
 {
 	static double zero_point_5 = 0.5;
 	sparc_set32(jit->ip, 0, sparc_g1);
@@ -476,7 +476,7 @@ static void __sparc_round(struct jit * jit, long a1, long a2)
 }
 
 // common function for floor & ceil ops
-static void __sparc_floor(struct jit * jit, long a1, long a2, int floor)
+static void emit_sparc_floor(struct jit * jit, long a1, long a2, int floor)
 {
 	sparc_set32(jit->ip, 0, sparc_g1);
 
@@ -513,7 +513,7 @@ static void __sparc_floor(struct jit * jit, long a1, long a2, int floor)
 	sparc_add(jit->ip, FALSE, a1, sparc_g1, a1);
 }
 
-static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
+static inline void emit_ureg(struct jit * jit, long vreg, long hreg_id)
 {
 	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
 		if (JIT_REG(vreg).type == JIT_RTYPE_INT) sparc_st_imm(jit->ip, hreg_id, sparc_fp, GET_REG_POS(jit, vreg));
@@ -530,7 +530,7 @@ static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 	}
 }
 
-#define __alu_op(cc, reg_op, imm_op) \
+#define emit_alu_op(cc, reg_op, imm_op) \
 	if (IS_IMM(op)) {\
 		if (a3 != 0) imm_op(jit->ip, cc, a2, a3, a1); \
 		else reg_op(jit->ip, cc, a2, sparc_g0, a1); \
@@ -545,12 +545,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 	int found = 1;
 	switch (GET_OP(op)) {
-		case JIT_ADD: __alu_op(FALSE, sparc_add, sparc_add_imm);
-		case JIT_ADDC: __alu_op(sparc_cc, sparc_add, sparc_add_imm);
-		case JIT_ADDX: __alu_op(FALSE, sparc_addx, sparc_addx_imm);
-		case JIT_SUB: __alu_op(FALSE, sparc_sub, sparc_sub_imm);
-		case JIT_SUBC: __alu_op(sparc_cc, sparc_sub, sparc_sub_imm);
-		case JIT_SUBX: __alu_op(FALSE, sparc_subx, sparc_subx_imm);
+		case JIT_ADD: emit_alu_op(FALSE, sparc_add, sparc_add_imm);
+		case JIT_ADDC: emit_alu_op(sparc_cc, sparc_add, sparc_add_imm);
+		case JIT_ADDX: emit_alu_op(FALSE, sparc_addx, sparc_addx_imm);
+		case JIT_SUB: emit_alu_op(FALSE, sparc_sub, sparc_sub_imm);
+		case JIT_SUBC: emit_alu_op(sparc_cc, sparc_sub, sparc_sub_imm);
+		case JIT_SUBX: emit_alu_op(FALSE, sparc_subx, sparc_subx_imm);
 		case JIT_RSB: 
 			if (IS_IMM(op)) {
 				sparc_set32(jit->ip, a3, sparc_g1);
@@ -565,9 +565,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_NOT: if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1);
 			      sparc_not(jit->ip, a1); 
 			      break;
-		case JIT_OR:  __alu_op(FALSE, sparc_or, sparc_or_imm);
-		case JIT_AND: __alu_op(FALSE, sparc_and, sparc_and_imm);
-		case JIT_XOR: __alu_op(FALSE, sparc_xor, sparc_xor_imm);
+		case JIT_OR:  emit_alu_op(FALSE, sparc_or, sparc_or_imm);
+		case JIT_AND: emit_alu_op(FALSE, sparc_and, sparc_and_imm);
+		case JIT_XOR: emit_alu_op(FALSE, sparc_xor, sparc_xor_imm);
 		case JIT_LSH: if (IS_IMM(op)) sparc_sll_imm(jit->ip, a2, a3, a1);
 			else sparc_sll(jit->ip, a2, a3, a1);
 			break;
@@ -581,7 +581,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			}
 			break;
 
-		case JIT_MUL:  __mul(jit, op); break;
+		case JIT_MUL:  emit_mul(jit, op); break;
 
 		case JIT_HMUL: 
 			if (IS_IMM(op)) sparc_smul_imm(jit->ip, FALSE, a2, a3, sparc_g0);
@@ -634,26 +634,26 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			}
 			sparc_sub(jit->ip, FALSE, a2, sparc_g1, a1);
 			break;
-		case JIT_LT: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
-		case JIT_LE: __cond_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
-		case JIT_GT: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
-		case JIT_GE: __cond_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
-		case JIT_EQ: __cond_op(jit, op, sparc_be, IS_IMM(op)); break;
-		case JIT_NE: __cond_op(jit, op, sparc_bne, IS_IMM(op)); break;
-		case JIT_BLT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
-		case JIT_BGT: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
-		case JIT_BLE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
-		case JIT_BGE: __branch_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
-		case JIT_BEQ: __branch_op(jit, op, sparc_be, IS_IMM(op)); break;
-		case JIT_BNE: __branch_op(jit, op, sparc_bne, IS_IMM(op)); break;
-		case JIT_BMS: __branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
-		case JIT_BMC: __branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
-		case JIT_BOADD: __branch_overflow_op(jit, op, JIT_ADD, IS_IMM(op), 0); break;
-		case JIT_BOSUB: __branch_overflow_op(jit, op, JIT_SUB, IS_IMM(op), 0); break;
-		case JIT_BNOADD: __branch_overflow_op(jit, op, JIT_ADD, IS_IMM(op), 1); break;
-		case JIT_BNOSUB: __branch_overflow_op(jit, op, JIT_SUB, IS_IMM(op), 1); break;
+		case JIT_LT: emit_cond_op_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
+		case JIT_LE: emit_cond_op_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
+		case JIT_GT: emit_cond_op_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
+		case JIT_GE: emit_cond_op_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
+		case JIT_EQ: emit_cond_op_op(jit, op, sparc_be, IS_IMM(op)); break;
+		case JIT_NE: emit_cond_op_op(jit, op, sparc_bne, IS_IMM(op)); break;
+		case JIT_BLT: emit_branch_op(jit, op, IS_SIGNED(op) ? sparc_bl : sparc_blu, IS_IMM(op)); break;
+		case JIT_BGT: emit_branch_op(jit, op, IS_SIGNED(op) ? sparc_bg : sparc_bgu, IS_IMM(op)); break;
+		case JIT_BLE: emit_branch_op(jit, op, IS_SIGNED(op) ? sparc_ble : sparc_bleu, IS_IMM(op)); break;
+		case JIT_BGE: emit_branch_op(jit, op, IS_SIGNED(op) ? sparc_bge : sparc_bgeu, IS_IMM(op)); break;
+		case JIT_BEQ: emit_branch_op(jit, op, sparc_be, IS_IMM(op)); break;
+		case JIT_BNE: emit_branch_op(jit, op, sparc_bne, IS_IMM(op)); break;
+		case JIT_BMS: emit_branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
+		case JIT_BMC: emit_branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
+		case JIT_BOADD: emit_overflow_mask_op(jit, op, JIT_ADD, IS_IMM(op), 0); break;
+		case JIT_BOSUB: emit_overflow_mask_op(jit, op, JIT_SUB, IS_IMM(op), 0); break;
+		case JIT_BNOADD: emit_overflow_mask_op(jit, op, JIT_ADD, IS_IMM(op), 1); break;
+		case JIT_BNOSUB: emit_overflow_mask_op(jit, op, JIT_SUB, IS_IMM(op), 1); break;
 
-		case JIT_CALL: __funcall(jit, op, IS_IMM(op)); break;
+		case JIT_CALL: emit_funcall(jit, op, IS_IMM(op)); break;
 
 		case JIT_PATCH: do {
 				struct jit_op *target = (struct jit_op *) a1;
@@ -874,12 +874,12 @@ op_complete:
 		case (JIT_FDIV | REG): sparc_fdivd(jit->ip, a2, a3, a1); break;
 		case (JIT_FNEG | REG): sparc_fnegs(jit->ip, a2, a1); break;
 
-		case (JIT_FBLT | REG): __fpbranch_op(jit, op, sparc_fbl, a2, a3); break;
-		case (JIT_FBGT | REG): __fpbranch_op(jit, op, sparc_fbg, a2, a3); break;
-		case (JIT_FBLE | REG): __fpbranch_op(jit, op, sparc_fble, a2, a3); break;
-		case (JIT_FBGE | REG): __fpbranch_op(jit, op, sparc_fbge, a2, a3); break;
-		case (JIT_FBEQ | REG): __fpbranch_op(jit, op, sparc_fbe, a2, a3); break;
-		case (JIT_FBNE | REG): __fpbranch_op(jit, op, sparc_fbne, a2, a3); break;
+		case (JIT_FBLT | REG): emit_fpbranch_op(jit, op, sparc_fbl, a2, a3); break;
+		case (JIT_FBGT | REG): emit_fpbranch_op(jit, op, sparc_fbg, a2, a3); break;
+		case (JIT_FBLE | REG): emit_fpbranch_op(jit, op, sparc_fble, a2, a3); break;
+		case (JIT_FBGE | REG): emit_fpbranch_op(jit, op, sparc_fbge, a2, a3); break;
+		case (JIT_FBEQ | REG): emit_fpbranch_op(jit, op, sparc_fbe, a2, a3); break;
+		case (JIT_FBNE | REG): emit_fpbranch_op(jit, op, sparc_fbne, a2, a3); break;
 		case (JIT_TRUNC | REG): 
 			sparc_fdtoi(jit->ip, a2, sparc_f30);
 			sparc_stdf_imm(jit->ip, sparc_f30, sparc_fp, -8);
@@ -891,9 +891,9 @@ op_complete:
 			sparc_fitod(jit->ip, sparc_f30, a1);
 			break;
 
-		case (JIT_FLOOR | REG): __sparc_floor(jit, a1, a2, 1); break;
-		case (JIT_CEIL | REG): __sparc_floor(jit, a1, a2, 0); break;
-		case (JIT_ROUND | REG): __sparc_round(jit, a1, a2); break;
+		case (JIT_FLOOR | REG): emit_sparc_floor(jit, a1, a2, 1); break;
+		case (JIT_CEIL | REG): emit_sparc_floor(jit, a1, a2, 0); break;
+		case (JIT_ROUND | REG): emit_sparc_round(jit, a1, a2); break;
 
 		case (JIT_FRET | REG):
 			if (op->arg_size == sizeof(float)) {
@@ -975,8 +975,8 @@ op_complete:
 			}
 			break;
 
-		case (JIT_UREG): __ureg(jit, a1, a2); break;
-		case (JIT_SYNCREG): __ureg(jit, a1, a2); break;
+		case (JIT_UREG): emit_ureg(jit, a1, a2); break;
+		case (JIT_SYNCREG): emit_ureg(jit, a1, a2); break;
 		case (JIT_LREG): 
 			if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
 			if (JIT_REG(a2).type == JIT_RTYPE_INT)
