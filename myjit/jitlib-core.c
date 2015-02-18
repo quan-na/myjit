@@ -49,7 +49,7 @@
 
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
-	struct jit_op * r = __new_op(code, spec, arg1, arg2, arg3, arg_size);
+	struct jit_op * r = jit_op_new(code, spec, arg1, arg2, arg3, arg_size);
 	jit_op_append(jit->last_op, r);
 	jit->last_op = r;
 
@@ -69,7 +69,7 @@ struct jit * jit_init()
 {
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
 
-	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
+	r->ops = jit_op_new(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;
 
 	r->labels = NULL;
@@ -144,7 +144,7 @@ static void jit_correct_long_imms(struct jit * jit)
 		long value = op->arg[imm_arg];
 
 		if (jit_imm_overflow(jit, IS_SIGNED(op), value)) {
-			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), R_IMM, value, 0, REG_SIZE);
+			jit_op * newop = jit_op_new(JIT_MOV | IMM, SPEC(TREG, IMM, NO), R_IMM, value, 0, REG_SIZE);
 			jit_op_prepend(op, newop);
 
 			op->code &= ~(0x3);
@@ -174,7 +174,7 @@ static inline void jit_correct_float_imms(struct jit * jit)
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
 
-		jit_op * newop = __new_op(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), (jit_value) FR_IMM, 0, 0, 0);
+		jit_op * newop = jit_op_new(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), (jit_value) FR_IMM, 0, 0, 0);
 		newop->fp = 1;
 		newop->flt_imm = op->flt_imm;
 		jit_op_prepend(op, newop);
@@ -309,7 +309,7 @@ static inline void __spill_on_jmpr_targets(struct jit *jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_CADDR))  {
-			jit_op * newop = __new_op(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
+			jit_op * newop = jit_op_new(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
 			jit_op_prepend(op->jmp_addr, newop);
 		}
 }

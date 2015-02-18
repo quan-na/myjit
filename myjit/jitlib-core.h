@@ -161,7 +161,7 @@ int jit_optimize_join_addmul(struct jit * jit);
 int jit_optimize_join_addimm(struct jit * jit);
 void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
-static int is_cond_branch_op(jit_op *op);
+static int is_cond_branch_op(jit_op *op); // FIXME: rename to: jit_op_is_cond_branch
 static inline void jit_set_free(jit_set * s);
 
 /**
@@ -184,7 +184,7 @@ void rmap_free(jit_rmap * regmap);
 void jit_allocator_hints_free(jit_tree *);
 
 
-static struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
+static struct jit_op * jit_op_new(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
 	struct jit_op * r = JIT_MALLOC(sizeof(struct jit_op));
 	r->code = code;
