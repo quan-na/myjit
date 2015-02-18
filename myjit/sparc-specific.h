@@ -687,8 +687,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			sparc_restore_imm(jit->ip, sparc_g0, 0, sparc_g0);
 			break;
 
-		case JIT_PUTARG: __put_arg(jit, op); break;
-		case JIT_FPUTARG: __fput_arg(jit, op); break;
+		case JIT_PUTARG: funcall_put_arg(jit, op); break;
+		case JIT_FPUTARG: funcall_fput_arg(jit, op); break;
 		case JIT_GETARG: __get_arg(jit, op); break;
 		case JIT_MSG:
 				 sparc_set(jit->ip, a1, sparc_o0);
@@ -733,7 +733,7 @@ op_complete:
 	switch (op->code) {
 		case (JIT_MOV | REG): if (a1 != a2) sparc_mov_reg_reg(jit->ip, a2, a1); break;
 		case (JIT_MOV | IMM): sparc_set32(jit->ip, a2, a1); break;
-		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2); break;
+		case JIT_PREPARE: funcall_prepare(jit, op, a1 + a2); break;
 		case JIT_PROLOG:
 			do {
 				jit->current_func = op;

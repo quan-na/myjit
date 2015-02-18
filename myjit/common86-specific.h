@@ -811,8 +811,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			common86_ret(jit->ip);
 			break;
 
-		case JIT_PUTARG: __put_arg(jit, op); break;
-		case JIT_FPUTARG: __fput_arg(jit, op); break;
+		case JIT_PUTARG: funcall_put_arg(jit, op); break;
+		case JIT_FPUTARG: funcall_fput_arg(jit, op); break;
 		case JIT_GETARG: emit_get_arg(jit, op); break;
 		case JIT_MSG: 	emit_msg_op(jit, op); break;
 
@@ -857,7 +857,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else common86_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
-		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2);
+		case JIT_PREPARE: funcall_prepare(jit, op, a1 + a2);
 				  jit->push_count += __push_caller_saved_regs(jit, op);
 				  break;
 

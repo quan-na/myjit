@@ -278,7 +278,7 @@ static inline struct jit_func_info * jit_current_func_info(struct jit * jit)
 	return (struct jit_func_info *)(jit->current_func->arg[1]);
 }
 
-static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
+static inline void funcall_prepare(struct jit * jit, jit_op * op, int count)
 {
 	jit->prepared_args.args = JIT_MALLOC(sizeof(struct jit_out_arg) * count);
 	jit->prepared_args.count = count;
@@ -289,7 +289,7 @@ static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 	jit->prepared_args.fp_args = 0;
 }
 
-static inline void __put_arg(struct jit * jit, jit_op * op)
+static inline void funcall_put_arg(struct jit * jit, jit_op * op)
 {
 	int pos = jit->prepared_args.ready;
 	struct jit_out_arg * arg = &(jit->prepared_args.args[pos]);
@@ -303,7 +303,7 @@ static inline void __put_arg(struct jit * jit, jit_op * op)
 		jit->prepared_args.stack_size += REG_SIZE;
 }
 
-static inline void __fput_arg(struct jit * jit, jit_op * op)
+static inline void funcall_fput_arg(struct jit * jit, jit_op * op)
 {
 	int pos = jit->prepared_args.ready;
 	struct jit_out_arg * arg = &(jit->prepared_args.args[pos]);
