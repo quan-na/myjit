@@ -151,7 +151,7 @@ static inline void emit_fpbranch_op(struct jit * jit, struct jit_op * op, int co
  * it is returned through the reg argument
  */
 // FIXME: more general, should use information from the reg. allocator
-static inline int __is_spilled(int arg_id, jit_op * prepare_op, int * reg)
+static inline int is_spilled(int arg_id, jit_op * prepare_op, int * reg)
 {
 	jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 	if (hreg) {
@@ -206,7 +206,7 @@ static inline void __configure_args(struct jit * jit)
 		// integers
 		if (!arg->isfp) {
 			if (arg->isreg) {
-				if (__is_spilled(value, jit->prepared_args.op, &sreg))
+				if (is_spilled(value, jit->prepared_args.op, &sreg))
 					__set_arg_mem(jit, GET_REG_POS(jit, value), assoc_gp++);
 				else __set_arg_reg(jit, sreg, assoc_gp++); 
 			} else __set_arg_imm(jit, value, assoc_gp++);
@@ -216,7 +216,7 @@ static inline void __configure_args(struct jit * jit)
 		// floats
 		if (arg->size == sizeof(float)) {
 			if (arg->isreg) {
-				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+				if (is_spilled(value, jit->prepared_args.op, &sreg)) {
 					sparc_lddf_imm(jit->ip, sparc_fp, GET_REG_POS(jit, value), sparc_f30);
 					sreg = sparc_f30;
 				}
@@ -232,7 +232,7 @@ static inline void __configure_args(struct jit * jit)
 			// doubles
 			if (arg->isreg) {
 				long value = arg->value.generic;
-				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+				if (is_spilled(value, jit->prepared_args.op, &sreg)) {
 					sparc_lddf_imm(jit->ip, sparc_fp, GET_REG_POS(jit, value), sparc_f30);
 					sreg = sparc_f30;
 				}

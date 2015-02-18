@@ -46,7 +46,7 @@ void jit_init_arg_params(struct jit * jit, struct jit_func_info * info, int p, i
 	a->overflow = 0;
 }
 
-static int __configure_args(struct jit * jit)
+static int emit_arguments(struct jit * jit)
 {
 	int stack_correction = 0;
 	struct jit_out_arg * args = jit->prepared_args.args;
@@ -67,7 +67,7 @@ static int __configure_args(struct jit * jit)
 		if (!args[i].isfp) { // integers
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
-				if (__is_spilled(value, jit->prepared_args.op, &sreg)) 
+				if (is_spilled(value, jit->prepared_args.op, &sreg)) 
 					x86_push_membase(jit->ip, X86_EBP, GET_REG_POS(jit, args[i].value.generic));
 				else x86_push_reg(jit->ip, sreg);
 			}
@@ -78,7 +78,7 @@ static int __configure_args(struct jit * jit)
 		// 
 		if (args[i].size == sizeof(double)) {
 			if (args[i].isreg) { // doubles
-				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+				if (is_spilled(value, jit->prepared_args.op, &sreg)) {
 					int pos = GET_FPREG_POS(jit, args[i].value.generic);
 					x86_push_membase(jit->ip, X86_EBP, pos + 4);
 					x86_push_membase(jit->ip, X86_EBP, pos);
@@ -99,7 +99,7 @@ static int __configure_args(struct jit * jit)
 		// single prec. floats
 		//
 		if (args[i].isreg) { 
-			if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
+			if (is_spilled(value, jit->prepared_args.op, &sreg)) {
 				int pos = GET_FPREG_POS(jit, args[i].value.generic);
 				x86_fld_membase(jit->ip, X86_EBP, pos, 1); 
 				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 4);
@@ -121,9 +121,9 @@ static int __configure_args(struct jit * jit)
 	return stack_correction;
 }
 
-static void __funcall(struct jit * jit, struct jit_op * op, int imm)
+static void emit_funcall(struct jit * jit, struct jit_op * op, int imm)
 {
-	int stack_correction = __configure_args(jit);
+	int stack_correction = emit_arguments(jit);
 
 	if (!imm) {
 		x86_call_reg(jit->ip, op->r_arg[0]);
@@ -136,7 +136,7 @@ static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 		x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, jit->prepared_args.stack_size + stack_correction);
 	JIT_FREE(jit->prepared_args.args);
 
-	jit->push_count -= __pop_caller_saved_regs(jit, op);
+	jit->push_count -= emit_pop_caller_saved_regs(jit, op);
 }
 
 void jit_patch_external_calls(struct jit * jit)
@@ -169,7 +169,7 @@ static void emit_prolog_op(struct jit * jit, jit_op * op)
 #endif
 	if (!no_prolog)
 		x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, stack_mem);
-	jit->push_count = __push_callee_saved_regs(jit, op);
+	jit->push_count = emit_push_callee_saved_regs(jit, op);
 }
 
 static void emit_msg_op(struct jit * jit, jit_op * op)
@@ -192,7 +192,7 @@ static void emit_fret_op(struct jit * jit, jit_op * op)
 	x86_fld_membase(jit->ip, X86_ESP, -8, 1);            // transfers the value from the stack to the ST(0)
 
 	// common epilogue
-	jit->push_count -= __pop_callee_saved_regs(jit);
+	jit->push_count -= emit_pop_callee_saved_regs(jit);
 	if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
 		x86_mov_reg_reg(jit->ip, X86_ESP, X86_EBP, 4);
 		x86_pop_reg(jit->ip, X86_EBP);

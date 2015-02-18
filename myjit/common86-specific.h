@@ -19,11 +19,11 @@
 
 #include "common86-codegen.h"
 
-static inline int __is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg);
-static int __push_callee_saved_regs(struct jit * jit, jit_op * op);
-static int __push_caller_saved_regs(struct jit * jit, jit_op * op);
-static int __pop_callee_saved_regs(struct jit * jit);
-static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
+static inline int is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg);
+static int emit_push_callee_saved_regs(struct jit * jit, jit_op * op);
+static int emit_push_caller_saved_regs(struct jit * jit, jit_op * op);
+static int emit_pop_callee_saved_regs(struct jit * jit);
+static int emit_pop_caller_saved_regs(struct jit * jit, jit_op * op);
 
 
 static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_value * virt_reg);
@@ -73,7 +73,7 @@ static void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
 	}
 }
 
-static int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
+static int uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 {
 	if ((GET_OP(op) == JIT_RENAMEREG) && (op->r_arg[0] == reg)) return 1; // not a regular operation
 	for (int i = 0; i < 3; i++)
@@ -85,7 +85,7 @@ static int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 	return 0;
 }
 
-static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
+static int emit_push_callee_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count = 0;
 	for (int i = 0; i < jit->reg_al->gp_reg_cnt; i++) {
@@ -93,7 +93,7 @@ static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
 		if (r->callee_saved) 
 			for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 				if (GET_OP(o) == JIT_PROLOG) break;
-				if (__uses_hw_reg(o, r->id, 0)) {
+				if (uses_hw_reg(o, r->id, 0)) {
 					emit_push_reg(jit, r);
 					count++;
 					break;
@@ -103,7 +103,7 @@ static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
 	return count;
 }
 
-static int __pop_callee_saved_regs(struct jit * jit)
+static int emit_pop_callee_saved_regs(struct jit * jit)
 {
 	int count = 0;
 	struct jit_op * op = jit->current_func;
@@ -113,7 +113,7 @@ static int __pop_callee_saved_regs(struct jit * jit)
 		if (r->callee_saved) 
 			for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 				if (GET_OP(o) == JIT_PROLOG) break;
-				if (__uses_hw_reg(o, r->id, 0)) {
+				if (uses_hw_reg(o, r->id, 0)) {
 					emit_pop_reg(jit, r);
 					count++;
 					break;
@@ -123,7 +123,7 @@ static int __pop_callee_saved_regs(struct jit * jit)
 	return count;
 }
 
-static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static int generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 		jit_hw_reg * regs, int fp, jit_hw_reg * skip_reg)
 {
 	jit_value reg;
@@ -137,7 +137,7 @@ static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int r
 	return count;
 }
 
-static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
+static int emit_push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count = 0;
 	struct jit_reg_allocator * al = jit->reg_al;
@@ -145,12 +145,12 @@ static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
-	count += __generic_push_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
-	count += __generic_push_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
+	count += generic_push_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
+	count += generic_push_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
 	return count;
 }
 
-static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static int generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    jit_hw_reg * regs, int fp, jit_hw_reg * skip_reg)
 {
 	jit_value reg;
@@ -164,13 +164,13 @@ static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int re
 	return count;
 }
 
-static int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
+static int emit_pop_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count  = 0;
 	struct jit_reg_allocator * al = jit->reg_al;
 
-	count += __generic_pop_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
-	count += __generic_pop_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
+	count += generic_pop_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
+	count += generic_pop_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
 	return count;
 }
 
@@ -204,7 +204,7 @@ static void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
 	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
 }
 
-static void __read_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
+static void emit_get_arg_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
 {
 	if (type != JIT_FLOAT_NUM) {
 		if (size == REG_SIZE) common86_mov_reg_membase(jit->ip, dreg, stack_reg, stack_pos, REG_SIZE);
@@ -248,7 +248,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 		if ((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)) {
 			stack_pos -= REG_SIZE;
 			stack_pos += jit->push_count * REG_SIZE;
-			__read_from_stack(jit, type, size, dreg, COMMON86_SP, stack_pos);
+			emit_get_arg_from_stack(jit, type, size, dreg, COMMON86_SP, stack_pos);
 			return;
 		}
 	}
@@ -260,7 +260,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 	}
 
 	if (read_from_stack) {
-		__read_from_stack(jit, type, size, dreg, COMMON86_BP, stack_pos);
+		emit_get_arg_from_stack(jit, type, size, dreg, COMMON86_BP, stack_pos);
 		return;
 	} 
 
@@ -627,7 +627,7 @@ static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int al
  * it is returned through the reg argument
  */
 // FIXME: reports as spilled also argument which contains appropriate value
-static int __is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg)
+static int is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg)
 {
         jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 
@@ -775,7 +775,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_DIV: 	emit_div_op(jit, op, imm, sign, 0); break;
 		case JIT_MOD: 	emit_div_op(jit, op, imm, sign, 1); break;
 
-		case JIT_CALL: 	__funcall(jit, op, imm); break;
+		case JIT_CALL: 	emit_funcall(jit, op, imm); break;
 		case JIT_PATCH: do {
 					struct jit_op *target = (struct jit_op *) a1;
 					switch (GET_OP(target)) {
@@ -803,7 +803,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_RET:
 			if (!imm && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
 			if (imm) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
-			__pop_callee_saved_regs(jit);
+			emit_pop_callee_saved_regs(jit);
 			if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
 				common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
 				common86_pop_reg(jit->ip, COMMON86_BP);
@@ -858,7 +858,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_PREPARE: funcall_prepare(jit, op, a1 + a2);
-				  jit->push_count += __push_caller_saved_regs(jit, op);
+				  jit->push_count += emit_push_caller_saved_regs(jit, op);
 				  break;
 
 		case JIT_PROLOG: emit_prolog_op(jit, op); break;

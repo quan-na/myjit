@@ -28,7 +28,7 @@ static inline void jit_flw_initialize(struct jit * jit)
 	}
 }
 
-static inline int __flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_info * func_info)
+static inline int flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_info * func_info)
 {
 	int result;
 	jit_set * in1 = jit_set_clone(op->live_in);
@@ -142,7 +142,7 @@ static inline void jit_flw_analysis(struct jit * jit)
 			if (GET_OP(op) == JIT_PROLOG)
 				func_info = (struct jit_func_info *)op->arg[1];
 
-			changed |= __flw_analyze_op(jit, op, func_info);
+			changed |= flw_analyze_op(jit, op, func_info);
 			op = op->next;
 		}
 	} while (changed);
