@@ -4,27 +4,27 @@
 #define RED	(1)
 #define BLACK	(0)
 
-typedef jit_value rb_key_t;
-typedef void * value_t;
+typedef jit_value jit_tree_key;
+typedef void * jit_tree_value;
 
-typedef struct rb_node {
-	struct rb_node * left;
-	struct rb_node * right;
+typedef struct jit_tree {
+	struct jit_tree * left;
+	struct jit_tree * right;
 	int color;
-	rb_key_t key;
-	value_t value;
-} rb_node;
+	jit_tree_key key;
+	jit_tree_value value;
+} jit_tree;
 
 
-static inline int is_red(rb_node * n)
+static inline int is_red(jit_tree * n)
 {
 	if (n == NULL) return 0;
 	return (n->color == RED);
 }
 
-static inline rb_node * rotate_left(rb_node * h)
+static inline jit_tree * rotate_left(jit_tree * h)
 {
-	rb_node * x = h->right;
+	jit_tree * x = h->right;
 	h->right = x->left;
 	x->left = h;
 	x->color = x->left->color;
@@ -32,9 +32,9 @@ static inline rb_node * rotate_left(rb_node * h)
 	return x;
 }
 
-static inline rb_node * rotate_right(rb_node * h)
+static inline jit_tree * rotate_right(jit_tree * h)
 {
-	rb_node * x = h->left;
+	jit_tree * x = h->left;
 	h->left = x->right;
 	x->right = h;
 	x->color = x->right->color;
@@ -42,14 +42,14 @@ static inline rb_node * rotate_right(rb_node * h)
 	return x;
 }
 
-static inline void color_flip(rb_node * h)
+static inline void color_flip(jit_tree * h)
 {
 	h->color = !h->color;
 	h->left->color = !h->left->color;
 	h->right->color = !h->right->color;
 }
 
-static inline rb_node * fixup(rb_node * h)
+static inline jit_tree * fixup(jit_tree * h)
 {
 	if (is_red(h->right)) h = rotate_left(h);
 
@@ -65,9 +65,9 @@ static inline rb_node * fixup(rb_node * h)
 
 
 
-static inline rb_node * node_new(rb_key_t key, value_t value)
+static inline jit_tree * node_new(jit_tree_key key, jit_tree_value value)
 {
-	rb_node * res = malloc(sizeof(rb_node));
+	jit_tree * res = malloc(sizeof(jit_tree));
 	res->key = key;
 	res->value = value;
 	res->color = RED;
@@ -76,7 +76,7 @@ static inline rb_node * node_new(rb_key_t key, value_t value)
 	return res;
 }
 
-static rb_node * node_insert(rb_node * h, rb_key_t key, value_t value, int * found)
+static jit_tree * node_insert(jit_tree * h, jit_tree_key key, jit_tree_value value, int * found)
 {
 	if (h == NULL) return node_new(key, value);
 	if (is_red(h->left) && is_red(h->right)) color_flip(h);
@@ -95,7 +95,7 @@ static rb_node * node_insert(rb_node * h, rb_key_t key, value_t value, int * fou
 	return fixup(h);
 }
 
-static rb_node * rb_insert(rb_node * root, rb_key_t key, value_t value, int * found)
+static jit_tree * jit_tree_insert(jit_tree * root, jit_tree_key key, jit_tree_value value, int * found)
 {
 	if (found) *found = 0;
 	root = node_insert(root, key, value, found);
@@ -104,14 +104,14 @@ static rb_node * rb_insert(rb_node * root, rb_key_t key, value_t value, int * fo
 }
 
 
-static rb_node * rb_search(rb_node * h, rb_key_t key)
+static jit_tree * jit_tree_search(jit_tree * h, jit_tree_key key)
 {
 	if ((h == NULL) || (h->key == key)) return h;
-	if (h->key > key) return rb_search(h->left, key);
-	return rb_search(h->right, key);
+	if (h->key > key) return jit_tree_search(h->left, key);
+	return jit_tree_search(h->right, key);
 }
 // delete stuff
-static inline rb_node * move_red_left(rb_node * h)
+static inline jit_tree * move_red_left(jit_tree * h)
 {
 	color_flip(h);
 	if (is_red(h->right->left)) {
@@ -122,7 +122,7 @@ static inline rb_node * move_red_left(rb_node * h)
 	return h;
 }
 
-static inline rb_node * move_red_right(rb_node * h)
+static inline jit_tree * move_red_right(jit_tree * h)
 {
 //	if (!h->left) return h; // workaround not present in the sedgewick's implementation;
 				// fixing seg. fault while deleting nodes
@@ -134,13 +134,13 @@ static inline rb_node * move_red_right(rb_node * h)
 	return h;
 }
 
-static inline rb_key_t node_min(rb_node * x)
+static inline jit_tree_key node_min(jit_tree * x)
 {
 	if (x->left == NULL) return x->key;
 	else return node_min(x->left);
 }
 
-static rb_node * delete_min(rb_node * h)
+static jit_tree * delete_min(jit_tree * h)
 { 
 	if (h->left == NULL) {
 		JIT_FREE(h);
@@ -155,7 +155,7 @@ static rb_node * delete_min(rb_node * h)
 	return fixup(h);
 }
 
-static rb_node * delete_node(rb_node * h, rb_key_t key, int * found)
+static jit_tree * delete_node(jit_tree * h, jit_tree_key key, int * found)
 {
 	if (h == NULL) {
 		if (found) *found = 0; 
@@ -178,7 +178,7 @@ static rb_node * delete_node(rb_node * h, rb_key_t key, int * found)
 		// XXX: if (!is_red(h->right) && !is_red(h->right->left)) h = move_red_right(h);
 		if (!is_red(h->right) && (h->right) && !is_red(h->right->left)) h = move_red_right(h);
 		if (key == h->key) {
-			h->value = rb_search(h->right, node_min(h->right))->value;
+			h->value = jit_tree_search(h->right, node_min(h->right))->value;
 			h->key = node_min(h->right);
 			h->right = delete_min(h->right);
 			if (found) *found = 1;
@@ -188,7 +188,7 @@ static rb_node * delete_node(rb_node * h, rb_key_t key, int * found)
 	return fixup(h);
 }
 
-static inline rb_node * rb_delete(rb_node * root, rb_key_t key, int * found)
+static inline jit_tree * jit_tree_delete(jit_tree * root, jit_tree_key key, int * found)
 { 
 	root = delete_node(root, key, found);
 	if (root) root->color = BLACK;
@@ -198,58 +198,58 @@ static inline rb_node * rb_delete(rb_node * root, rb_key_t key, int * found)
 
 /////////////////
 
-static inline rb_node * rb_addall(rb_node * target, rb_node * n)
+static inline jit_tree * jit_tree_addall(jit_tree * target, jit_tree * n)
 {
 	if (n == NULL) return target;
-	target = rb_addall(target, n->left);
-	target = rb_insert(target, n->key, n->value, NULL);
-	target = rb_addall(target, n->right);
+	target = jit_tree_addall(target, n->left);
+	target = jit_tree_insert(target, n->key, n->value, NULL);
+	target = jit_tree_addall(target, n->right);
 	return target;
 }
 
-static inline rb_node * rb_clone(rb_node * root)
+static inline jit_tree * jit_tree_clone(jit_tree * root)
 {
-	return rb_addall(NULL, root);
+	return jit_tree_addall(NULL, root);
 }
 
 /////////////////
 
-static void rb_walk(rb_node *h, void (*func)(rb_key_t key, value_t value, void *thunk), void *thunk)
+static void jit_tree_walk(jit_tree *h, void (*func)(jit_tree_key key, jit_tree_value value, void *thunk), void *thunk)
 {
         if (!h) return;
-	rb_walk(h->left, func, thunk);
+	jit_tree_walk(h->left, func, thunk);
         func(h->key, h->value, thunk);
-	rb_walk(h->right, func, thunk);
+	jit_tree_walk(h->right, func, thunk);
 }
 
-static inline void rb_print_tree(rb_node * h, int level)
+static inline void jit_print_tree(jit_tree * h, int level)
 {
 	if (h == NULL) return;
 	for (int i = 0; i < level; i++)
 		printf(" ");
 
 	printf("%i:%li\n", (int)h->key, (long)h->value);
-	rb_print_tree(h->left, level + 1);
-	rb_print_tree(h->right, level + 1);
+	jit_print_tree(h->left, level + 1);
+	jit_print_tree(h->right, level + 1);
 }
 
-static void rb_free(rb_node * h)
+static void jit_tree_free(jit_tree * h)
 {
 	if (h == NULL) return;
-	rb_free(h->left);
-	rb_free(h->right);
+	jit_tree_free(h->left);
+	jit_tree_free(h->right);
 	JIT_FREE(h);
 }
 
-static int rb_subset(rb_node * root, rb_node * n)
+static int jit_tree_subset(jit_tree * root, jit_tree * n)
 {
 	if (n == NULL) return 1;
-	return rb_search(root, n->key) && rb_subset(root, n->left) && rb_subset(root, n->right);
+	return jit_tree_search(root, n->key) && jit_tree_subset(root, n->left) && jit_tree_subset(root, n->right);
 }
 
-static int rb_equal(rb_node * r1, rb_node * r2)
+static int jit_tree_equal(jit_tree * r1, jit_tree * r2)
 {
-	return rb_subset(r1, r2) && rb_subset(r2, r1);
+	return jit_tree_subset(r1, r2) && jit_tree_subset(r2, r1);
 }
 
 #endif

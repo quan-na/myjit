@@ -385,7 +385,7 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 	}
 }
 
-static void mark_calleesaved_regs(struct rb_node * hint, jit_op * op)
+static void mark_calleesaved_regs(jit_tree * hint, jit_op * op)
 {
 	if (hint == NULL) return;
 	struct jit_allocator_hint * h = (struct jit_allocator_hint *) hint->value;
@@ -399,15 +399,15 @@ static void mark_calleesaved_regs(struct rb_node * hint, jit_op * op)
 /**
  * Collects statistics on used registers
  */
-static void __increase_refcount(struct rb_node * hints);
+static void __increase_refcount(jit_tree * hints);
 void jit_collect_statistics(struct jit * jit)
 {
 	int i, j;
 	int ops_from_return = 0;
-	struct rb_node * last_hints = NULL;
+	jit_tree * last_hints = NULL;
 
 	for (jit_op * op = jit_op_last(jit->ops); op != NULL; op = op->prev) {
-		struct rb_node * new_hints = rb_clone(last_hints);
+		jit_tree * new_hints = jit_tree_clone(last_hints);
 		op->normalized_pos = ops_from_return;
 	
 		// determines used registers	
@@ -431,7 +431,7 @@ void jit_collect_statistics(struct jit * jit)
 		for (i = 0; i < found_regs; i++) {
 			jit_value reg = regs[i];
 
-			rb_node * hint = rb_search(new_hints, reg);
+			jit_tree * hint = jit_tree_search(new_hints, reg);
 			struct jit_allocator_hint * new_hint = JIT_MALLOC(sizeof(struct jit_allocator_hint));
 			if (hint) memcpy(new_hint, hint->value, sizeof(struct jit_allocator_hint));
 			else {
@@ -446,7 +446,7 @@ void jit_collect_statistics(struct jit * jit)
 			if ((GET_OP(op) == JIT_RETVAL) || (GET_OP(op) == JIT_RET)) 
 				new_hint->should_be_eax++;
 #endif 
-			new_hints = rb_insert(new_hints, reg, new_hint, NULL);
+			new_hints = jit_tree_insert(new_hints, reg, new_hint, NULL);
 		}
 #ifdef JIT_ARCH_COMMON86
 		if (GET_OP(op) == JIT_CALL) mark_calleesaved_regs(new_hints, op);
@@ -464,7 +464,7 @@ void jit_collect_statistics(struct jit * jit)
 	}
 }
 
-static void __increase_refcount(struct rb_node * hints)
+static void __increase_refcount(jit_tree * hints)
 {
 	if (hints == NULL) return;
 	((struct jit_allocator_hint*) hints->value)->refs++;
@@ -472,7 +472,7 @@ static void __increase_refcount(struct rb_node * hints)
 	__increase_refcount(hints->right);
 }
 
-void jit_allocator_hints_free(struct rb_node * hints)
+void jit_allocator_hints_free(jit_tree * hints)
 {
 	if (hints == NULL) return;
 	jit_allocator_hints_free(hints->left);

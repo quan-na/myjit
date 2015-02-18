@@ -73,7 +73,7 @@ struct jit_reg_allocator {
 };
 
 typedef struct jit_rmap {
-	struct rb_node * map;		// R/B tree which maps virtual registers to hardware registers
+	jit_tree * map;		// R/B tree which maps virtual registers to hardware registers
 } jit_rmap;
 
 struct jit_allocator_hint {
@@ -103,7 +103,7 @@ typedef struct jit_prepared_args {
 } jit_prepared_args;
 
 typedef struct jit_set {
-	rb_node * root;
+	jit_tree * root;
 } jit_set;
 
 struct jit_func_info {			// collection of information related to one function
@@ -179,7 +179,7 @@ char * jit_reg_allocator_get_hwreg_name(struct jit_reg_allocator * al, int reg);
 int jit_reg_in_use(jit_op * op, int reg, int fp);
 jit_hw_reg * jit_get_unused_reg(struct jit_reg_allocator * al, jit_op * op, int fp);
 void rmap_free(jit_rmap * regmap);
-void jit_allocator_hints_free(struct rb_node *);
+void jit_allocator_hints_free(jit_tree *);
 
 
 static struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)

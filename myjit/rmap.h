@@ -40,13 +40,13 @@ static inline jit_rmap * rmap_init()
 
 jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg)
 {
-	rb_node * found = rb_search(rmap->map, reg);
+	jit_tree * found = jit_tree_search(rmap->map, reg);
 	if (found) return (jit_hw_reg *) found->value;
 
 	return NULL;
 }
 
-static inline jit_hw_reg * __is_associated(rb_node * n, int reg_id, int fp, jit_value * virt_reg)
+static inline jit_hw_reg * __is_associated(jit_tree * n, int reg_id, int fp, jit_value * virt_reg)
 {
 	if (n == NULL) return NULL;
 	jit_hw_reg * r = (jit_hw_reg *) n->value;
@@ -73,22 +73,22 @@ static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_
 
 static void rmap_assoc(jit_rmap * rmap, jit_value reg, jit_hw_reg * hreg)
 {
-	rmap->map = rb_insert(rmap->map, reg, hreg, NULL);
+	rmap->map = jit_tree_insert(rmap->map, reg, hreg, NULL);
 }
 
 static void rmap_unassoc(jit_rmap * rmap, jit_value reg, int fp)
 {
-	rmap->map = rb_delete(rmap->map, reg, NULL);
+	rmap->map = jit_tree_delete(rmap->map, reg, NULL);
 }
 
 static jit_rmap * rmap_clone(jit_rmap * rmap)
 {
 	jit_rmap * res = JIT_MALLOC(sizeof(jit_rmap));
-	res->map = rb_clone(rmap->map);
+	res->map = jit_tree_clone(rmap->map);
 	return res;
 }
 
-static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
+static int __rmap_equal(jit_op * op, jit_tree * current, jit_tree * target)
 {
 	if (current == NULL) return 1;
 
@@ -96,7 +96,7 @@ static int __rmap_equal(jit_op * op, rb_node * current, rb_node * target)
 	jit_set * tgt_livein = op->jmp_addr->live_in;
 	if (!jit_set_get(tgt_livein, current->key) && !jit_set_get(op->live_out, current->key)) goto skip;
 
-	rb_node * found = rb_search(target, current->key);
+	jit_tree * found = jit_tree_search(target, current->key);
 	if ((!found) || (current->value != found->value)) return 0;
 
 skip:
@@ -109,7 +109,6 @@ skip:
  */
 static int rmap_equal(jit_op * op, jit_rmap * current, jit_rmap * target)
 {
-//	return rb_equal(current->map, target->map);
 	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
 }
 
@@ -120,7 +119,7 @@ static int rmap_equal(jit_op * op, jit_rmap * current, jit_rmap * target)
  * if (mode == UNLOAD): then it unloads registers which are in the current mapping,
  * 			however, which are not in the target mapping
  */
-static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
+static void __sync(jit_tree * current, jit_tree * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
 
@@ -130,7 +129,7 @@ static void __sync(rb_node * current, rb_node * target, jit_op * op, int mode)
 	// if the register is not used in the destination, then ignore it
 	if ((mode == RMAP_UNLOAD) && (!jit_set_get(op->jmp_addr->live_in, current->key))) goto skip;
 
-	rb_node * found = rb_search(target, current->key);
+	jit_tree * found = jit_tree_search(target, current->key);
 	int i = current->key;
 
 	if ((!found) || (current->value != found->value)) {
@@ -173,7 +172,7 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 
 		*associated_virtreg = x;
 
-		struct rb_node * hint_node = rb_search(op->allocator_hints, x);
+		jit_tree * hint_node = jit_tree_search(op->allocator_hints, x);
 		int is_to_be_used = (hint_node != NULL);
 
 		if (!is_to_be_used) score += 50000; // if it's not to be used it is not so bad candidate
@@ -187,7 +186,7 @@ static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, in
 
 
 #ifdef JIT_ARCH_COMMON86
-	struct rb_node * hint_node = rb_search(op->allocator_hints, virtreg);
+	jit_tree * hint_node = jit_tree_search(op->allocator_hints, virtreg);
 	if (hint_node) {
 		struct jit_allocator_hint * hint = (struct jit_allocator_hint *)hint_node->value;
 		if ((hreg->fp == 0) && (hreg->id == COMMON86_AX)) {
@@ -245,6 +244,6 @@ static jit_hw_reg * rmap_spill_candidate(struct jit_reg_allocator * al, jit_op *
 void rmap_free(jit_rmap * regmap)
 {
 	if (!regmap) return;
-	rb_free(regmap->map);
+	jit_tree_free(regmap->map);
 	JIT_FREE(regmap);
 }

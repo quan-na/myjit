@@ -45,7 +45,7 @@
 /*
  * Data structures
  */
-struct rb_node;
+struct jit_tree;
 struct jit_set;
 struct jit_rmap;
 typedef struct jit_op {
@@ -66,7 +66,7 @@ typedef struct jit_op {
         struct jit_set * live_out;
         struct jit_rmap * regmap;                // register mappings 
         int normalized_pos;             // number of operations from the end of the function
-        struct rb_node * allocator_hints; // reg. allocator to collect statistics on used registers
+        struct jit_tree * allocator_hints; // reg. allocator to collect statistics on used registers
 } jit_op;
 
 typedef struct jit_label {

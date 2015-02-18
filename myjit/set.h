@@ -34,38 +34,38 @@ static inline jit_set * jit_set_new()
 static inline jit_set * jit_set_clone(jit_set * s)
 {
 	jit_set * clone = jit_set_new();
-	clone->root = rb_clone(s->root);
+	clone->root = jit_tree_clone(s->root);
 	return clone;
 }
 
 static inline void jit_set_free(jit_set * s)
 {
-	rb_free(s->root);
+	jit_tree_free(s->root);
 	JIT_FREE(s);
 }
 
 static inline void jit_set_addall(jit_set * target, jit_set * s)
 {
-	target->root = rb_addall(target->root, s->root);
+	target->root = jit_tree_addall(target->root, s->root);
 }
 
 static inline int jit_set_get(jit_set * s, int value)
 {
-	return (rb_search(s->root, value) != NULL);
+	return (jit_tree_search(s->root, value) != NULL);
 }
 
 static inline void jit_set_add(jit_set * s, int value)
 {
-	s->root = rb_insert(s->root, value, (void *)1, NULL);
+	s->root = jit_tree_insert(s->root, value, (void *)1, NULL);
 }
 
 static inline void jit_set_remove(jit_set * s, int value)
 {
-	s->root = rb_delete(s->root, value, NULL);
+	s->root = jit_tree_delete(s->root, value, NULL);
 }
 
 static inline int jit_set_equal(jit_set * s1, jit_set * s2) 
 {
-	return rb_equal(s1->root, s2->root);
+	return jit_tree_equal(s1->root, s2->root);
 }
 #endif

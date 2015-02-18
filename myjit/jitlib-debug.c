@@ -88,7 +88,7 @@ typedef struct jit_disasm {
 	char *label_template;
 	char *label_forward_template;
 	char *generic_addr_template;
-	char *generic_value_template;
+	char *generic_jit_tree_valueemplate;
 } jit_disasm;
 
 char * jit_get_op_name(struct jit_op * op)
@@ -216,22 +216,22 @@ void jit_get_reg_name(struct jit_disasm *disasm, char * r, int reg)
 	} 
 }
 
-static void __print_rmap(rb_key_t key, value_t value, void *disasm)
+static void __print_rmap(jit_tree_key key, jit_tree_value value, void *disasm)
 {
 	char buf[256];
 	jit_get_reg_name((struct jit_disasm *)disasm, buf, key);
 	printf("%s=%s ", buf, ((jit_hw_reg *)value)->name);
 }
 
-static void __print_reg_liveness(rb_key_t key, value_t value, void *disasm)
+static void __print_reg_liveness(jit_tree_key key, jit_tree_value value, void *disasm)
 {
 	char buf[256];
 	jit_get_reg_name(disasm, buf, key);
 	printf("%s ", buf);
 }
 
-#define print_rmap(disasm, n) rb_walk(n, __print_rmap, disasm)
-#define print_reg_liveness(disasm, n) rb_walk(n, __print_reg_liveness, disasm)
+#define print_rmap(disasm, n) jit_tree_walk(n, __print_rmap, disasm)
+#define print_reg_liveness(disasm, n) jit_tree_walk(n, __print_reg_liveness, disasm)
 
 
 static inline int __is_cflow(jit_op * op)
@@ -247,7 +247,7 @@ static inline int __is_label_op(jit_op * op)
 	return (op != NULL) && ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH));
 }
 
-static void __assign_labels(rb_node * n, long * id)
+static void __assign_labels(jit_tree * n, long * id)
 {
 	if (n == NULL) return;
 	__assign_labels(n->left, id);
@@ -256,24 +256,24 @@ static void __assign_labels(rb_node * n, long * id)
 	__assign_labels(n->right, id);
 }
 
-static rb_node * prepare_labels(struct jit * jit)
+static jit_tree * prepare_labels(struct jit * jit)
 {
 	long x = 1;
-	rb_node * n = NULL;
+	jit_tree * n = NULL;
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		jit_op * xop = op;
 		if (__is_label_op(op)) {
 			for (; xop != NULL; xop = xop->next) {
 				if (!__is_label_op(xop)) break;
 			}
-			n = rb_insert(n, (long)xop, (void *)0, NULL);
+			n = jit_tree_insert(n, (long)xop, (void *)0, NULL);
 		}
 	}
 	__assign_labels(n, &x);
 	return n;
 }
 
-static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
+static int __find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
 {
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_PATCH) continue;
@@ -284,7 +284,7 @@ static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
 				if (!__is_label_op(yop)) break;
-			rb_node * n = rb_search(labels, (long)yop);
+			jit_tree * n = jit_tree_search(labels, (long)yop);
 			if (n) return (long)n->value;
 			else return -1;
 		}
@@ -292,7 +292,7 @@ static int __find_patch(struct jit * jit, rb_node * labels, jit_op * op)
 	return -1;
 }
 
-static int __find_label(struct jit * jit, rb_node * labels, jit_label *label)
+static int __find_label(struct jit * jit, jit_tree * labels, jit_label *label)
 {
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_LABEL) continue;
@@ -303,7 +303,7 @@ static int __find_label(struct jit * jit, rb_node * labels, jit_label *label)
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
 				if (!__is_label_op(yop)) break;
-			rb_node * n = rb_search(labels, (long)yop);
+			jit_tree * n = jit_tree_search(labels, (long)yop);
 			if (n) return (long)n->value;
 			else return -1;
 		}
@@ -311,7 +311,7 @@ static int __find_label(struct jit * jit, rb_node * labels, jit_label *label)
 	return -1;
 }
 
-static inline void print_addr(struct jit_disasm *disasm, char *buf, rb_node *labels, jit_op *op, int arg_pos)
+static inline void print_addr(struct jit_disasm *disasm, char *buf, jit_tree *labels, jit_op *op, int arg_pos)
 {
 	void *arg = (void *)op->arg[arg_pos];
 	struct jit *jit = disasm->jit;
@@ -326,7 +326,7 @@ static inline void print_addr(struct jit_disasm *disasm, char *buf, rb_node *lab
 static inline void print_arg(struct jit_disasm *disasm, char * buf, struct jit_op * op, int arg)
 {
 	long a = op->arg[arg - 1];
-	if (ARG_TYPE(op, arg) == IMM) bufprint(buf, disasm->generic_value_template, a);
+	if (ARG_TYPE(op, arg) == IMM) bufprint(buf, disasm->generic_jit_tree_valueemplate, a);
 	if ((ARG_TYPE(op, arg) == REG) || (ARG_TYPE(op, arg) == TREG)) {
 		char value[256];
 		jit_get_reg_name(disasm, value, a);
@@ -357,7 +357,7 @@ static inline void print_str(char * buf, char * str)
 }
 
 /*
-static rb_node * __get_prev_rmap(jit_op * op)
+static jit_tree * __get_prev_rmap(jit_op * op)
 {
 	while (!op->regmap) op = op->prev;
 	char * op_name = jit_get_op_name(op);
@@ -367,12 +367,12 @@ static rb_node * __get_prev_rmap(jit_op * op)
 }
 */
 
-int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels, int verbosity)
+int __print_op(struct jit_disasm * disasm, struct jit_op * op, jit_tree * labels, int verbosity)
 {
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
 
-	rb_node * lab = rb_search(labels, (long)op);
+	jit_tree * lab = jit_tree_search(labels, (long)op);
 	if (lab) {
 		bufprint(linebuf, disasm->label_template, (long)lab->value);
 		bufprint(linebuf, ":\n");
@@ -387,7 +387,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 		switch (op_code) {
 			case JIT_SYNCREG: 
 				jit_get_reg_name(buf, op->arg[0]);
-				hreg = (jit_hw_reg *) rb_search(__get_prev_rmap(op), op->arg[0]);
+				hreg = (jit_hw_reg *) jit_tree_search(__get_prev_rmap(op), op->arg[0]);
 				printf("\t.syncreg    %s <- %s", buf, hreg->name);
 				break;
 			default: is_load_op = 0;
@@ -405,7 +405,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, rb_node * labels,
 			case JIT_CODE_ALIGN:
 				bufprint(linebuf, "%s%s ", disasm->indent_template, op_name);
 				while (strlen(linebuf) < 13) strcat(linebuf, " ");
-				bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
+				bufprint(linebuf, disasm->generic_jit_tree_valueemplate, op->arg[0]);
 				goto print;
 			case JIT_DATA_CADDR:
 			case JIT_DATA_DADDR:
@@ -506,12 +506,12 @@ print:
 }
 
 
-int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node * labels, int verbosity)
+int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tree * labels, int verbosity)
 {
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
 
-	rb_node * lab = rb_search(labels, (long)op);
+	jit_tree * lab = jit_tree_search(labels, (long)op);
 	if (lab) {
 		bufprint(linebuf, "// ");
 		bufprint(linebuf, disasm->label_template, (long)lab->value);
@@ -533,7 +533,7 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 
 	if (GET_OP(op) == JIT_DATA_BYTE) {
 		bufprint(linebuf, "%sjit_data_byte(p, ", disasm->indent_template);
-		bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
+		bufprint(linebuf, disasm->generic_jit_tree_valueemplate, op->arg[0]);
 		goto print;
 	}
 
@@ -556,7 +556,7 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, rb_node
 
 	if (GET_OP(op) == JIT_CODE_ALIGN) {
 		bufprint(linebuf, "%sjit_align  (p, ", disasm->indent_template);
-		bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
+		bufprint(linebuf, disasm->generic_jit_tree_valueemplate, op->arg[0]);
 		goto print;
 	}
 
@@ -631,7 +631,7 @@ direct_print:
 
 void jit_dump_ops(struct jit * jit, int verbosity)
 {
-	rb_node * labels = prepare_labels(jit);
+	jit_tree * labels = prepare_labels(jit);
 	struct jit_disasm general_disasm = (struct jit_disasm) {
 		.jit = jit,
 		.indent_template = "    ",   
@@ -647,7 +647,7 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 		.label_template = "L%i",
 		.label_forward_template = "L%i",
 		.generic_addr_template = "<addr: 0x%lx>",
-		.generic_value_template = "0x%lx",
+		.generic_jit_tree_valueemplate = "0x%lx",
 	};
 	struct jit_disasm compilable_disasm = (struct jit_disasm) {
 		.jit = jit,
@@ -664,7 +664,7 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 		.label_template = "label_%03i",
 		.label_forward_template = "/* label_%03i */ JIT_FORWARD",
 		.generic_addr_template = "<addr: 0x%lx>",
-		.generic_value_template = "%li",
+		.generic_jit_tree_valueemplate = "%li",
 	};
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
@@ -693,5 +693,5 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 
 		printf("\n");
 	}
-	rb_free(labels);
+	jit_tree_free(labels);
 }
