@@ -46,7 +46,7 @@ jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg)
 	return NULL;
 }
 
-static inline jit_hw_reg * __is_associated(jit_tree * n, int reg_id, int fp, jit_value * virt_reg)
+static inline jit_hw_reg * rmap_is_associated_aux(jit_tree * n, int reg_id, int fp, jit_value * virt_reg)
 {
 	if (n == NULL) return NULL;
 	jit_hw_reg * r = (jit_hw_reg *) n->value;
@@ -56,9 +56,9 @@ static inline jit_hw_reg * __is_associated(jit_tree * n, int reg_id, int fp, jit
 		return r;
 	}
 
-	r = __is_associated(n->left, reg_id, fp, virt_reg);
+	r = rmap_is_associated_aux(n->left, reg_id, fp, virt_reg);
 	if (r) return r;
-	else return __is_associated(n->right, reg_id, fp, virt_reg);
+	else return rmap_is_associated_aux(n->right, reg_id, fp, virt_reg);
 }
 
 /**
@@ -68,7 +68,7 @@ static inline jit_hw_reg * __is_associated(jit_tree * n, int reg_id, int fp, jit
  */
 static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_value * virt_reg)
 {
-	return __is_associated(rmap->map, reg_id, fp, virt_reg);
+	return rmap_is_associated_aux(rmap->map, reg_id, fp, virt_reg);
 }
 
 static void rmap_assoc(jit_rmap * rmap, jit_value reg, jit_hw_reg * hreg)
@@ -88,7 +88,7 @@ static jit_rmap * rmap_clone(jit_rmap * rmap)
 	return res;
 }
 
-static int __rmap_equal(jit_op * op, jit_tree * current, jit_tree * target)
+static int rmap_subset(jit_op * op, jit_tree * current, jit_tree * target)
 {
 	if (current == NULL) return 1;
 
@@ -100,7 +100,7 @@ static int __rmap_equal(jit_op * op, jit_tree * current, jit_tree * target)
 	if ((!found) || (current->value != found->value)) return 0;
 
 skip:
-	return __rmap_equal(op, current->left, target) && __rmap_equal(op, current->right, target);
+	return rmap_subset(op, current->left, target) && rmap_subset(op, current->right, target);
 }
 
 /**
@@ -109,7 +109,7 @@ skip:
  */
 static int rmap_equal(jit_op * op, jit_rmap * current, jit_rmap * target)
 {
-	return __rmap_equal(op, current->map, target->map) && __rmap_equal(op, target->map, current->map);
+	return rmap_subset(op, current->map, target->map) && rmap_subset(op, target->map, current->map);
 }
 
 /**
@@ -119,7 +119,7 @@ static int rmap_equal(jit_op * op, jit_rmap * current, jit_rmap * target)
  * if (mode == UNLOAD): then it unloads registers which are in the current mapping,
  * 			however, which are not in the target mapping
  */
-static void __sync(jit_tree * current, jit_tree * target, jit_op * op, int mode)
+static void rmap_sync_aux(jit_tree * current, jit_tree * target, jit_op * op, int mode)
 {
 	if (current == NULL) return;
 
@@ -141,13 +141,13 @@ static void __sync(jit_tree * current, jit_tree * target, jit_op * op, int mode)
 		}
 	}
 skip:
-	__sync(current->left, target, op, mode);
-	__sync(current->right, target, op, mode);
+	rmap_sync_aux(current->left, target, op, mode);
+	rmap_sync_aux(current->right, target, op, mode);
 }
 
 static void rmap_sync(jit_op * op, jit_rmap * current, jit_rmap * target, int mode)
 {
-	__sync(current->map, target->map, op, mode);
+	rmap_sync_aux(current->map, target->map, op, mode);
 }
 
 static int candidate_score(jit_op * op, jit_value virtreg, jit_hw_reg * hreg, int * spill, jit_value * associated_virtreg)
