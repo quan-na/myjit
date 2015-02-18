@@ -39,6 +39,8 @@
 #define IS_SIGNED(op) (!(op->code & UNSIGNED))
 #define ARG_TYPE(op, arg) (((op)->spec >> ((arg) - 1) * 2) & 0x03)
 
+#define JIT_BUFFER_OFFSET(jit)       ((jit_value)jit->ip - (jit_value)jit->buf)
+
 
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))

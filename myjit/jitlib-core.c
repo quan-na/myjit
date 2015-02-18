@@ -368,7 +368,7 @@ void jit_generate_code(struct jit * jit)
 			case JIT_DATA_BYTE: *(jit->ip)++ = (unsigned char) op->arg[0]; break;
 			case JIT_DATA_CADDR: 
 			case JIT_DATA_DADDR: 
-				op->patch_addr = __PATCH_ADDR(jit);
+				op->patch_addr = JIT_BUFFER_OFFSET(jit);
 				for (int i = 0; i < sizeof(void *); i++) {
 					*jit->ip = 0;
 					jit->ip++;

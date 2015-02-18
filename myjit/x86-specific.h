@@ -17,14 +17,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define __GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
-#define __GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
+#define GET_GPREG_POS(jit, r) (- ((JIT_REG(r).id + 1) * REG_SIZE) - jit_current_func_info(jit)->allocai_mem)
+#define GET_FPREG_POS(jit, r) (- jit_current_func_info(jit)->gp_reg_count * REG_SIZE - (JIT_REG(r).id + 1) * sizeof(jit_float) - jit_current_func_info(jit)->allocai_mem)
 
-static inline int __GET_REG_POS(struct jit * jit, int r)
+static inline int GET_REG_POS(struct jit * jit, int r)
 {
 	if (JIT_REG(r).spec == JIT_RTYPE_REG) {
-		if (JIT_REG(r). type == JIT_RTYPE_INT) return __GET_GPREG_POS(jit, r);
-		else return __GET_FPREG_POS(jit, r);
+		if (JIT_REG(r). type == JIT_RTYPE_INT) return GET_GPREG_POS(jit, r);
+		else return GET_FPREG_POS(jit, r);
 	} else assert(0); 
 }
 
@@ -68,7 +68,7 @@ static int __configure_args(struct jit * jit)
 			if (!args[i].isreg) x86_push_imm(jit->ip, args[i].value.generic);
 			else {
 				if (__is_spilled(value, jit->prepared_args.op, &sreg)) 
-					x86_push_membase(jit->ip, X86_EBP, __GET_REG_POS(jit, args[i].value.generic));
+					x86_push_membase(jit->ip, X86_EBP, GET_REG_POS(jit, args[i].value.generic));
 				else x86_push_reg(jit->ip, sreg);
 			}
 			continue;
@@ -79,7 +79,7 @@ static int __configure_args(struct jit * jit)
 		if (args[i].size == sizeof(double)) {
 			if (args[i].isreg) { // doubles
 				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-					int pos = __GET_FPREG_POS(jit, args[i].value.generic);
+					int pos = GET_FPREG_POS(jit, args[i].value.generic);
 					x86_push_membase(jit->ip, X86_EBP, pos + 4);
 					x86_push_membase(jit->ip, X86_EBP, pos);
 				} else {
@@ -100,7 +100,7 @@ static int __configure_args(struct jit * jit)
 		//
 		if (args[i].isreg) { 
 			if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-				int pos = __GET_FPREG_POS(jit, args[i].value.generic);
+				int pos = GET_FPREG_POS(jit, args[i].value.generic);
 				x86_fld_membase(jit->ip, X86_EBP, pos, 1); 
 				x86_alu_reg_imm(jit->ip, X86_SUB, X86_ESP, 4);
 				x86_fst_membase(jit->ip, X86_ESP, 0, 0, 1);
@@ -128,8 +128,8 @@ static void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	if (!imm) {
 		x86_call_reg(jit->ip, op->r_arg[0]);
 	} else {
-		op->patch_addr = __PATCH_ADDR(jit); 
-		x86_call_imm(jit->ip, __JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
+		op->patch_addr = JIT_BUFFER_OFFSET(jit); 
+		x86_call_imm(jit->ip, JIT_GET_ADDR(jit, op->r_arg[0]) - 4); /* 4: magic constant */
 	}
 	
 	if (jit->prepared_args.stack_size + stack_correction) 
@@ -157,7 +157,7 @@ static void emit_prolog_op(struct jit * jit, jit_op * op)
 	while ((long)jit->ip % 8) 
 		x86_nop(jit->ip);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 	if (!no_prolog) {
 		x86_push_reg(jit->ip, X86_EBP);
 		x86_mov_reg_reg(jit->ip, X86_EBP, X86_ESP, 4);
@@ -177,7 +177,7 @@ static void emit_msg_op(struct jit * jit, jit_op * op)
 	x86_pushad(jit->ip);
 	if (!IS_IMM(op)) x86_push_reg(jit->ip, op->r_arg[1]);
 	x86_push_imm(jit->ip, op->r_arg[0]);
-	op->patch_addr = __PATCH_ADDR(jit); 
+	op->patch_addr = JIT_BUFFER_OFFSET(jit); 
 	x86_call_imm(jit->ip, printf);
 	if (IS_IMM(op)) x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 4);
 	else x86_alu_reg_imm(jit->ip, X86_ADD, X86_ESP, 8);

@@ -246,8 +246,8 @@ static void __sse_neg_op(struct jit * jit, jit_op * op, long a1, long a2)
 static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
 {
         sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
-        op->patch_addr = __PATCH_ADDR(jit);
-        x86_branch_disp32(jit->ip, x86_cond, __JIT_GET_ADDR(jit, a1), 0);
+        op->patch_addr = JIT_BUFFER_OFFSET(jit);
+        x86_branch_disp32(jit->ip, x86_cond, JIT_GET_ADDR(jit, a1), 0);
 }
 
 static void __sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)

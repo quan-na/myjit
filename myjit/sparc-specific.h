@@ -20,16 +20,14 @@
 #include "sparc-codegen.h"
 #include "x86-common-stuff.c"
 
-#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
+#define JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		((((long)jit->buf + (long)((jit_label *)(imm))->pos - (long)jit->ip)) / 4))
-
-#define __PATCH_ADDR(jit)       ((long)jit->ip - (long)jit->buf)
 
 #define EXTRA_SPACE (16)
 
 inline jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg);
 
-static inline int __GET_REG_POS(struct jit * jit, int r)
+static inline int GET_REG_POS(struct jit * jit, int r)
 {
 	struct jit_func_info * info = jit_current_func_info(jit);
 	if (JIT_REG(r).spec == JIT_RTYPE_REG) {
@@ -100,8 +98,8 @@ static inline void __branch_op(struct jit * jit, struct jit_op * op, int cond, i
 		if (op->r_arg[2] != 0) sparc_cmp_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 		else sparc_cmp(jit->ip, op->r_arg[1], sparc_g0);
 	} else sparc_cmp(jit->ip, op->r_arg[1], op->r_arg[2]);
-	op->patch_addr = __PATCH_ADDR(jit);
-	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
+	sparc_branch (jit->ip, FALSE, cond, JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
 }
 
@@ -111,8 +109,8 @@ static inline void __branch_mask_op(struct jit * jit, struct jit_op * op, int co
 		if (op->r_arg[2] != 0) sparc_and_imm(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
 		else sparc_and(jit->ip, sparc_cc, op->r_arg[1], sparc_g0, sparc_g0);
 	} else sparc_and(jit->ip, sparc_cc, op->r_arg[1], op->r_arg[2], sparc_g0);
-	op->patch_addr = __PATCH_ADDR(jit);
-	sparc_branch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
+	sparc_branch (jit->ip, FALSE, cond, JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
 }
 
@@ -134,17 +132,17 @@ static inline void __branch_overflow_op(struct jit * jit, struct jit_op * op, in
 			default: assert(0);
 		}
 	}
-	op->patch_addr = __PATCH_ADDR(jit);
-	if (!negation) sparc_branch (jit->ip, FALSE, sparc_boverflow, __JIT_GET_ADDR(jit, op->r_arg[0]));
-	else sparc_branch (jit->ip, FALSE, sparc_bnoverflow, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
+	if (!negation) sparc_branch (jit->ip, FALSE, sparc_boverflow, JIT_GET_ADDR(jit, op->r_arg[0]));
+	else sparc_branch (jit->ip, FALSE, sparc_bnoverflow, JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
 }
 
 static inline void __fpbranch_op(struct jit * jit, struct jit_op * op, int cond, int arg1, int arg2)
 {
 	sparc_fcmpd(jit->ip, arg1, arg2);
-	op->patch_addr = __PATCH_ADDR(jit);
-	sparc_fbranch (jit->ip, FALSE, cond, __JIT_GET_ADDR(jit, op->r_arg[0]));
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
+	sparc_fbranch (jit->ip, FALSE, cond, JIT_GET_ADDR(jit, op->r_arg[0]));
 	sparc_nop(jit->ip);
 }
 
@@ -209,7 +207,7 @@ static inline void __configure_args(struct jit * jit)
 		if (!arg->isfp) {
 			if (arg->isreg) {
 				if (__is_spilled(value, jit->prepared_args.op, &sreg))
-					__set_arg_mem(jit, __GET_REG_POS(jit, value), assoc_gp++);
+					__set_arg_mem(jit, GET_REG_POS(jit, value), assoc_gp++);
 				else __set_arg_reg(jit, sreg, assoc_gp++); 
 			} else __set_arg_imm(jit, value, assoc_gp++);
 			continue;
@@ -219,7 +217,7 @@ static inline void __configure_args(struct jit * jit)
 		if (arg->size == sizeof(float)) {
 			if (arg->isreg) {
 				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-					sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
+					sparc_lddf_imm(jit->ip, sparc_fp, GET_REG_POS(jit, value), sparc_f30);
 					sreg = sparc_f30;
 				}
 				sparc_fdtos(jit->ip, sreg, sparc_f30);
@@ -235,7 +233,7 @@ static inline void __configure_args(struct jit * jit)
 			if (arg->isreg) {
 				long value = arg->value.generic;
 				if (__is_spilled(value, jit->prepared_args.op, &sreg)) {
-					sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, value), sparc_f30);
+					sparc_lddf_imm(jit->ip, sparc_fp, GET_REG_POS(jit, value), sparc_f30);
 					sreg = sparc_f30;
 				}
 				__set_arg_freg(jit, sreg, assoc_gp++);
@@ -256,7 +254,7 @@ static inline void __funcall(struct jit * jit, struct jit_op * op, int imm)
 	if (!imm) {
 		sparc_call(jit->ip, op->r_arg[0], sparc_g0);
 	} else {
-		op->patch_addr = __PATCH_ADDR(jit);
+		op->patch_addr = JIT_BUFFER_OFFSET(jit);
 		if (op->r_arg[0] == (long)JIT_FORWARD) {
 			sparc_call_simple(jit->ip, 0); 
 		} else if (jit_is_label(jit, (void *)op->r_arg[0]))
@@ -518,7 +516,7 @@ static void __sparc_floor(struct jit * jit, long a1, long a2, int floor)
 static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 {
 	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) {
-		if (JIT_REG(vreg).type == JIT_RTYPE_INT) sparc_st_imm(jit->ip, hreg_id, sparc_fp, __GET_REG_POS(jit, vreg));
+		if (JIT_REG(vreg).type == JIT_RTYPE_INT) sparc_st_imm(jit->ip, hreg_id, sparc_fp, GET_REG_POS(jit, vreg));
 		else {
 			int arg_id = JIT_REG(vreg).id;
 			struct jit_inp_arg * a = &(jit_current_func_info(jit)->args[arg_id]);
@@ -527,8 +525,8 @@ static inline void __ureg(struct jit * jit, long vreg, long hreg_id)
 	}
 	if (JIT_REG(vreg).spec == JIT_RTYPE_REG) {
 		if (JIT_REG(vreg).type != JIT_RTYPE_FLOAT)
-			sparc_st_imm(jit->ip, hreg_id, sparc_fp, __GET_REG_POS(jit, vreg));
-		else sparc_stdf_imm(jit->ip, hreg_id, sparc_fp, __GET_REG_POS(jit, vreg));
+			sparc_st_imm(jit->ip, hreg_id, sparc_fp, GET_REG_POS(jit, vreg));
+		else sparc_stdf_imm(jit->ip, hreg_id, sparc_fp, GET_REG_POS(jit, vreg));
 	}
 }
 
@@ -662,11 +660,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				switch (GET_OP(target)) {
 					case JIT_CODE_ADDR:
 					case JIT_DATA_ADDR:
-						target->arg[1] = __PATCH_ADDR(jit);
+						target->arg[1] = JIT_BUFFER_OFFSET(jit);
 						break;
 					case JIT_DATA_CADDR:
 					case JIT_DATA_DADDR:
-						target->arg[0] = __PATCH_ADDR(jit);
+						target->arg[0] = JIT_BUFFER_OFFSET(jit);
 						break;
 					default: {
 						long pa = ((struct jit_op *)a1)->patch_addr;
@@ -677,9 +675,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			break;
 
 		case JIT_JMP:
-			op->patch_addr = __PATCH_ADDR(jit);
+			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			if (op->code & REG) sparc_jmp(jit->ip, a1, sparc_g0);
-			else sparc_branch(jit->ip, FALSE, sparc_balways, __JIT_GET_ADDR(jit, op->r_arg[0]));
+			else sparc_branch(jit->ip, FALSE, sparc_balways, JIT_GET_ADDR(jit, op->r_arg[0]));
 			sparc_nop(jit->ip);
 			break;
 		case JIT_RET:
@@ -695,7 +693,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_MSG:
 				 sparc_set(jit->ip, a1, sparc_o0);
 				 if (!IS_IMM(op)) sparc_mov_reg_reg(jit->ip, a2, sparc_o1);
-				 op->patch_addr = __PATCH_ADDR(jit);
+				 op->patch_addr = JIT_BUFFER_OFFSET(jit);
 				 sparc_call_simple(jit->ip, printf);
 				 sparc_nop(jit->ip);
 				 break;
@@ -717,7 +715,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_CODE_ADDR:
 		case JIT_DATA_ADDR:
-			op->patch_addr = __PATCH_ADDR(jit);
+			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			sparc_set32x(jit->ip, 0xdeadbeef, a1);
 			break;
 
@@ -742,7 +740,7 @@ op_complete:
 				struct jit_func_info * info = jit_current_func_info(jit);
 				int stack_mem = 96;
 
-				op->patch_addr = __PATCH_ADDR(jit);
+				op->patch_addr = JIT_BUFFER_OFFSET(jit);
 				stack_mem += info->allocai_mem;
 				stack_mem += info->gp_reg_count * REG_SIZE;
 				stack_mem += info->fp_reg_count * sizeof(double);
@@ -759,7 +757,7 @@ op_complete:
 
 		case JIT_DECL_ARG: break;
 
-		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
+		case JIT_LABEL: ((jit_label *)a1)->pos = JIT_BUFFER_OFFSET(jit); break; 
 
 		case (JIT_LD | REG | SIGNED): 
 				switch (op->arg_size) {
@@ -982,8 +980,8 @@ op_complete:
 		case (JIT_LREG): 
 			if (JIT_REG(a2).spec == JIT_RTYPE_ARG) assert(0);
 			if (JIT_REG(a2).type == JIT_RTYPE_INT)
-				sparc_ld_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, a2), a1);
-			else sparc_lddf_imm(jit->ip, sparc_fp, __GET_REG_POS(jit, a2), a1);
+				sparc_ld_imm(jit->ip, sparc_fp, GET_REG_POS(jit, a2), a1);
+			else sparc_lddf_imm(jit->ip, sparc_fp, GET_REG_POS(jit, a2), a1);
 			break;
 		case JIT_RENAMEREG: sparc_mov_reg_reg(jit->ip, a2, a1); break;
 		case JIT_CODESTART: break;

@@ -30,10 +30,8 @@ static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_
 static jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg);
 
 
-#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
+#define JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((jit_value)jit->buf + ((jit_label *)(imm))->pos - (jit_value)jit->ip)))
-#define __PATCH_ADDR(jit)       ((jit_value)jit->ip - (jit_value)jit->buf)
-
 
 #include "sse2-specific.h"
 
@@ -186,7 +184,7 @@ static void emit_lreg(struct jit * jit, int hreg_id, jit_value vreg)
 {
 	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) assert(0);
 
-	int stack_pos = __GET_REG_POS(jit, vreg) ;
+	int stack_pos = GET_REG_POS(jit, vreg) ;
 
 	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_xreg_membase(jit->ip, hreg_id, COMMON86_BP, stack_pos);
 	else common86_mov_reg_membase(jit->ip, hreg_id, COMMON86_BP, stack_pos, REG_SIZE);
@@ -200,7 +198,7 @@ static void emit_lreg(struct jit * jit, int hreg_id, jit_value vreg)
  */
 static void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
 {
-	int stack_pos = __GET_REG_POS(jit, vreg);
+	int stack_pos = GET_REG_POS(jit, vreg);
 
 	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_membase_xreg(jit->ip, hreg_id, COMMON86_BP, stack_pos);
 	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
@@ -598,9 +596,9 @@ static void emit_branch_op(struct jit * jit, struct jit_op * op, int cond, int i
 	if (imm) common86_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 
-	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	common86_branch_disp32(jit->ip, cond, JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
 static void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
@@ -608,9 +606,9 @@ static void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, 
 	if (imm) common86_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else common86_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 
-	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	common86_branch_disp32(jit->ip, cond, JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
@@ -618,10 +616,10 @@ static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int al
 	if (imm) common86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 
-	if (!negation) common86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
-	else common86_branch_disp32(jit->ip, X86_CC_NO, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	if (!negation) common86_branch_disp32(jit->ip, X86_CC_O, JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	else common86_branch_disp32(jit->ip, X86_CC_NO, JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 /* determines whether the argument value was spilled out or not,
@@ -783,11 +781,11 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					switch (GET_OP(target)) {
 						case JIT_CODE_ADDR: 
 						case JIT_DATA_ADDR: 
-							target->arg[1] = __PATCH_ADDR(jit);
+							target->arg[1] = JIT_BUFFER_OFFSET(jit);
 							break;
 						case JIT_DATA_CADDR: 
 						case JIT_DATA_DADDR: 
-							target->arg[0] = __PATCH_ADDR(jit);
+							target->arg[0] = JIT_BUFFER_OFFSET(jit);
 							break;
 						default: {
 							jit_value pa = target->patch_addr;
@@ -798,9 +796,9 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				} while (0);
 				break;
 		case JIT_JMP:
-			op->patch_addr = __PATCH_ADDR(jit);
+			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			if (op->code & REG) common86_jump_reg(jit->ip, a1);
-			else common86_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
+			else common86_jump_disp32(jit->ip, JIT_GET_ADDR(jit, a1));
 			break;
 		case JIT_RET:
 			if (!imm && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
@@ -828,7 +826,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_ALLOCA: break;
 		case JIT_DECL_ARG: break;
 		case JIT_RETVAL: break; // reg. allocator takes care of the proper register assignment
-		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
+		case JIT_LABEL: ((jit_label *)a1)->pos = JIT_BUFFER_OFFSET(jit); break; 
 
 		case JIT_CODE_ALIGN: 
 				while (((unsigned long) jit->ip) % op->arg[0])
@@ -837,7 +835,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_CODE_ADDR: 
 		case JIT_DATA_ADDR: 
-			op->patch_addr = __PATCH_ADDR(jit);
+			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			common86_mov_reg_imm_size(jit->ip, a1, 0xdeadbeefcafebabe, sizeof(void *));
 			break;
 
