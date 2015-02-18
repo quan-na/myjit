@@ -174,7 +174,7 @@ static void sse_alu_sd_reg_safeimm(struct jit * jit, jit_op * op, int op_id, int
 //
 //
 
-static unsigned char * __sse_get_sign_mask()
+static unsigned char * emit_sse_get_sign_mask()
 {
 	// gets 16-bytes aligned value
 	static unsigned char bufx[32];
@@ -187,7 +187,7 @@ static unsigned char * __sse_get_sign_mask()
 	return buf;
 }
 
-static void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
+static void emit_sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 {
 	if (op->r_arg[0] == op->r_arg[1]) {
 		sse_alu_sd_reg_reg(jit->ip, sse_op, op->r_arg[0], op->r_arg[2]);
@@ -199,25 +199,25 @@ static void __sse_alu_op(struct jit * jit, jit_op * op, int sse_op)
 	}
 }
 
-static void __sse_change_sign(struct jit * jit, jit_op * op, int reg)
+static void emit_sse_change_sign(struct jit * jit, jit_op * op, int reg)
 {
-	sse_alu_pd_reg_safeimm(jit, op, X86_SSE_XOR, reg, (double *)__sse_get_sign_mask());
+	sse_alu_pd_reg_safeimm(jit, op, X86_SSE_XOR, reg, (double *)emit_sse_get_sign_mask());
 }
 
-static void __sse_sub_op(struct jit * jit, jit_op * op, long a1, long a2, long a3)
+static void emit_sse_sub_op(struct jit * jit, jit_op * op, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
 	} else if (a1 == a3) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a2);
-		__sse_change_sign(jit, op, a1);
+		emit_sse_change_sign(jit, op, a1);
 	} else {
 		sse_movsd_reg_reg(jit->ip, a1, a2);
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_SUB, a1, a3);
 	}
 }
 
-static void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
+static void emit_sse_div_op(struct jit * jit, long a1, long a2, long a3)
 {
 	if (a1 == a2) {
 		sse_alu_sd_reg_reg(jit->ip, X86_SSE_DIV, a1, a3);
@@ -237,20 +237,20 @@ static void __sse_div_op(struct jit * jit, long a1, long a2, long a3)
 	}
 }
 
-static void __sse_neg_op(struct jit * jit, jit_op * op, long a1, long a2)
+static void emit_sse_neg_op(struct jit * jit, jit_op * op, long a1, long a2)
 {
 	if (a1 != a2) sse_movsd_reg_reg(jit->ip, a1, a2); 
-	__sse_change_sign(jit, op, a1);
+	emit_sse_change_sign(jit, op, a1);
 }
 
-static void __sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
+static void emit_sse_branch(struct jit * jit, jit_op * op, long a1, long a2, long a3, int x86_cond)
 {
         sse_alu_pd_reg_reg(jit->ip, X86_SSE_COMI, a2, a3);
         op->patch_addr = JIT_BUFFER_OFFSET(jit);
         x86_branch_disp32(jit->ip, x86_cond, JIT_GET_ADDR(jit, a1), 0);
 }
 
-static void __sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
+static void emit_sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a2)
 {
 	static const double x0 = 0.0;
 	static const double x05 = 0.5;
@@ -279,7 +279,7 @@ static void __sse_round(struct jit * jit, jit_op * op, jit_value a1, jit_value a
 	sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 }
 
-static inline void __sse_floor(struct jit * jit, jit_value a1, jit_value a2, int floor)
+static void emit_sse_floor(struct jit * jit, jit_value a1, jit_value a2, int floor)
 {
 	int tmp_reg = (a2 == X86_XMM7 ? X86_XMM0 : X86_XMM7);
 

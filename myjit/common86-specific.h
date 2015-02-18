@@ -872,24 +872,24 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		//
 		case (JIT_FMOV | REG): sse_movsd_reg_reg(jit->ip, a1, a2); break;
 		case (JIT_FMOV | IMM): sse_mov_reg_safeimm(jit, op, a1, &op->flt_imm); break; 
-		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
-		case (JIT_FSUB | REG): __sse_sub_op(jit, op, a1, a2, a3); break;
-		case (JIT_FRSB | REG): __sse_sub_op(jit, op, a1, a3, a2); break;
-		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
-		case (JIT_FDIV | REG): __sse_div_op(jit, a1, a2, a3); break;
-                case (JIT_FNEG | REG): __sse_neg_op(jit, op, a1, a2); break;
-		case (JIT_FBLT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_LT); break;
-                case (JIT_FBGT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
-                case (JIT_FBGE | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
-                case (JIT_FBLE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
-                case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
-                case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
+		case (JIT_FADD | REG): emit_sse_alu_op(jit, op, X86_SSE_ADD); break;
+		case (JIT_FSUB | REG): emit_sse_sub_op(jit, op, a1, a2, a3); break;
+		case (JIT_FRSB | REG): emit_sse_sub_op(jit, op, a1, a3, a2); break;
+		case (JIT_FMUL | REG): emit_sse_alu_op(jit, op, X86_SSE_MUL); break;
+		case (JIT_FDIV | REG): emit_sse_div_op(jit, a1, a2, a3); break;
+                case (JIT_FNEG | REG): emit_sse_neg_op(jit, op, a1, a2); break;
+		case (JIT_FBLT | REG): emit_sse_branch(jit, op, a1, a2, a3, X86_CC_LT); break;
+                case (JIT_FBGT | REG): emit_sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
+                case (JIT_FBGE | REG): emit_sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
+                case (JIT_FBLE | REG): emit_sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
+                case (JIT_FBEQ | REG): emit_sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
+                case (JIT_FBNE | REG): emit_sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
 
 		case (JIT_EXT | REG): sse_cvtsi2sd_reg_reg(jit->ip, a1, a2); break;
                 case (JIT_TRUNC | REG): sse_cvttsd2si_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
-                case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
-		case (JIT_ROUND | REG): __sse_round(jit, op, a1, a2); break;
+		case (JIT_CEIL | REG): emit_sse_floor(jit, a1, a2, 0); break;
+                case (JIT_FLOOR | REG): emit_sse_floor(jit, a1, a2, 1); break;
+		case (JIT_ROUND | REG): emit_sse_round(jit, op, a1, a2); break;
 
 		case (JIT_FRET | REG): emit_fret_op(jit, op); break;
 		case JIT_FRETVAL: emit_fretval_op(jit, op); break;
