@@ -182,6 +182,7 @@ static void jit_dead_code_analysis(struct jit *jit)
 		if (GET_OP(op) == JIT_DATA_DADDR) op->in_use = 1; 
 		if (GET_OP(op) == JIT_CODE_ALIGN) op->in_use = 1; 
 		if (GET_OP(op) == JIT_LABEL) op->in_use = 1; 
+		if (GET_OP(op) == JIT_PATCH) op->in_use = 1; 
 	}
 
 	jit_op *op = jit_op_first(jit->ops);
