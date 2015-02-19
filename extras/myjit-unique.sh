@@ -23,6 +23,13 @@ function list_types {
 	grep -v "^jit" | sort | uniq
 }
 
+
+function list_constants {
+	echo "OUT_REGS"
+	echo "x86_cc_unsigned_map"
+	echo "x86_cc_signed_map"
+}
+
 #
 # reads a list of symbols from stdin and prints sed script
 #
@@ -35,6 +42,7 @@ function create_sed_script {
 
 cat ../myjit/*.c ../myjit/*.h | list_functions | create_sed_script > "$SCRIPT"
 cat ../myjit/*.c ../myjit/*.h | list_types | create_sed_script > "$SCRIPT"
+cat ../myjit/*.c ../myjit/*.h | list_constants | create_sed_script > "$SCRIPT"
 
 
 
