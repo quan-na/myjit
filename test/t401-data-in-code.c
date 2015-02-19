@@ -250,6 +250,43 @@ DEFINE_TEST(test16)
 	return 0;
 }
 
+DEFINE_TEST(test17)
+{
+	plfl f1;
+	jit_prolog(p, &f1);
+	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
+
+	jit_op *branch_table = jit_data_addr(p, R(0), JIT_FORWARD);
+	jit_getarg(p, R(1), 0);
+	jit_muli(p, R(1), R(1), PTR_SIZE);
+	jit_ldxr(p, R(2), R(1), R(0), PTR_SIZE);
+	jit_jmpr(p, R(2));
+
+	// branches
+	jit_label *branch1 = jit_get_label(p);
+	jit_reti(p, 10);
+
+	jit_label *branch2 = jit_get_label(p);
+	jit_reti(p, 20);
+
+	jit_label *branch3 = jit_get_label(p);
+	jit_reti(p, 30);
+	
+	// branch table
+	jit_code_align(p, 16);
+	jit_patch(p, branch_table);
+	jit_data_caddr(p, branch1);
+	jit_data_caddr(p, branch2);
+	jit_data_caddr(p, branch3);
+
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(10, f1(0));
+	ASSERT_EQ(20, f1(1));
+	ASSERT_EQ(30, f1(2));
+	return 0;
+}
+
 
 
 void test_setup() 
@@ -262,4 +299,5 @@ void test_setup()
 	SETUP_TEST(test14);
 	SETUP_TEST(test15);
 	SETUP_TEST(test16);
+	SETUP_TEST(test17);
 }
