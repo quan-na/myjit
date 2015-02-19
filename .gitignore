@@ -29,3 +29,4 @@ debug
 core
 test/core
 *.swp
+myjit-unique/*
