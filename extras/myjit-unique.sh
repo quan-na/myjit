@@ -20,7 +20,7 @@ function list_functions {
 #
 function list_types {
 	tr '\r\n' '  ' | sed -e 's/{[^}]*}//g' | tr ';' '\n' | sed -n -e '/typedef/ {s/.* //p}' | \
-	grep -v "^jit" | sort | uniq
+	grep -v "^jit" | sort | uniq | grep -v "value"
 }
 
 
@@ -41,8 +41,8 @@ function create_sed_script {
 }
 
 cat ../myjit/*.c ../myjit/*.h | list_functions | create_sed_script > "$SCRIPT"
-cat ../myjit/*.c ../myjit/*.h | list_types | create_sed_script > "$SCRIPT"
-cat ../myjit/*.c ../myjit/*.h | list_constants | create_sed_script > "$SCRIPT"
+cat ../myjit/*.c ../myjit/*.h | list_types  | create_sed_script >> "$SCRIPT"
+cat ../myjit/*.c ../myjit/*.h | list_constants | create_sed_script >> "$SCRIPT"
 
 
 
