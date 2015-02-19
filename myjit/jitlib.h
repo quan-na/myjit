@@ -106,14 +106,32 @@ static inline jit_reg JIT_REG(jit_value v)
         return r;
 }
 
-
-#ifndef JTI_ARCH_AMD64
-#define jit_mkreg(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 0 }))
-#define jit_mkreg_ex(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 1 }))
-#else
-#define jit_mkreg(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 0, reserved = 0}))
-#define jit_mkreg_ex(_type, _spec, _id) (JIT_REG_TO_JIT_VALUE((jit_reg) { .type = (_type), .spec = (_spec), .id = (_id), .part = 1, reserved = 0}))
+static inline jit_value jit_mkreg(int type, int spec, int id)
+{
+	jit_reg r;
+	r.type = type;
+	r.spec = spec;
+	r.id = id;
+	r.part = 0;
+#ifdef JIT_ARCH_AMD64
+	r.reserved = 0;
 #endif
+	return JIT_REG_TO_JIT_VALUE(r);
+}
+
+static inline jit_value jit_mkreg_ex(int type, int spec, int id)
+{
+	jit_reg r;
+	r.type = type;
+	r.spec = spec;
+	r.id = id;
+	r.part = 1;
+#ifdef JIT_ARCH_AMD64
+	r.reserved = 0;
+#endif
+	return JIT_REG_TO_JIT_VALUE(r);
+}
+
 
 /*
  * Registers
