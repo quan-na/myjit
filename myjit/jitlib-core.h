@@ -39,6 +39,8 @@
 #define IS_SIGNED(op) (!(op->code & UNSIGNED))
 #define ARG_TYPE(op, arg) (((op)->spec >> ((arg) - 1) * 2) & 0x03)
 
+#define JIT_BUFFER_OFFSET(jit)       ((jit_value)jit->ip - (jit_value)jit->buf)
+
 
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -159,7 +161,7 @@ int jit_optimize_join_addmul(struct jit * jit);
 int jit_optimize_join_addimm(struct jit * jit);
 void jit_optimize_frame_ptr(struct jit * jit);
 void jit_optimize_unused_assignments(struct jit * jit);
-static int is_cond_branch_op(jit_op *op);
+static int is_cond_branch_op(jit_op *op); // FIXME: rename to: jit_op_is_cond_branch
 static inline void jit_set_free(jit_set * s);
 
 /**
@@ -182,7 +184,7 @@ void rmap_free(jit_rmap * regmap);
 void jit_allocator_hints_free(jit_tree *);
 
 
-static struct jit_op * __new_op(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
+static struct jit_op * jit_op_new(unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
 	struct jit_op * r = JIT_MALLOC(sizeof(struct jit_op));
 	r->code = code;
@@ -276,7 +278,7 @@ static inline struct jit_func_info * jit_current_func_info(struct jit * jit)
 	return (struct jit_func_info *)(jit->current_func->arg[1]);
 }
 
-static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
+static inline void funcall_prepare(struct jit * jit, jit_op * op, int count)
 {
 	jit->prepared_args.args = JIT_MALLOC(sizeof(struct jit_out_arg) * count);
 	jit->prepared_args.count = count;
@@ -287,7 +289,7 @@ static inline void __prepare_call(struct jit * jit, jit_op * op, int count)
 	jit->prepared_args.fp_args = 0;
 }
 
-static inline void __put_arg(struct jit * jit, jit_op * op)
+static inline void funcall_put_arg(struct jit * jit, jit_op * op)
 {
 	int pos = jit->prepared_args.ready;
 	struct jit_out_arg * arg = &(jit->prepared_args.args[pos]);
@@ -301,7 +303,7 @@ static inline void __put_arg(struct jit * jit, jit_op * op)
 		jit->prepared_args.stack_size += REG_SIZE;
 }
 
-static inline void __fput_arg(struct jit * jit, jit_op * op)
+static inline void funcall_fput_arg(struct jit * jit, jit_op * op)
 {
 	int pos = jit->prepared_args.ready;
 	struct jit_out_arg * arg = &(jit->prepared_args.args[pos]);

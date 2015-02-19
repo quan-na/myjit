@@ -49,7 +49,7 @@
 
 struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
 {
-	struct jit_op * r = __new_op(code, spec, arg1, arg2, arg3, arg_size);
+	struct jit_op * r = jit_op_new(code, spec, arg1, arg2, arg3, arg_size);
 	jit_op_append(jit->last_op, r);
 	jit->last_op = r;
 
@@ -69,7 +69,7 @@ struct jit * jit_init()
 {
 	struct jit * r = JIT_MALLOC(sizeof(struct jit));
 
-	r->ops = __new_op(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
+	r->ops = jit_op_new(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;
 
 	r->labels = NULL;
@@ -144,7 +144,7 @@ static void jit_correct_long_imms(struct jit * jit)
 		long value = op->arg[imm_arg];
 
 		if (jit_imm_overflow(jit, IS_SIGNED(op), value)) {
-			jit_op * newop = __new_op(JIT_MOV | IMM, SPEC(TREG, IMM, NO), R_IMM, value, 0, REG_SIZE);
+			jit_op * newop = jit_op_new(JIT_MOV | IMM, SPEC(TREG, IMM, NO), R_IMM, value, 0, REG_SIZE);
 			jit_op_prepend(op, newop);
 
 			op->code &= ~(0x3);
@@ -174,7 +174,7 @@ static inline void jit_correct_float_imms(struct jit * jit)
 		for (int i = 1; i < 4; i++)
 			if (ARG_TYPE(op, i) == IMM) imm_arg = i - 1;
 
-		jit_op * newop = __new_op(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), (jit_value) FR_IMM, 0, 0, 0);
+		jit_op * newop = jit_op_new(JIT_FMOV | IMM, SPEC(TREG, IMM, NO), (jit_value) FR_IMM, 0, 0, 0);
 		newop->fp = 1;
 		newop->flt_imm = op->flt_imm;
 		jit_op_prepend(op, newop);
@@ -188,7 +188,7 @@ static inline void jit_correct_float_imms(struct jit * jit)
 	}
 }
 
-static inline void __expand_patches_and_labels(struct jit * jit)
+static inline void jit_expand_patches_and_labels(struct jit * jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		if (GET_OP(op) == JIT_PATCH) {
@@ -204,7 +204,7 @@ static inline void __expand_patches_and_labels(struct jit * jit)
 	}
 }
 
-static inline void __initialize_reg_counts(struct jit * jit)
+static inline void jit_prepare_reg_counts(struct jit * jit)
 {
 	int declared_args = 0;
 	int last_gp = -1;
@@ -270,7 +270,7 @@ static inline void __initialize_reg_counts(struct jit * jit)
 
 }
 
-static inline void __initialize_arguments(struct jit * jit)
+static inline void jit_prepare_arguments(struct jit * jit)
 {
 	jit_op * op = jit_op_first(jit->ops);
 	struct jit_func_info * info = NULL;
@@ -305,16 +305,16 @@ static inline void __initialize_arguments(struct jit * jit)
 
 }
 
-static inline void __spill_on_jmpr_targets(struct jit *jit)
+static inline void jit_prepare_spills_on_jmpr_targets(struct jit *jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next)
 		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_CADDR))  {
-			jit_op * newop = __new_op(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
+			jit_op * newop = jit_op_new(JIT_FULL_SPILL | IMM, SPEC(NO, NO, NO), 0, 0, 0, 0);
 			jit_op_prepend(op->jmp_addr, newop);
 		}
 }
 
-static inline void __buf_expand(struct jit * jit)
+static inline void jit_buf_expand(struct jit * jit)
 {
 	long pos = jit->ip - jit->buf;
 	jit->buf_capacity *= 2;
@@ -324,14 +324,15 @@ static inline void __buf_expand(struct jit * jit)
 
 void jit_generate_code(struct jit * jit)
 {
-	__expand_patches_and_labels(jit);
+	jit_expand_patches_and_labels(jit);
 #if JIT_IMM_BITS > 0
 	jit_correct_long_imms(jit);
 #endif
 	jit_correct_float_imms(jit);
-	__initialize_reg_counts(jit);
-	__initialize_arguments(jit);
-	__spill_on_jmpr_targets(jit);
+
+	jit_prepare_reg_counts(jit);
+	jit_prepare_arguments(jit);
+	jit_prepare_spills_on_jmpr_targets(jit);
 
 	jit_dead_code_analysis(jit);	
 	jit_flw_analysis(jit);
@@ -362,13 +363,13 @@ void jit_generate_code(struct jit * jit)
 	jit->ip = jit->buf;
 
 	for (struct jit_op * op = jit->ops; op != NULL; op = op->next) {
-		if (jit->buf_capacity - (jit->ip - jit->buf) < MINIMAL_BUF_SPACE) __buf_expand(jit);
+		if (jit->buf_capacity - (jit->ip - jit->buf) < MINIMAL_BUF_SPACE) jit_buf_expand(jit);
 		// platform unspecific opcodes
 		switch (GET_OP(op)) {
 			case JIT_DATA_BYTE: *(jit->ip)++ = (unsigned char) op->arg[0]; break;
 			case JIT_DATA_CADDR: 
 			case JIT_DATA_DADDR: 
-				op->patch_addr = __PATCH_ADDR(jit);
+				op->patch_addr = JIT_BUFFER_OFFSET(jit);
 				for (int i = 0; i < sizeof(void *); i++) {
 					*jit->ip = 0;
 					jit->ip++;
@@ -401,18 +402,18 @@ void jit_generate_code(struct jit * jit)
 	}
 }
 
-static void __free_ops(struct jit_op * op)
+static void free_ops(struct jit_op * op)
 {
 	if (op == NULL) return;
-	__free_ops(op->next);
+	free_ops(op->next);
 	jit_free_op(op);
 
 }
 
-static void __free_labels(jit_label * lab)
+static void free_labels(jit_label * lab)
 {
 	if (lab == NULL) return;
-	__free_labels(lab->next);
+	free_labels(lab->next);
 	JIT_FREE(lab);
 }
 
@@ -440,8 +441,8 @@ void jit_disable_optimization(struct jit * jit, int opt)
 void jit_free(struct jit * jit)
 {
 	jit_reg_allocator_free(jit->reg_al);
-	__free_ops(jit_op_first(jit->ops));
-	__free_labels(jit->labels);
+	free_ops(jit_op_first(jit->ops));
+	free_labels(jit->labels);
 	JIT_FREE(jit->buf);
 	JIT_FREE(jit);
 }

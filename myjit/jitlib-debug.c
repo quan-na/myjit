@@ -216,25 +216,25 @@ void jit_get_reg_name(struct jit_disasm *disasm, char * r, int reg)
 	} 
 }
 
-static void __print_rmap(jit_tree_key key, jit_tree_value value, void *disasm)
+static void print_rmap_callback(jit_tree_key key, jit_tree_value value, void *disasm)
 {
 	char buf[256];
 	jit_get_reg_name((struct jit_disasm *)disasm, buf, key);
 	printf("%s=%s ", buf, ((jit_hw_reg *)value)->name);
 }
 
-static void __print_reg_liveness(jit_tree_key key, jit_tree_value value, void *disasm)
+static void print_reg_liveness_callback(jit_tree_key key, jit_tree_value value, void *disasm)
 {
 	char buf[256];
 	jit_get_reg_name(disasm, buf, key);
 	printf("%s ", buf);
 }
 
-#define print_rmap(disasm, n) jit_tree_walk(n, __print_rmap, disasm)
-#define print_reg_liveness(disasm, n) jit_tree_walk(n, __print_reg_liveness, disasm)
+#define print_rmap(disasm, n) jit_tree_walk(n, print_rmap_callback, disasm)
+#define print_reg_liveness(disasm, n) jit_tree_walk(n, print_reg_liveness_callback, disasm)
 
 
-static inline int __is_cflow(jit_op * op)
+static inline int jit_op_is_cflow(jit_op * op)
 {
 	if (((GET_OP(op) == JIT_CALL) || (GET_OP(op) == JIT_JMP)) && (IS_IMM(op))) return 1;
 	if (is_cond_branch_op(op)) return 1;
@@ -242,18 +242,18 @@ static inline int __is_cflow(jit_op * op)
 	return 0;
 }
 
-static inline int __is_label_op(jit_op * op)
+static inline int jit_op_is_label_or_patch_op(jit_op * op)
 {
 	return (op != NULL) && ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH));
 }
 
-static void __assign_labels(jit_tree * n, long * id)
+static void assing_labels(jit_tree * n, long * id)
 {
 	if (n == NULL) return;
-	__assign_labels(n->left, id);
+	assing_labels(n->left, id);
 	n->value = (void *)*id;
 	*id += 1;
-	__assign_labels(n->right, id);
+	assing_labels(n->right, id);
 }
 
 static jit_tree * prepare_labels(struct jit * jit)
@@ -262,18 +262,19 @@ static jit_tree * prepare_labels(struct jit * jit)
 	jit_tree * n = NULL;
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		jit_op * xop = op;
-		if (__is_label_op(op)) {
+		if (jit_op_is_label_or_patch_op(op)) {
 			for (; xop != NULL; xop = xop->next) {
-				if (!__is_label_op(xop)) break;
+				if (!jit_op_is_label_or_patch_op(xop)) break;
 			}
 			n = jit_tree_insert(n, (long)xop, (void *)0, NULL);
 		}
 	}
-	__assign_labels(n, &x);
+	assing_labels(n, &x);
 	return n;
 }
 
-static int __find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
+// FIXME: find_patch i find_label maji stejny kod
+static int find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
 {
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_PATCH) continue;
@@ -283,7 +284,7 @@ static int __find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
 			// looks for an operation associated with the label
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
-				if (!__is_label_op(yop)) break;
+				if (!jit_op_is_label_or_patch_op(yop)) break;
 			jit_tree * n = jit_tree_search(labels, (long)yop);
 			if (n) return (long)n->value;
 			else return -1;
@@ -292,7 +293,7 @@ static int __find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
 	return -1;
 }
 
-static int __find_label(struct jit * jit, jit_tree * labels, jit_label *label)
+static int find_label(struct jit * jit, jit_tree * labels, jit_label *label)
 {
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_LABEL) continue;
@@ -302,7 +303,7 @@ static int __find_label(struct jit * jit, jit_tree * labels, jit_label *label)
 			// looks for an operation associated with the label
 			jit_op * yop = xop;
 			for (; yop != NULL; yop = yop->next)
-				if (!__is_label_op(yop)) break;
+				if (!jit_op_is_label_or_patch_op(yop)) break;
 			jit_tree * n = jit_tree_search(labels, (long)yop);
 			if (n) return (long)n->value;
 			else return -1;
@@ -316,9 +317,9 @@ static inline void print_addr(struct jit_disasm *disasm, char *buf, jit_tree *la
 	void *arg = (void *)op->arg[arg_pos];
 	struct jit *jit = disasm->jit;
 	if (arg == NULL)
-		bufprint(buf, disasm->label_forward_template, __find_patch(jit, labels, op));
+		bufprint(buf, disasm->label_forward_template, find_patch(jit, labels, op));
 	else if (jit_is_label(jit, arg)) 
-		bufprint(buf, disasm->label_template, __find_label(jit, labels, arg));
+		bufprint(buf, disasm->label_template, find_label(jit, labels, arg));
 	else 
 		bufprint(buf, disasm->generic_addr_template, arg);
 }
@@ -357,7 +358,7 @@ static inline void print_str(char * buf, char * str)
 }
 
 /*
-static jit_tree * __get_prev_rmap(jit_op * op)
+static jit_tree * get_prev_rmap(jit_op * op)
 {
 	while (!op->regmap) op = op->prev;
 	char * op_name = jit_get_op_name(op);
@@ -367,7 +368,7 @@ static jit_tree * __get_prev_rmap(jit_op * op)
 }
 */
 
-int __print_op(struct jit_disasm * disasm, struct jit_op * op, jit_tree * labels, int verbosity)
+int print_op(struct jit_disasm * disasm, struct jit_op * op, jit_tree * labels, int verbosity)
 {
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
@@ -387,7 +388,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, jit_tree * labels
 		switch (op_code) {
 			case JIT_SYNCREG: 
 				jit_get_reg_name(buf, op->arg[0]);
-				hreg = (jit_hw_reg *) jit_tree_search(__get_prev_rmap(op), op->arg[0]);
+				hreg = (jit_hw_reg *) jit_tree_search(get_prev_rmap(op), op->arg[0]);
 				printf("\t.syncreg    %s <- %s", buf, hreg->name);
 				break;
 			default: is_load_op = 0;
@@ -496,7 +497,7 @@ int __print_op(struct jit_disasm * disasm, struct jit_op * op, jit_tree * labels
 
 	if (ARG_TYPE(op, 1) != NO) {
 		strcat(linebuf, " ");
-		if (__is_cflow(op)) print_addr(disasm, linebuf, labels, op, 0); 
+		if (jit_op_is_cflow(op)) print_addr(disasm, linebuf, labels, op, 0); 
 		else print_arg(disasm, linebuf, op, 1);
 	} if (ARG_TYPE(op, 2) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 2);
 	if (ARG_TYPE(op, 3) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 3);
@@ -506,7 +507,7 @@ print:
 }
 
 
-int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tree * labels, int verbosity)
+int print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tree * labels, int verbosity)
 {
 	char linebuf[OUTPUT_BUF_SIZE];
 	linebuf[0] = '\0';
@@ -520,7 +521,7 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tre
 
 	if (GET_OP(op) == JIT_LABEL) {
 		bufprint(linebuf, "%sjit_label * ", disasm->indent_template);
-		bufprint(linebuf, disasm->label_template, __find_label(disasm->jit, labels, (jit_label *)op->arg[0]));
+		bufprint(linebuf, disasm->label_template, find_label(disasm->jit, labels, (jit_label *)op->arg[0]));
 		bufprint(linebuf, " = jit_get_label(p");
 		goto print;
 	}
@@ -564,7 +565,7 @@ int __print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tre
 	if (op_name[0] != '.')  strcat(linebuf, disasm->indent_template);
 	else goto direct_print;
 
-	if (__is_cflow(op) && ((void *)op->arg[0] == JIT_FORWARD))
+	if (jit_op_is_cflow(op) && ((void *)op->arg[0] == JIT_FORWARD))
 		bufprint(linebuf, "jit_op * op_%li = ", ((unsigned long)op) >> 4);
 
 
@@ -611,7 +612,7 @@ no_suffix:
 
 	if (ARG_TYPE(op, 1) != NO) {
 		strcat(linebuf, " ");
-		if (__is_cflow(op)) print_addr(disasm, linebuf, labels, op, 0); 
+		if (jit_op_is_cflow(op)) print_addr(disasm, linebuf, labels, op, 0); 
 		else print_arg(disasm, linebuf, op, 1);
 	} if (ARG_TYPE(op, 2) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 2);
 	if (ARG_TYPE(op, 3) != NO) strcat(linebuf, ", "), print_arg(disasm, linebuf, op, 3);
@@ -669,8 +670,8 @@ void jit_dump_ops(struct jit * jit, int verbosity)
 
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		int size;
-		if (verbosity & JIT_DEBUG_COMPILABLE)  size = __print_op_compilable(&compilable_disasm, op, labels, verbosity);
-		else size = __print_op(&general_disasm, op, labels, verbosity);
+		if (verbosity & JIT_DEBUG_COMPILABLE)  size = print_op_compilable(&compilable_disasm, op, labels, verbosity);
+		else size = print_op(&general_disasm, op, labels, verbosity);
 
 		if (size == 0) continue;
 

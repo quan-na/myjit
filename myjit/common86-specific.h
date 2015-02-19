@@ -19,21 +19,19 @@
 
 #include "common86-codegen.h"
 
-static inline int __is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg);
-static int __push_callee_saved_regs(struct jit * jit, jit_op * op);
-static int __push_caller_saved_regs(struct jit * jit, jit_op * op);
-static int __pop_callee_saved_regs(struct jit * jit);
-static int __pop_caller_saved_regs(struct jit * jit, jit_op * op);
+static inline int is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg);
+static int emit_push_callee_saved_regs(struct jit * jit, jit_op * op);
+static int emit_push_caller_saved_regs(struct jit * jit, jit_op * op);
+static int emit_pop_callee_saved_regs(struct jit * jit);
+static int emit_pop_caller_saved_regs(struct jit * jit, jit_op * op);
 
 
 static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_value * virt_reg);
 static jit_hw_reg * rmap_get(jit_rmap * rmap, jit_value reg);
 
 
-#define __JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
+#define JIT_GET_ADDR(jit, imm) (!jit_is_label(jit, (void *)(imm)) ? (imm) :  \
 		(((jit_value)jit->buf + ((jit_label *)(imm))->pos - (jit_value)jit->ip)))
-#define __PATCH_ADDR(jit)       ((jit_value)jit->ip - (jit_value)jit->buf)
-
 
 #include "sse2-specific.h"
 
@@ -75,7 +73,7 @@ static void emit_pop_reg(struct jit * jit, jit_hw_reg * r)
 	}
 }
 
-static int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
+static int uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 {
 	if ((GET_OP(op) == JIT_RENAMEREG) && (op->r_arg[0] == reg)) return 1; // not a regular operation
 	for (int i = 0; i < 3; i++)
@@ -87,7 +85,7 @@ static int __uses_hw_reg(struct jit_op * op, jit_value reg, int fp)
 	return 0;
 }
 
-static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
+static int emit_push_callee_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count = 0;
 	for (int i = 0; i < jit->reg_al->gp_reg_cnt; i++) {
@@ -95,7 +93,7 @@ static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
 		if (r->callee_saved) 
 			for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 				if (GET_OP(o) == JIT_PROLOG) break;
-				if (__uses_hw_reg(o, r->id, 0)) {
+				if (uses_hw_reg(o, r->id, 0)) {
 					emit_push_reg(jit, r);
 					count++;
 					break;
@@ -105,7 +103,7 @@ static int __push_callee_saved_regs(struct jit * jit, jit_op * op)
 	return count;
 }
 
-static int __pop_callee_saved_regs(struct jit * jit)
+static int emit_pop_callee_saved_regs(struct jit * jit)
 {
 	int count = 0;
 	struct jit_op * op = jit->current_func;
@@ -115,7 +113,7 @@ static int __pop_callee_saved_regs(struct jit * jit)
 		if (r->callee_saved) 
 			for (struct jit_op * o = op->next; o != NULL; o = o->next) {
 				if (GET_OP(o) == JIT_PROLOG) break;
-				if (__uses_hw_reg(o, r->id, 0)) {
+				if (uses_hw_reg(o, r->id, 0)) {
 					emit_pop_reg(jit, r);
 					count++;
 					break;
@@ -125,7 +123,7 @@ static int __pop_callee_saved_regs(struct jit * jit)
 	return count;
 }
 
-static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static int generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 		jit_hw_reg * regs, int fp, jit_hw_reg * skip_reg)
 {
 	jit_value reg;
@@ -139,7 +137,7 @@ static int __generic_push_caller_saved_regs(struct jit * jit, jit_op * op, int r
 	return count;
 }
 
-static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
+static int emit_push_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count = 0;
 	struct jit_reg_allocator * al = jit->reg_al;
@@ -147,12 +145,12 @@ static int __push_caller_saved_regs(struct jit * jit, jit_op * op)
 		if (GET_OP(op) == JIT_CALL) break;
 		op = op->next;
 	}
-	count += __generic_push_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
-	count += __generic_push_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
+	count += generic_push_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
+	count += generic_push_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
 	return count;
 }
 
-static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
+static int generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int reg_count,
 						    jit_hw_reg * regs, int fp, jit_hw_reg * skip_reg)
 {
 	jit_value reg;
@@ -166,13 +164,13 @@ static int __generic_pop_caller_saved_regs(struct jit * jit, jit_op * op, int re
 	return count;
 }
 
-static int __pop_caller_saved_regs(struct jit * jit, jit_op * op)
+static int emit_pop_caller_saved_regs(struct jit * jit, jit_op * op)
 {
 	int count  = 0;
 	struct jit_reg_allocator * al = jit->reg_al;
 
-	count += __generic_pop_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
-	count += __generic_pop_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
+	count += generic_pop_caller_saved_regs(jit, op, al->fp_reg_cnt, al->fp_regs, 1, al->fpret_reg);
+	count += generic_pop_caller_saved_regs(jit, op, al->gp_reg_cnt, al->gp_regs, 0, al->ret_reg);
 	return count;
 }
 
@@ -186,7 +184,7 @@ static void emit_lreg(struct jit * jit, int hreg_id, jit_value vreg)
 {
 	if (JIT_REG(vreg).spec == JIT_RTYPE_ARG) assert(0);
 
-	int stack_pos = __GET_REG_POS(jit, vreg) ;
+	int stack_pos = GET_REG_POS(jit, vreg) ;
 
 	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_xreg_membase(jit->ip, hreg_id, COMMON86_BP, stack_pos);
 	else common86_mov_reg_membase(jit->ip, hreg_id, COMMON86_BP, stack_pos, REG_SIZE);
@@ -200,13 +198,13 @@ static void emit_lreg(struct jit * jit, int hreg_id, jit_value vreg)
  */
 static void emit_ureg(struct jit * jit, jit_value vreg, int hreg_id)
 {
-	int stack_pos = __GET_REG_POS(jit, vreg);
+	int stack_pos = GET_REG_POS(jit, vreg);
 
 	if (JIT_REG(vreg).type == JIT_RTYPE_FLOAT) sse_movlpd_membase_xreg(jit->ip, hreg_id, COMMON86_BP, stack_pos);
 	else common86_mov_membase_reg(jit->ip, COMMON86_BP, stack_pos, hreg_id, REG_SIZE);
 }
 
-static void __read_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
+static void emit_get_arg_from_stack(struct jit * jit, int type, int size, int dreg, int stack_reg, int stack_pos)
 {
 	if (type != JIT_FLOAT_NUM) {
 		if (size == REG_SIZE) common86_mov_reg_membase(jit->ip, dreg, stack_reg, stack_pos, REG_SIZE);
@@ -250,7 +248,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 		if ((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)) {
 			stack_pos -= REG_SIZE;
 			stack_pos += jit->push_count * REG_SIZE;
-			__read_from_stack(jit, type, size, dreg, COMMON86_SP, stack_pos);
+			emit_get_arg_from_stack(jit, type, size, dreg, COMMON86_SP, stack_pos);
 			return;
 		}
 	}
@@ -262,7 +260,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 	}
 
 	if (read_from_stack) {
-		__read_from_stack(jit, type, size, dreg, COMMON86_BP, stack_pos);
+		emit_get_arg_from_stack(jit, type, size, dreg, COMMON86_BP, stack_pos);
 		return;
 	} 
 
@@ -598,9 +596,9 @@ static void emit_branch_op(struct jit * jit, struct jit_op * op, int cond, int i
 	if (imm) common86_alu_reg_imm(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, X86_CMP, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 
-	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), sign);
+	common86_branch_disp32(jit->ip, cond, JIT_GET_ADDR(jit, op->r_arg[0]), sign);
 }
 
 static void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, int imm)
@@ -608,9 +606,9 @@ static void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int cond, 
 	if (imm) common86_test_reg_imm(jit->ip, op->r_arg[1], op->r_arg[2]);
 	else common86_test_reg_reg(jit->ip, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 
-	common86_branch_disp32(jit->ip, cond, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	common86_branch_disp32(jit->ip, cond, JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
@@ -618,10 +616,10 @@ static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int al
 	if (imm) common86_alu_reg_imm(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 	else common86_alu_reg_reg(jit->ip, alu_op, op->r_arg[1], op->r_arg[2]);
 
-	op->patch_addr = __PATCH_ADDR(jit);
+	op->patch_addr = JIT_BUFFER_OFFSET(jit);
 
-	if (!negation) common86_branch_disp32(jit->ip, X86_CC_O, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
-	else common86_branch_disp32(jit->ip, X86_CC_NO, __JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	if (!negation) common86_branch_disp32(jit->ip, X86_CC_O, JIT_GET_ADDR(jit, op->r_arg[0]), 0);
+	else common86_branch_disp32(jit->ip, X86_CC_NO, JIT_GET_ADDR(jit, op->r_arg[0]), 0);
 }
 
 /* determines whether the argument value was spilled out or not,
@@ -629,7 +627,7 @@ static void emit_branch_overflow_op(struct jit * jit, struct jit_op * op, int al
  * it is returned through the reg argument
  */
 // FIXME: reports as spilled also argument which contains appropriate value
-static int __is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg)
+static int is_spilled(jit_value arg_id, jit_op * prepare_op, int * reg)
 {
         jit_hw_reg * hreg = rmap_get(prepare_op->regmap, arg_id);
 
@@ -777,17 +775,17 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_DIV: 	emit_div_op(jit, op, imm, sign, 0); break;
 		case JIT_MOD: 	emit_div_op(jit, op, imm, sign, 1); break;
 
-		case JIT_CALL: 	__funcall(jit, op, imm); break;
+		case JIT_CALL: 	emit_funcall(jit, op, imm); break;
 		case JIT_PATCH: do {
 					struct jit_op *target = (struct jit_op *) a1;
 					switch (GET_OP(target)) {
 						case JIT_CODE_ADDR: 
 						case JIT_DATA_ADDR: 
-							target->arg[1] = __PATCH_ADDR(jit);
+							target->arg[1] = JIT_BUFFER_OFFSET(jit);
 							break;
 						case JIT_DATA_CADDR: 
 						case JIT_DATA_DADDR: 
-							target->arg[0] = __PATCH_ADDR(jit);
+							target->arg[0] = JIT_BUFFER_OFFSET(jit);
 							break;
 						default: {
 							jit_value pa = target->patch_addr;
@@ -798,14 +796,14 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 				} while (0);
 				break;
 		case JIT_JMP:
-			op->patch_addr = __PATCH_ADDR(jit);
+			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			if (op->code & REG) common86_jump_reg(jit->ip, a1);
-			else common86_jump_disp32(jit->ip, __JIT_GET_ADDR(jit, a1));
+			else common86_jump_disp32(jit->ip, JIT_GET_ADDR(jit, a1));
 			break;
 		case JIT_RET:
 			if (!imm && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
 			if (imm) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
-			__pop_callee_saved_regs(jit);
+			emit_pop_callee_saved_regs(jit);
 			if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
 				common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
 				common86_pop_reg(jit->ip, COMMON86_BP);
@@ -813,8 +811,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			common86_ret(jit->ip);
 			break;
 
-		case JIT_PUTARG: __put_arg(jit, op); break;
-		case JIT_FPUTARG: __fput_arg(jit, op); break;
+		case JIT_PUTARG: funcall_put_arg(jit, op); break;
+		case JIT_FPUTARG: funcall_fput_arg(jit, op); break;
 		case JIT_GETARG: emit_get_arg(jit, op); break;
 		case JIT_MSG: 	emit_msg_op(jit, op); break;
 
@@ -828,7 +826,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_ALLOCA: break;
 		case JIT_DECL_ARG: break;
 		case JIT_RETVAL: break; // reg. allocator takes care of the proper register assignment
-		case JIT_LABEL: ((jit_label *)a1)->pos = __PATCH_ADDR(jit); break; 
+		case JIT_LABEL: ((jit_label *)a1)->pos = JIT_BUFFER_OFFSET(jit); break; 
 
 		case JIT_CODE_ALIGN: 
 				while (((unsigned long) jit->ip) % op->arg[0])
@@ -837,7 +835,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 
 		case JIT_CODE_ADDR: 
 		case JIT_DATA_ADDR: 
-			op->patch_addr = __PATCH_ADDR(jit);
+			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			common86_mov_reg_imm_size(jit->ip, a1, 0xdeadbeefcafebabe, sizeof(void *));
 			break;
 
@@ -859,8 +857,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			else common86_mov_reg_imm_size(jit->ip, a1, a2, 8); 
 			break;
 
-		case JIT_PREPARE: __prepare_call(jit, op, a1 + a2);
-				  jit->push_count += __push_caller_saved_regs(jit, op);
+		case JIT_PREPARE: funcall_prepare(jit, op, a1 + a2);
+				  jit->push_count += emit_push_caller_saved_regs(jit, op);
 				  break;
 
 		case JIT_PROLOG: emit_prolog_op(jit, op); break;
@@ -874,24 +872,24 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		//
 		case (JIT_FMOV | REG): sse_movsd_reg_reg(jit->ip, a1, a2); break;
 		case (JIT_FMOV | IMM): sse_mov_reg_safeimm(jit, op, a1, &op->flt_imm); break; 
-		case (JIT_FADD | REG): __sse_alu_op(jit, op, X86_SSE_ADD); break;
-		case (JIT_FSUB | REG): __sse_sub_op(jit, op, a1, a2, a3); break;
-		case (JIT_FRSB | REG): __sse_sub_op(jit, op, a1, a3, a2); break;
-		case (JIT_FMUL | REG): __sse_alu_op(jit, op, X86_SSE_MUL); break;
-		case (JIT_FDIV | REG): __sse_div_op(jit, a1, a2, a3); break;
-                case (JIT_FNEG | REG): __sse_neg_op(jit, op, a1, a2); break;
-		case (JIT_FBLT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_LT); break;
-                case (JIT_FBGT | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
-                case (JIT_FBGE | REG): __sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
-                case (JIT_FBLE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
-                case (JIT_FBEQ | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
-                case (JIT_FBNE | REG): __sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
+		case (JIT_FADD | REG): emit_sse_alu_op(jit, op, X86_SSE_ADD); break;
+		case (JIT_FSUB | REG): emit_sse_sub_op(jit, op, a1, a2, a3); break;
+		case (JIT_FRSB | REG): emit_sse_sub_op(jit, op, a1, a3, a2); break;
+		case (JIT_FMUL | REG): emit_sse_alu_op(jit, op, X86_SSE_MUL); break;
+		case (JIT_FDIV | REG): emit_sse_div_op(jit, a1, a2, a3); break;
+                case (JIT_FNEG | REG): emit_sse_neg_op(jit, op, a1, a2); break;
+		case (JIT_FBLT | REG): emit_sse_branch(jit, op, a1, a2, a3, X86_CC_LT); break;
+                case (JIT_FBGT | REG): emit_sse_branch(jit, op, a1, a2, a3, X86_CC_GT); break;
+                case (JIT_FBGE | REG): emit_sse_branch(jit, op, a1, a2, a3, X86_CC_GE); break;
+                case (JIT_FBLE | REG): emit_sse_branch(jit, op, a1, a3, a2, X86_CC_GE); break;
+                case (JIT_FBEQ | REG): emit_sse_branch(jit, op, a1, a3, a2, X86_CC_EQ); break;
+                case (JIT_FBNE | REG): emit_sse_branch(jit, op, a1, a3, a2, X86_CC_NE); break;
 
 		case (JIT_EXT | REG): sse_cvtsi2sd_reg_reg(jit->ip, a1, a2); break;
                 case (JIT_TRUNC | REG): sse_cvttsd2si_reg_reg(jit->ip, a1, a2); break;
-		case (JIT_CEIL | REG): __sse_floor(jit, a1, a2, 0); break;
-                case (JIT_FLOOR | REG): __sse_floor(jit, a1, a2, 1); break;
-		case (JIT_ROUND | REG): __sse_round(jit, op, a1, a2); break;
+		case (JIT_CEIL | REG): emit_sse_floor(jit, a1, a2, 0); break;
+                case (JIT_FLOOR | REG): emit_sse_floor(jit, a1, a2, 1); break;
+		case (JIT_ROUND | REG): emit_sse_round(jit, op, a1, a2); break;
 
 		case (JIT_FRET | REG): emit_fret_op(jit, op); break;
 		case JIT_FRETVAL: emit_fretval_op(jit, op); break;

@@ -29,7 +29,7 @@
  */
 static void insert_reg_op(int opcode, jit_op * op,  jit_value r1, jit_value r2)
 {
-	jit_op * o = __new_op(opcode, SPEC(IMM, IMM, NO), r1, r2, 0, 0);
+	jit_op * o = jit_op_new(opcode, SPEC(IMM, IMM, NO), r1, r2, 0, 0);
 	o->r_arg[0] = o->arg[0];
 	o->r_arg[1] = o->arg[1];
 	jit_op_prepend(op, o);
@@ -399,7 +399,7 @@ static void mark_calleesaved_regs(jit_tree * hint, jit_op * op)
 /**
  * Collects statistics on used registers
  */
-static void __increase_refcount(jit_tree * hints);
+static void hints_refcount_inc(jit_tree * hints);
 void jit_collect_statistics(struct jit * jit)
 {
 	int i, j;
@@ -451,7 +451,7 @@ void jit_collect_statistics(struct jit * jit)
 #ifdef JIT_ARCH_COMMON86
 		if (GET_OP(op) == JIT_CALL) mark_calleesaved_regs(new_hints, op);
 #endif
-		__increase_refcount(new_hints);
+		hints_refcount_inc(new_hints);
 		op->allocator_hints = new_hints;
 
 		if (GET_OP(op) == JIT_PROLOG) {
@@ -464,12 +464,12 @@ void jit_collect_statistics(struct jit * jit)
 	}
 }
 
-static void __increase_refcount(jit_tree * hints)
+static void hints_refcount_inc(jit_tree * hints)
 {
 	if (hints == NULL) return;
 	((struct jit_allocator_hint*) hints->value)->refs++;
-	__increase_refcount(hints->left);
-	__increase_refcount(hints->right);
+	hints_refcount_inc(hints->left);
+	hints_refcount_inc(hints->right);
 }
 
 void jit_allocator_hints_free(jit_tree * hints)
@@ -544,7 +544,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 			default: break;
 		}
 	
-		jit_op * o = __new_op(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		
+		jit_op * o = jit_op_new(JIT_JMP | IMM, SPEC(IMM, NO, NO), op->arg[0], 0, 0, 0);		
 		o->r_arg[0] = op->r_arg[0];
 
 		o->regmap = rmap_clone(op->regmap);
@@ -560,7 +560,7 @@ static inline void branch_adjustment(struct jit * jit, jit_op * op)
 
 		jit_op_append(op, o);
 
-		jit_op * o2 = __new_op(JIT_PATCH, SPEC(IMM, NO, NO), (jit_value) op, 0, 0, 0);
+		jit_op * o2 = jit_op_new(JIT_PATCH, SPEC(IMM, NO, NO), (jit_value) op, 0, 0, 0);
 		o2->r_arg[0] = o2->arg[0];
 		jit_op_append(o, o2);
 
