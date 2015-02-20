@@ -38,6 +38,7 @@ char *test_filename;
 	test_cnt++;
 
 #define JIT_GENERATE_CODE(p)  { \
+	jit_check_code(p, JIT_WARN_ALL); \
 	if (test_flags & DUMP_COMPILABLE) jit_dump_ops(p, JIT_DEBUG_COMPILABLE); \
 	jit_generate_code(p); \
 	if (test_flags & (DUMP_ASSOC | DUMP_LIVENESS)) \

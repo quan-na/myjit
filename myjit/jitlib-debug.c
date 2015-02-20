@@ -276,6 +276,7 @@ static jit_tree * prepare_labels(struct jit * jit)
 // FIXME: find_patch i find_label maji stejny kod
 static int find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
 {
+	if (jit == NULL) return -1;
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_PATCH) continue;
 
@@ -295,6 +296,7 @@ static int find_patch(struct jit * jit, jit_tree * labels, jit_op * op)
 
 static int find_label(struct jit * jit, jit_tree * labels, jit_label *label)
 {
+	if (jit == NULL) return -1;
 	for (jit_op * xop = jit_op_first(jit->ops); xop != NULL; xop = xop->next) {
 		if (GET_OP(xop) != JIT_LABEL) continue;
 
@@ -556,7 +558,7 @@ int print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tree 
 	}
 
 	if (GET_OP(op) == JIT_CODE_ALIGN) {
-		bufprint(linebuf, "%sjit_align  (p, ", disasm->indent_template);
+		bufprint(linebuf, "%sjit_code_align  (p, ", disasm->indent_template);
 		bufprint(linebuf, disasm->generic_jit_tree_valueemplate, op->arg[0]);
 		goto print;
 	}

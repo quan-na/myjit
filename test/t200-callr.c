@@ -15,12 +15,11 @@ DEFINE_TEST(test1)
 	jit_addr(p, R(3), R(2), R(1));
 	jit_addr(p, R(4), R(3), R(0));
 	jit_addr(p, R(5), R(0), R(1));
-	jit_addr(p, R(6), R(2), R(3));
-	jit_addr(p, R(7), R(4), R(5));
-	jit_addr(p, R(8), R(0), R(1));
-	jit_addr(p, R(9), R(2), R(3));
+	//jit_addr(p, R(6), R(2), R(3));
+	//jit_addr(p, R(7), R(4), R(5));
+	//jit_addr(p, R(8), R(0), R(1));
+	//jit_addr(p, R(9), R(2), R(3));
 	jit_addr(p, R(10), R(4), R(5));
-	jit_addr(p, R(11), R(6), R(7));
 	jit_movi(p, R(11), foo);
 
 	jit_prepare(p);
@@ -28,11 +27,11 @@ DEFINE_TEST(test1)
 	jit_putargi(p, 3);
 	jit_callr(p, R(11));
 	jit_retval(p, R(0));
-	//jit_addr(p, R(0), R(0), R(11));
+	jit_addr(p, R(0), R(0), R(10));
 	jit_retr(p, R(0));
 	JIT_GENERATE_CODE(p);
 	
-	ASSERT_EQ(13, f1());
+	ASSERT_EQ(76, f1());
 	return 0;
 }
 

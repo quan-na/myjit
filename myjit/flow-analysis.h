@@ -162,7 +162,7 @@ static inline void mark_livecode(jit_op *op)
 }
 
 
-static void jit_dead_code_analysis(struct jit *jit) 
+static void jit_dead_code_analysis(struct jit *jit, int remove_dead_code) 
 {
 	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next)
 		op->in_use = 0;
@@ -184,6 +184,8 @@ static void jit_dead_code_analysis(struct jit *jit)
 		if (GET_OP(op) == JIT_LABEL) op->in_use = 1; 
 		if (GET_OP(op) == JIT_PATCH) op->in_use = 1; 
 	}
+
+	if (!remove_dead_code) return;
 
 	jit_op *op = jit_op_first(jit->ops);
 

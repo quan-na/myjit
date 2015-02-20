@@ -205,7 +205,7 @@ DEFINE_TEST(test6)
 	jit_fputargr(p, FR(1), sizeof(double));
 	jit_callr(p, R(2));
 
-	jit_retval(p, R(3));
+	//jit_retval(p, R(3));
 
 	jit_retr(p, R(2));
 	JIT_GENERATE_CODE(p);
@@ -293,7 +293,7 @@ DEFINE_TEST(test8)
 
 	jit_ldi(p, R(0), (unsigned char *)&s + offsetof(struct mystruct, count), sizeof(long));	// count
 
-	jit_movi(p, R(1), &s); // struct
+	//jit_movi(p, R(1), &s); // struct
 
 	jit_ldi(p, R(2), (unsigned char *)&s + offsetof(struct mystruct, items), sizeof(void *)); // array
 	jit_movi(p, R(3), 0); // index
@@ -314,7 +314,7 @@ DEFINE_TEST(test8)
 	jit_extr(p, FR(0), R(0));
 	jit_fdivr(p, FR(5), FR(5), FR(0));
 
-	jit_movi(p, R(0), &s);
+	//jit_movi(p, R(0), &s);
 	jit_movi(p, R(1), offsetof(struct mystruct, avg));
 	jit_fstxi(p, &s, R(1), FR(5), sizeof(double));
 

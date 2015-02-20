@@ -48,6 +48,8 @@
 struct jit_tree;
 struct jit_set;
 struct jit_rmap;
+struct jit_debug_info;
+
 typedef struct jit_op {
         unsigned short code;            // operation code
         unsigned char spec;             // argument types, e.g REG+REG+IMM
@@ -67,6 +69,7 @@ typedef struct jit_op {
         struct jit_rmap * regmap;                // register mappings 
         int normalized_pos;             // number of operations from the end of the function
         struct jit_tree * allocator_hints; // reg. allocator to collect statistics on used registers
+	struct jit_debug_info *debug_info;
 } jit_op;
 
 typedef struct jit_label {
@@ -289,6 +292,18 @@ enum jit_inp_type {
 	JIT_PTR
 };
 
+enum jit_warning {
+	JIT_WARN_DEAD_CODE 		= 0x00000001,	// check
+	JIT_WARN_OP_WITHOUT_EFFECT 	= 0x00000002,	// check
+	JIT_WARN_INVALID_DATA_SIZE	= 0x00000004,
+	JIT_WARN_UNINITIALIZED_REG	= 0x00000008,
+	JIT_WARN_UNALIGNED_CODE		= 0x00000010,
+	JIT_WARN_CODE_DATA_MISMATCH	= 0x00000020,
+	JIT_WARN_MISSING_PATCH		= 0x00000040,	// check
+	JIT_WARN_REGISTER_TYPE_MISMATCH	= 0x00000080,
+	JIT_WARN_ALL			= 0x7fffffff
+};
+
 
 /*
  * Public interface
@@ -305,13 +320,15 @@ enum jit_inp_type {
 #define JIT_OPT_ALL                             (0xff)
 
 struct jit * jit_init();
-struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, jit_value arg1, jit_value arg2, jit_value arg3, unsigned char arg_size);
-struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, jit_value arg1, jit_value arg2, jit_value arg3, double flt_imm, unsigned char arg_size);
+struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, jit_value arg1, jit_value arg2, jit_value arg3, unsigned char arg_sizee, struct jit_debug_info *debug_info);
+struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, jit_value arg1, jit_value arg2, jit_value arg3, double flt_imm, unsigned char arg_sizee, struct jit_debug_info *debug_info);
+struct jit_debug_info *jit_debug_info_new(const char *filename, const char *function, int lineno);
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);
 
 void jit_dump_code(struct jit * jit, int verbosity);
 void jit_dump_ops(struct jit * jit, int verbosity);
+void jit_check_code(struct jit *jit, int warnings);
 
 void jit_enable_optimization(struct jit * jit, int opt);
 void jit_disable_optimization(struct jit * jit, int opt);
@@ -324,258 +341,259 @@ void jit_disable_optimization(struct jit * jit, int opt);
 #define UNSIGNED 0x04
 #define SIGNED 0x00
 
-void jit_prolog(struct jit * jit, void * func);
+void jit_add_prolog(struct jit *, void *, struct jit_debug_info *);
 jit_label * jit_get_label(struct jit * jit);
 int jit_allocai(struct jit * jit, int size);
 
 
-#define jit_movr(jit, a, b) jit_add_op(jit, JIT_MOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0)
-#define jit_movi(jit, a, b) jit_add_op(jit, JIT_MOV | IMM, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
+#define jit_prolog(jit, _func) jit_add_prolog(jit, _func, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_movr(jit, a, b) jit_add_op(jit, JIT_MOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_movi(jit, a, b) jit_add_op(jit, JIT_MOV | IMM, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* functions, call, jumps, etc. */
 
-#define jit_jmpr(jit, a) jit_add_op(jit, JIT_JMP | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_jmpi(jit, a) jit_add_op(jit, JIT_JMP | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_patch(jit, a) jit_add_op(jit, JIT_PATCH | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+#define jit_jmpr(jit, a) jit_add_op(jit, JIT_JMP | REG, SPEC(REG, NO, NO), a, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_jmpi(jit, a) jit_add_op(jit, JIT_JMP | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_patch(jit, a) jit_add_op(jit, JIT_PATCH | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_prepare(jit) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, IMM, NO), 0, 0, 0, 0)
-#define jit_putargr(jit, a) jit_add_op(jit, JIT_PUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
+#define jit_prepare(jit) jit_add_op(jit, JIT_PREPARE, SPEC(IMM, IMM, NO), 0, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_putargr(jit, a) jit_add_op(jit, JIT_PUTARG | REG, SPEC(REG, NO, NO), a, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_putargi(jit, a) jit_add_op(jit, JIT_PUTARG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_call(jit, a) jit_add_op(jit, JIT_CALL | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_callr(jit, a) jit_add_op(jit, JIT_CALL | REG, SPEC(REG, NO, NO), a, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_declare_arg(jit, a, b) jit_add_op(jit, JIT_DECL_ARG, SPEC(IMM, IMM, NO), a, b, 0, 0)
+#define jit_declare_arg(jit, a, b) jit_add_op(jit, JIT_DECL_ARG, SPEC(IMM, IMM, NO), a, b, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0)
-#define jit_reti(jit, a) jit_add_op(jit, JIT_RET | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_retval(jit, a) jit_add_op(jit, JIT_RETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0)
+#define jit_retr(jit, a) jit_add_op(jit, JIT_RET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_reti(jit, a) jit_add_op(jit, JIT_RET | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_retval(jit, a) jit_add_op(jit, JIT_RETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_getarg(jit, a, b) jit_add_op(jit, JIT_GETARG, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
+#define jit_getarg(jit, a, b) jit_add_op(jit, JIT_GETARG, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* arithmetics */
 
-#define jit_addr(jit, a, b, c) jit_add_op(jit, JIT_ADD | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_addi(jit, a, b, c) jit_add_op(jit, JIT_ADD | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_addcr(jit, a, b, c) jit_add_op(jit, JIT_ADDC | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_addci(jit, a, b, c) jit_add_op(jit, JIT_ADDC | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_addxr(jit, a, b, c) jit_add_op(jit, JIT_ADDX | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_addxi(jit, a, b, c) jit_add_op(jit, JIT_ADDX | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_addr(jit, a, b, c) jit_add_op(jit, JIT_ADD | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_addi(jit, a, b, c) jit_add_op(jit, JIT_ADD | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_addcr(jit, a, b, c) jit_add_op(jit, JIT_ADDC | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_addci(jit, a, b, c) jit_add_op(jit, JIT_ADDC | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_addxr(jit, a, b, c) jit_add_op(jit, JIT_ADDX | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_addxi(jit, a, b, c) jit_add_op(jit, JIT_ADDX | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_subr(jit, a, b, c) jit_add_op(jit, JIT_SUB | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_subi(jit, a, b, c) jit_add_op(jit, JIT_SUB | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
-#define jit_subcr(jit, a, b, c) jit_add_op(jit, JIT_SUBC | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_subci(jit, a, b, c) jit_add_op(jit, JIT_SUBC | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
-#define jit_subxr(jit, a, b, c) jit_add_op(jit, JIT_SUBX | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_subxi(jit, a, b, c) jit_add_op(jit, JIT_SUBX | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
+#define jit_subr(jit, a, b, c) jit_add_op(jit, JIT_SUB | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_subi(jit, a, b, c) jit_add_op(jit, JIT_SUB | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_subcr(jit, a, b, c) jit_add_op(jit, JIT_SUBC | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_subci(jit, a, b, c) jit_add_op(jit, JIT_SUBC | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_subxr(jit, a, b, c) jit_add_op(jit, JIT_SUBX | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_subxi(jit, a, b, c) jit_add_op(jit, JIT_SUBX | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_rsbr(jit, a, b, c) jit_add_op(jit, JIT_RSB | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_rsbi(jit, a, b, c) jit_add_op(jit, JIT_RSB | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0)
+#define jit_rsbr(jit, a, b, c) jit_add_op(jit, JIT_RSB | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_rsbi(jit, a, b, c) jit_add_op(jit, JIT_RSB | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_negr(jit, a, b) jit_add_op(jit, JIT_NEG, SPEC(TREG, REG, NO), a, b, 0, 0)
+#define jit_negr(jit, a, b) jit_add_op(jit, JIT_NEG, SPEC(TREG, REG, NO), a, b, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_mulr(jit, a, b, c) jit_add_op(jit, JIT_MUL | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_muli(jit, a, b, c) jit_add_op(jit, JIT_MUL | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_mulr_u(jit, a, b, c) jit_add_op(jit, JIT_MUL | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_muli_u(jit, a, b, c) jit_add_op(jit, JIT_MUL | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_mulr(jit, a, b, c) jit_add_op(jit, JIT_MUL | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_muli(jit, a, b, c) jit_add_op(jit, JIT_MUL | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_mulr_u(jit, a, b, c) jit_add_op(jit, JIT_MUL | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_muli_u(jit, a, b, c) jit_add_op(jit, JIT_MUL | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_hmulr(jit, a, b, c) jit_add_op(jit, JIT_HMUL | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_hmuli(jit, a, b, c) jit_add_op(jit, JIT_HMUL | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_hmulr_u(jit, a, b, c) jit_add_op(jit, JIT_HMUL | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_hmuli_u(jit, a, b, c) jit_add_op(jit, JIT_HMUL | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_hmulr(jit, a, b, c) jit_add_op(jit, JIT_HMUL | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_hmuli(jit, a, b, c) jit_add_op(jit, JIT_HMUL | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_hmulr_u(jit, a, b, c) jit_add_op(jit, JIT_HMUL | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_hmuli_u(jit, a, b, c) jit_add_op(jit, JIT_HMUL | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_divr(jit, a, b, c) jit_add_op(jit, JIT_DIV | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_divi(jit, a, b, c) jit_add_op(jit, JIT_DIV | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_divr_u(jit, a, b, c) jit_add_op(jit, JIT_DIV | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_divi_u(jit, a, b, c) jit_add_op(jit, JIT_DIV | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_divr(jit, a, b, c) jit_add_op(jit, JIT_DIV | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_divi(jit, a, b, c) jit_add_op(jit, JIT_DIV | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_divr_u(jit, a, b, c) jit_add_op(jit, JIT_DIV | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_divi_u(jit, a, b, c) jit_add_op(jit, JIT_DIV | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_modr(jit, a, b, c) jit_add_op(jit, JIT_MOD | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_modi(jit, a, b, c) jit_add_op(jit, JIT_MOD | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_modr_u(jit, a, b, c) jit_add_op(jit, JIT_MOD | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_modi_u(jit, a, b, c) jit_add_op(jit, JIT_MOD | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_modr(jit, a, b, c) jit_add_op(jit, JIT_MOD | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_modi(jit, a, b, c) jit_add_op(jit, JIT_MOD | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_modr_u(jit, a, b, c) jit_add_op(jit, JIT_MOD | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_modi_u(jit, a, b, c) jit_add_op(jit, JIT_MOD | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* bitwise arithmetics */
 
-#define jit_orr(jit, a, b, c) jit_add_op(jit, JIT_OR | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_ori(jit, a, b, c) jit_add_op(jit, JIT_OR | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_orr(jit, a, b, c) jit_add_op(jit, JIT_OR | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ori(jit, a, b, c) jit_add_op(jit, JIT_OR | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_xorr(jit, a, b, c) jit_add_op(jit, JIT_XOR | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_xori(jit, a, b, c) jit_add_op(jit, JIT_XOR | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_xorr(jit, a, b, c) jit_add_op(jit, JIT_XOR | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_xori(jit, a, b, c) jit_add_op(jit, JIT_XOR | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_andr(jit, a, b, c) jit_add_op(jit, JIT_AND | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_andi(jit, a, b, c) jit_add_op(jit, JIT_AND | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_andr(jit, a, b, c) jit_add_op(jit, JIT_AND | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_andi(jit, a, b, c) jit_add_op(jit, JIT_AND | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_lshr(jit, a, b, c) jit_add_op(jit, JIT_LSH | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lshi(jit, a, b, c) jit_add_op(jit, JIT_LSH | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_lshr(jit, a, b, c) jit_add_op(jit, JIT_LSH | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_lshi(jit, a, b, c) jit_add_op(jit, JIT_LSH | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_rshr(jit, a, b, c) jit_add_op(jit, JIT_RSH | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_rshi(jit, a, b, c) jit_add_op(jit, JIT_RSH | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_rshr(jit, a, b, c) jit_add_op(jit, JIT_RSH | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_rshi(jit, a, b, c) jit_add_op(jit, JIT_RSH | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_rshr_u(jit, a, b, c) jit_add_op(jit, JIT_RSH | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_rshi_u(jit, a, b, c) jit_add_op(jit, JIT_RSH | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_rshr_u(jit, a, b, c) jit_add_op(jit, JIT_RSH | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_rshi_u(jit, a, b, c) jit_add_op(jit, JIT_RSH | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_notr(jit, a, b) jit_add_op(jit, JIT_NOT, SPEC(TREG, REG, NO), a, b, 0, 0)
+#define jit_notr(jit, a, b) jit_add_op(jit, JIT_NOT, SPEC(TREG, REG, NO), a, b, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* branches */
 
-#define jit_bltr(jit, a, b, c) jit_add_op(jit, JIT_BLT | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blti(jit, a, b, c) jit_add_op(jit, JIT_BLT | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bltr_u(jit, a, b, c) jit_add_op(jit, JIT_BLT | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blti_u(jit, a, b, c) jit_add_op(jit, JIT_BLT | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
+#define jit_bltr(jit, a, b, c) jit_add_op(jit, JIT_BLT | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_blti(jit, a, b, c) jit_add_op(jit, JIT_BLT | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bltr_u(jit, a, b, c) jit_add_op(jit, JIT_BLT | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_blti_u(jit, a, b, c) jit_add_op(jit, JIT_BLT | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bler(jit, a, b, c) jit_add_op(jit, JIT_BLE | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blei(jit, a, b, c) jit_add_op(jit, JIT_BLE | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bler_u(jit, a, b, c) jit_add_op(jit, JIT_BLE | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_blei_u(jit, a, b, c) jit_add_op(jit, JIT_BLE | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
+#define jit_bler(jit, a, b, c) jit_add_op(jit, JIT_BLE | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_blei(jit, a, b, c) jit_add_op(jit, JIT_BLE | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bler_u(jit, a, b, c) jit_add_op(jit, JIT_BLE | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_blei_u(jit, a, b, c) jit_add_op(jit, JIT_BLE | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bgtr(jit, a, b, c) jit_add_op(jit, JIT_BGT | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgti(jit, a, b, c) jit_add_op(jit, JIT_BGT | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bgtr_u(jit, a, b, c) jit_add_op(jit, JIT_BGT | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgti_u(jit, a, b, c) jit_add_op(jit, JIT_BGT | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
+#define jit_bgtr(jit, a, b, c) jit_add_op(jit, JIT_BGT | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bgti(jit, a, b, c) jit_add_op(jit, JIT_BGT | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bgtr_u(jit, a, b, c) jit_add_op(jit, JIT_BGT | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bgti_u(jit, a, b, c) jit_add_op(jit, JIT_BGT | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bger(jit, a, b, c) jit_add_op(jit, JIT_BGE | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgei(jit, a, b, c) jit_add_op(jit, JIT_BGE | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
-#define jit_bger_u(jit, a, b, c) jit_add_op(jit, JIT_BGE | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_bgei_u(jit, a, b, c) jit_add_op(jit, JIT_BGE | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
+#define jit_bger(jit, a, b, c) jit_add_op(jit, JIT_BGE | REG | SIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bgei(jit, a, b, c) jit_add_op(jit, JIT_BGE | IMM | SIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bger_u(jit, a, b, c) jit_add_op(jit, JIT_BGE | REG | UNSIGNED, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bgei_u(jit, a, b, c) jit_add_op(jit, JIT_BGE | IMM | UNSIGNED, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_beqr(jit, a, b, c) jit_add_op(jit, JIT_BEQ | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0)
-#define jit_beqi(jit, a, b, c) jit_add_op(jit, JIT_BEQ | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0)
+#define jit_beqr(jit, a, b, c) jit_add_op(jit, JIT_BEQ | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_beqi(jit, a, b, c) jit_add_op(jit, JIT_BEQ | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bner(jit, a, b, c) jit_add_op(jit, JIT_BNE | REG, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bnei(jit, a, b, c) jit_add_op(jit, JIT_BNE | IMM, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_bner(jit, a, b, c) jit_add_op(jit, JIT_BNE | REG, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnei(jit, a, b, c) jit_add_op(jit, JIT_BNE | IMM, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bmsr(jit, a, b, c) jit_add_op(jit, JIT_BMS | REG, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bmsi(jit, a, b, c) jit_add_op(jit, JIT_BMS | IMM, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_bmsr(jit, a, b, c) jit_add_op(jit, JIT_BMS | REG, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bmsi(jit, a, b, c) jit_add_op(jit, JIT_BMS | IMM, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bmcr(jit, a, b, c) jit_add_op(jit, JIT_BMC | REG, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bmci(jit, a, b, c) jit_add_op(jit, JIT_BMC | IMM, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_bmcr(jit, a, b, c) jit_add_op(jit, JIT_BMC | REG, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bmci(jit, a, b, c) jit_add_op(jit, JIT_BMC | IMM, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_boaddr(jit, a, b, c) jit_add_op(jit, JIT_BOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_boaddi(jit, a, b, c) jit_add_op(jit, JIT_BOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_boaddr(jit, a, b, c) jit_add_op(jit, JIT_BOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_boaddi(jit, a, b, c) jit_add_op(jit, JIT_BOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bosubr(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bosubi(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_bosubr(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bosubi(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bnoaddr(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bnoaddi(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_bnoaddr(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnoaddi(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bnosubr(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0)
-#define jit_bnosubi(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0)
+#define jit_bnosubr(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnosubi(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* conditions */
 
-#define jit_ltr(jit, a, b, c) jit_add_op(jit, JIT_LT | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lti(jit, a, b, c) jit_add_op(jit, JIT_LT | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_ltr_u(jit, a, b, c) jit_add_op(jit, JIT_LT | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lti_u(jit, a, b, c) jit_add_op(jit, JIT_LT | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_ltr(jit, a, b, c) jit_add_op(jit, JIT_LT | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_lti(jit, a, b, c) jit_add_op(jit, JIT_LT | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ltr_u(jit, a, b, c) jit_add_op(jit, JIT_LT | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_lti_u(jit, a, b, c) jit_add_op(jit, JIT_LT | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_ler(jit, a, b, c) jit_add_op(jit, JIT_LE | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lei(jit, a, b, c) jit_add_op(jit, JIT_LE | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_ler_u(jit, a, b, c) jit_add_op(jit, JIT_LE | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_lei_u(jit, a, b, c) jit_add_op(jit, JIT_LE | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_ler(jit, a, b, c) jit_add_op(jit, JIT_LE | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_lei(jit, a, b, c) jit_add_op(jit, JIT_LE | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ler_u(jit, a, b, c) jit_add_op(jit, JIT_LE | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_lei_u(jit, a, b, c) jit_add_op(jit, JIT_LE | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_gtr(jit, a, b, c) jit_add_op(jit, JIT_GT | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gti(jit, a, b, c) jit_add_op(jit, JIT_GT | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_gtr_u(jit, a, b, c) jit_add_op(jit, JIT_GT | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gti_u(jit, a, b, c) jit_add_op(jit, JIT_GT | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_gtr(jit, a, b, c) jit_add_op(jit, JIT_GT | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_gti(jit, a, b, c) jit_add_op(jit, JIT_GT | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_gtr_u(jit, a, b, c) jit_add_op(jit, JIT_GT | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_gti_u(jit, a, b, c) jit_add_op(jit, JIT_GT | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_ger(jit, a, b, c) jit_add_op(jit, JIT_GE | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gei(jit, a, b, c) jit_add_op(jit, JIT_GE | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
-#define jit_ger_u(jit, a, b, c) jit_add_op(jit, JIT_GE | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_gei_u(jit, a, b, c) jit_add_op(jit, JIT_GE | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_ger(jit, a, b, c) jit_add_op(jit, JIT_GE | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_gei(jit, a, b, c) jit_add_op(jit, JIT_GE | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ger_u(jit, a, b, c) jit_add_op(jit, JIT_GE | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_gei_u(jit, a, b, c) jit_add_op(jit, JIT_GE | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_eqr(jit, a, b, c) jit_add_op(jit, JIT_EQ | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_eqi(jit, a, b, c) jit_add_op(jit, JIT_EQ | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_eqr(jit, a, b, c) jit_add_op(jit, JIT_EQ | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_eqi(jit, a, b, c) jit_add_op(jit, JIT_EQ | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_ner(jit, a, b, c) jit_add_op(jit, JIT_NE | REG, SPEC(TREG, REG, REG), a, b, c, 0)
-#define jit_nei(jit, a, b, c) jit_add_op(jit, JIT_NE | IMM, SPEC(TREG, REG, IMM), a, b, c, 0)
+#define jit_ner(jit, a, b, c) jit_add_op(jit, JIT_NE | REG, SPEC(TREG, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_nei(jit, a, b, c) jit_add_op(jit, JIT_NE | IMM, SPEC(TREG, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* memory operations */
 
-#define jit_ldr(jit, a, b, c) jit_add_op(jit, JIT_LD | REG | SIGNED, SPEC(TREG, REG, NO), a, b, 0, c) 
-#define jit_ldi(jit, a, b, c) jit_add_op(jit, JIT_LD | IMM | SIGNED, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c) 
-#define jit_ldxr(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, d) 
-#define jit_ldxi(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d) 
-#define jit_ldr_u(jit, a, b, c) jit_add_op(jit, JIT_LD | REG | UNSIGNED, SPEC(TREG, REG, NO), a, b, 0, c) 
-#define jit_ldi_u(jit, a, b, c) jit_add_op(jit, JIT_LD | IMM | UNSIGNED, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c) 
-#define jit_ldxr_u(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, d) 
-#define jit_ldxi_u(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d) 
+#define jit_ldr(jit, a, b, c) jit_add_op(jit, JIT_LD | REG | SIGNED, SPEC(TREG, REG, NO), a, b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldi(jit, a, b, c) jit_add_op(jit, JIT_LD | IMM | SIGNED, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldxr(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | REG | SIGNED, SPEC(TREG, REG, REG), a, b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldxi(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | IMM | SIGNED, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldr_u(jit, a, b, c) jit_add_op(jit, JIT_LD | REG | UNSIGNED, SPEC(TREG, REG, NO), a, b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldi_u(jit, a, b, c) jit_add_op(jit, JIT_LD | IMM | UNSIGNED, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldxr_u(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | REG | UNSIGNED, SPEC(TREG, REG, REG), a, b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ldxi_u(jit, a, b, c, d) jit_add_op(jit, JIT_LDX | IMM | UNSIGNED, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 
-#define jit_str(jit, a, b, c) jit_add_op(jit, JIT_ST | REG, SPEC(REG, REG, NO), a, b, 0, c) 
-#define jit_sti(jit, a, b, c) jit_add_op(jit, JIT_ST | IMM, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, c) 
-#define jit_stxr(jit, a, b, c, d) jit_add_op(jit, JIT_STX | REG, SPEC(REG, REG, REG), a, b, c, d) 
-#define jit_stxi(jit, a, b, c, d) jit_add_op(jit, JIT_STX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d) 
+#define jit_str(jit, a, b, c) jit_add_op(jit, JIT_ST | REG, SPEC(REG, REG, NO), a, b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_sti(jit, a, b, c) jit_add_op(jit, JIT_ST | IMM, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_stxr(jit, a, b, c, d) jit_add_op(jit, JIT_STX | REG, SPEC(REG, REG, REG), a, b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_stxi(jit, a, b, c, d) jit_add_op(jit, JIT_STX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_msg(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, 0)
+#define jit_msg(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* FPU */
 
-#define jit_fmovr(jit, a, b) jit_add_fop(jit, JIT_FMOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_fmovi(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, b, 0)
+#define jit_fmovr(jit, a, b) jit_add_fop(jit, JIT_FMOV | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fmovi(jit, a, b) jit_add_fop(jit, JIT_FMOV | IMM, SPEC(TREG, IMM, NO), a, 0, 0, b, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_faddr(jit, a, b, c) jit_add_fop(jit, JIT_FADD | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_faddi(jit, a, b, c) jit_add_fop(jit, JIT_FADD | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_fsubr(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_fsubi(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_frsbr(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_frsbi(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_fmulr(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_fmuli(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
-#define jit_fdivr(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0)
-#define jit_fdivi(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0)
+#define jit_faddr(jit, a, b, c) jit_add_fop(jit, JIT_FADD | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_faddi(jit, a, b, c) jit_add_fop(jit, JIT_FADD | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fsubr(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fsubi(jit, a, b, c) jit_add_fop(jit, JIT_FSUB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_frsbr(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_frsbi(jit, a, b, c) jit_add_fop(jit, JIT_FRSB | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fmulr(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fmuli(jit, a, b, c) jit_add_fop(jit, JIT_FMUL | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fdivr(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | REG, SPEC(TREG, REG, REG), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fdivi(jit, a, b, c) jit_add_fop(jit, JIT_FDIV | IMM, SPEC(TREG, REG, IMM), a, b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fnegr(jit, a, b) jit_add_fop(jit, JIT_FNEG | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_fnegr(jit, a, b) jit_add_fop(jit, JIT_FNEG | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_extr(jit, a, b) jit_add_fop(jit, JIT_EXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_truncr(jit, a, b) jit_add_fop(jit, JIT_TRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_floorr(jit, a, b) jit_add_fop(jit, JIT_FLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_ceilr(jit, a, b) jit_add_fop(jit, JIT_CEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
-#define jit_roundr(jit, a, b) jit_add_fop(jit, JIT_ROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0)
+#define jit_extr(jit, a, b) jit_add_fop(jit, JIT_EXT | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_truncr(jit, a, b) jit_add_fop(jit, JIT_TRUNC | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_floorr(jit, a, b) jit_add_fop(jit, JIT_FLOOR | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ceilr(jit, a, b) jit_add_fop(jit, JIT_CEIL | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_roundr(jit, a, b) jit_add_fop(jit, JIT_ROUND | REG, SPEC(TREG, REG, NO), a, b, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fbltr(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fblti(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-#define jit_fbgtr(jit, a, b, c) jit_add_fop(jit, JIT_FBGT | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fbgti(jit, a, b, c) jit_add_fop(jit, JIT_FBGT | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
+#define jit_fbltr(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fblti(jit, a, b, c) jit_add_fop(jit, JIT_FBLT | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fbgtr(jit, a, b, c) jit_add_fop(jit, JIT_FBGT | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fbgti(jit, a, b, c) jit_add_fop(jit, JIT_FBGT | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fbler(jit, a, b, c) jit_add_fop(jit, JIT_FBLE | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fblei(jit, a, b, c) jit_add_fop(jit, JIT_FBLE | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
-#define jit_fbger(jit, a, b, c) jit_add_fop(jit, JIT_FBGE | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fbgei(jit, a, b, c) jit_add_fop(jit, JIT_FBGE | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
+#define jit_fbler(jit, a, b, c) jit_add_fop(jit, JIT_FBLE | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fblei(jit, a, b, c) jit_add_fop(jit, JIT_FBLE | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fbger(jit, a, b, c) jit_add_fop(jit, JIT_FBGE | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fbgei(jit, a, b, c) jit_add_fop(jit, JIT_FBGE | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fbeqr(jit, a, b, c) jit_add_fop(jit, JIT_FBEQ | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0)
-#define jit_fbeqi(jit, a, b, c) jit_add_fop(jit, JIT_FBEQ | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0)
+#define jit_fbeqr(jit, a, b, c) jit_add_fop(jit, JIT_FBEQ | REG, SPEC(IMM, REG, REG), (jit_value)(a), b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fbeqi(jit, a, b, c) jit_add_fop(jit, JIT_FBEQ | IMM, SPEC(IMM, REG, IMM), (jit_value)(a), b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fbner(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | REG, SPEC(IMM, REG, REG), a, b, c, 0, 0)
-#define jit_fbnei(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | IMM, SPEC(IMM, REG, IMM), a, b, 0, c, 0)
+#define jit_fbner(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | REG, SPEC(IMM, REG, REG), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fbnei(jit, a, b, c) jit_add_fop(jit, JIT_FBNE | IMM, SPEC(IMM, REG, IMM), a, b, 0, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fstr(jit, a, b, c) jit_add_op(jit, JIT_FST | REG, SPEC(REG, REG, NO), a, b, 0, c) 
-#define jit_fsti(jit, a, b, c) jit_add_op(jit, JIT_FST | IMM, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, c) 
-#define jit_fstxr(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | REG, SPEC(REG, REG, REG), a, b, c, d) 
-#define jit_fstxi(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d) 
+#define jit_fstr(jit, a, b, c) jit_add_op(jit, JIT_FST | REG, SPEC(REG, REG, NO), a, b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fsti(jit, a, b, c) jit_add_op(jit, JIT_FST | IMM, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fstxr(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | REG, SPEC(REG, REG, REG), a, b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fstxi(jit, a, b, c, d) jit_add_op(jit, JIT_FSTX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fldr(jit, a, b, c) jit_add_op(jit, JIT_FLD | REG, SPEC(TREG, REG, NO), a, b, 0, c) 
-#define jit_fldi(jit, a, b, c) jit_add_op(jit, JIT_FLD | IMM, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c) 
-#define jit_fldxr(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | REG, SPEC(TREG, REG, REG), a, b, c, d) 
-#define jit_fldxi(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d) 
+#define jit_fldr(jit, a, b, c) jit_add_op(jit, JIT_FLD | REG, SPEC(TREG, REG, NO), a, b, 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fldi(jit, a, b, c) jit_add_op(jit, JIT_FLD | IMM, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, c, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fldxr(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | REG, SPEC(TREG, REG, REG), a, b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fldxi(jit, a, b, c, d) jit_add_op(jit, JIT_FLDX | IMM, SPEC(TREG, REG, IMM), a, b, (jit_value)(c), d, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), (a), 0, 0, 0, (b))
-#define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, (a), (b))
+#define jit_fputargr(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | REG, SPEC(REG, NO, NO), (a), 0, 0, 0, (b), jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_fputargi(jit, a, b) jit_add_fop(jit, JIT_FPUTARG | IMM, SPEC(IMM, NO, NO), 0, 0, 0, (a), (b), jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fretr(jit, a, b) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, b)
-#define jit_freti(jit, a, b) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, b)
+#define jit_fretr(jit, a, b) jit_add_fop(jit, JIT_FRET | REG, SPEC(REG, NO, NO), a, 0, 0, 0, b, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_freti(jit, a, b) jit_add_fop(jit, JIT_FRET | IMM, SPEC(IMM, NO, NO), 0, 0, 0, a, b, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, b)
+#define jit_fretval(jit, a, b) jit_add_fop(jit, JIT_FRETVAL, SPEC(TREG, NO, NO), a, 0, 0, 0, b, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /*
  * direct data and code emission 
  */
 
-#define jit_code_addr(jit, a, b) jit_add_op(jit, JIT_CODE_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
-#define jit_data_addr(jit, a, b) jit_add_op(jit, JIT_DATA_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0)
+#define jit_code_addr(jit, a, b) jit_add_op(jit, JIT_CODE_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_data_addr(jit, a, b) jit_add_op(jit, JIT_DATA_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_code_align(jit, a) jit_add_op(jit, JIT_CODE_ALIGN| IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+#define jit_code_align(jit, a) jit_add_op(jit, JIT_CODE_ALIGN| IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 #define jit_data_str(jit, a)   jit_data_bytes(jit, strlen(a) + 1, ((unsigned char *)a))
 
 #define jit_data(jit, a)  do { jit_value _x = (jit_value)(a); jit_data_bytes(jit, sizeof(jit_value), (unsigned char*) &_x); } while(0)
@@ -583,15 +601,15 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_data_dword(jit, a)  do { int _x = (a); jit_data_bytes(jit, 4, (unsigned char*) &_x); } while(0)
 #define jit_data_qword(jit, a)  do { int64_t _x = (a); jit_data_bytes(jit, 8, (unsigned char*) &_x); } while(0)
 #define jit_data_ptr(jit, a)  do { void * _x = (void *)(a); jit_data_bytes(jit, sizeof(void *), (unsigned char*) &_x); } while(0)
-#define jit_data_caddr(jit, a)	jit_add_op(jit, JIT_DATA_CADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
-#define jit_data_daddr(jit, a)	jit_add_op(jit, JIT_DATA_DADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0)
+#define jit_data_caddr(jit, a)	jit_add_op(jit, JIT_DATA_CADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_data_daddr(jit, a)	jit_add_op(jit, JIT_DATA_DADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 #define jit_data_emptyarea(jit, count) \
 	do {  \
 		for (int i = 0; i < count; i++) jit_data_byte(jit, 0x00);\
 	} while(0) 
 
-
+// FIXME: predavat debug_info
 static inline void jit_data_bytes(struct jit *jit, int count, unsigned char *data)
 {
 	for (int i = 0; i < count; i++, data++)

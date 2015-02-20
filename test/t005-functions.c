@@ -190,10 +190,10 @@ DEFINE_TEST(test6)
 	jit_movi(p, R(0), str);
 	
 	jit_movi(p, R(1), 100);
-	jit_movi(p, R(2), 200);
-	jit_movi(p, R(3), 300);
+	//jit_movi(p, R(2), 200);
+	//jit_movi(p, R(3), 300);
 	jit_movi(p, R(4), 400);
-	jit_movi(p, R(5), 500);
+	//jit_movi(p, R(5), 500);
 
 	jit_movi(p, R(2), sprintf);
 
@@ -203,7 +203,7 @@ DEFINE_TEST(test6)
 	jit_putargr(p, R(1));
 	jit_callr(p, R(2));
 
-	jit_retval(p, R(3));
+	//jit_retval(p, R(3));
 
 	jit_retr(p, R(4));
 
@@ -291,7 +291,7 @@ DEFINE_TEST(test8)
 
 	jit_ldi(p, R(0), (unsigned char *)&s + offsetof(struct mystruct, count), sizeof(long));	// count
 
-	jit_movi(p, R(1), &s); // struct
+	//jit_movi(p, R(1), &s); // struct
 
 	jit_ldi(p, R(2), (unsigned char *)&s + offsetof(struct mystruct, items), sizeof(void *)); // array
 	jit_movi(p, R(3), 0); // index

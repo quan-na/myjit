@@ -76,7 +76,6 @@ DEFINE_TEST(testname)\
 	if (_negative) secval *= -1;\
 	\
 	jit_movi(p, R(1), firstval);\
-	jit_movi(p, R(2), secval);\
 \
 	jit_op * br; \
 	br = _jit_op(p, 0, R(1), secval);\

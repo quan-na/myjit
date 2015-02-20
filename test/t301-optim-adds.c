@@ -4,7 +4,7 @@ DEFINE_TEST(test10)
 {
 	plfv f1;
 	jit_prolog(p, &f1);
-	jit_movi(p, R(0), 7);
+	//jit_movi(p, R(0), 7);
 	jit_movi(p, R(1), 15);
 	jit_muli(p, R(2), R(1), 2);
 	jit_addi(p, R(2), R(2), 123);

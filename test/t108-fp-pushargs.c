@@ -51,8 +51,8 @@ DEFINE_TEST(test1)
 	jit_fmovi(p, FR(6), 32);
 	jit_fmovi(p, FR(7), 64);
 	jit_fmovi(p, FR(8), 128);
-	jit_fmovi(p, FR(9), 256);
-	jit_movi(p, R(10), 123);
+	//jit_fmovi(p, FR(9), 256);
+	//jit_movi(p, R(10), 123);
 
 	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(double));
@@ -94,7 +94,7 @@ DEFINE_TEST(test2)
 	jit_fmovi(p, FR(7), 64);
 	jit_fmovi(p, FR(8), 128);
 	jit_fmovi(p, FR(9), 256);
-	jit_movi(p, R(10), 123);
+	//jit_movi(p, R(10), 123);
 
 	jit_prepare(p);
 	jit_fputargr(p, FR(0), sizeof(float));

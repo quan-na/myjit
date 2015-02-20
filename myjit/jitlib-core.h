@@ -150,6 +150,13 @@ struct jit {
 	unsigned int optimizations;
 };
 
+struct jit_debug_info {
+        const char *filename;
+	const char *function;
+        int lineno;
+        int warnings;
+};
+
 //void jit_get_reg_name(char * r, int reg);
 void jit_patch_external_calls(struct jit * jit);
 void jit_patch_local_addrs(struct jit *jit);
@@ -209,6 +216,7 @@ static struct jit_op * jit_op_new(unsigned short code, unsigned char spec, long 
 	r->live_in = NULL;
 	r->live_out = NULL;
 	r->allocator_hints = NULL;
+	r->debug_info = NULL;
 	return r;
 }
 
@@ -246,6 +254,7 @@ static inline void jit_free_op(struct jit_op *op)
         if (op->live_out) jit_set_free(op->live_out);
         rmap_free(op->regmap);
         jit_allocator_hints_free(op->allocator_hints);
+	if (op->debug_info) JIT_FREE(op->debug_info);
 
         if (GET_OP(op) == JIT_PROLOG) {
                 struct jit_func_info * info = (struct jit_func_info *)op->arg[1];

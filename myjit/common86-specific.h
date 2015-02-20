@@ -681,7 +681,7 @@ int jit_allocai(struct jit * jit, int size)
 {                                      
 	jit_value real_size = jit_value_align(size, JIT_STACK_ALIGNMENT);
 
-	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), real_size, 0, 0, 0);
+	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), real_size, 0, 0, 0, NULL);
 	jit_current_func_info(jit)->allocai_mem += real_size;   
 	
 	return -(jit_current_func_info(jit)->allocai_mem);

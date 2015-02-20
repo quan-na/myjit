@@ -38,6 +38,7 @@
 #endif
 
 #include "jitlib-debug.c"
+#include "code-check.c"
 #include "flow-analysis.h"
 #include "rmap.h"
 #include "reg-allocator.h"
@@ -47,21 +48,32 @@
 #define BUF_SIZE		(4096)
 #define MINIMAL_BUF_SPACE	(1024)
 
-struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size)
+struct jit_op * jit_add_op(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, unsigned char arg_size, struct jit_debug_info *debug_info)
 {
 	struct jit_op * r = jit_op_new(code, spec, arg1, arg2, arg3, arg_size);
+	r->debug_info = debug_info;
 	jit_op_append(jit->last_op, r);
 	jit->last_op = r;
 
 	return r;
 }
 
-struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, double flt_imm, unsigned char arg_size)
+struct jit_op * jit_add_fop(struct jit * jit, unsigned short code, unsigned char spec, long arg1, long arg2, long arg3, double flt_imm, unsigned char arg_size, struct jit_debug_info *debug_info)
 {
-	struct jit_op * r = jit_add_op(jit, code, spec, arg1, arg2, arg3, arg_size);
+	struct jit_op * r = jit_add_op(jit, code, spec, arg1, arg2, arg3, arg_size, debug_info);
 	r->fp = 1;
 	r->flt_imm = flt_imm;
 
+	return r;
+}
+
+struct jit_debug_info *jit_debug_info_new(const char *filename, const char *function, int lineno)
+{
+	struct jit_debug_info *r = JIT_MALLOC(sizeof(struct jit_debug_info));
+	r->filename = filename;
+	r->function = function;
+	r->lineno = lineno;
+	r->warnings = 0;
 	return r;
 }
 
@@ -71,6 +83,7 @@ struct jit * jit_init()
 
 	r->ops = jit_op_new(JIT_CODESTART, SPEC(NO, NO, NO), 0, 0, 0, 0);
 	r->last_op = r->ops;
+	r->optimizations = 0;
 
 	r->labels = NULL;
 	r->reg_al = jit_reg_allocator_create();
@@ -79,11 +92,12 @@ struct jit * jit_init()
 	return r;
 }
 
-void jit_prolog(struct jit * jit, void * func)
+void jit_add_prolog(struct jit * jit, void * func, struct jit_debug_info *debug_info)
 {
-        jit_op * op = jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0);
+        jit_op * op = jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0, NULL);
         struct jit_func_info * info = JIT_MALLOC(sizeof(struct jit_func_info));
         op->arg[1] = (long)info;
+	op->debug_info = debug_info;
 
         jit->current_func = op;
 
@@ -96,7 +110,7 @@ void jit_prolog(struct jit * jit, void * func)
 jit_label * jit_get_label(struct jit * jit)
 {
         jit_label * r = JIT_MALLOC(sizeof(jit_label));
-        jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0);
+        jit_add_op(jit, JIT_LABEL, SPEC(IMM, NO, NO), (long)r, 0, 0, 0, NULL);
         r->next = jit->labels;
         jit->labels = r;
         return r;
@@ -334,7 +348,7 @@ void jit_generate_code(struct jit * jit)
 	jit_prepare_arguments(jit);
 	jit_prepare_spills_on_jmpr_targets(jit);
 
-	jit_dead_code_analysis(jit);	
+	jit_dead_code_analysis(jit, 1);	
 	jit_flw_analysis(jit);
 
 
