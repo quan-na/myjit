@@ -690,14 +690,14 @@ int jit_allocai(struct jit * jit, int size)
 void jit_patch_local_addrs(struct jit *jit)
 {
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
-		if ((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_ADDR)) {
+		if ((GET_OP(op) == JIT_REF_CODE) || (GET_OP(op) == JIT_REF_DATA)) {
 			unsigned char *buf = jit->buf + (long) op->patch_addr;
 			jit_value addr = jit_is_label(jit, (void *)op->arg[1]) ? ((jit_label *)op->arg[1])->pos : op->arg[1];
 			common86_mov_reg_imm(buf, op->r_arg[0], jit->buf + addr);
 		}
 
 
-		if ((GET_OP(op) == JIT_DATA_CADDR) || (GET_OP(op) == JIT_DATA_DADDR)) {
+		if ((GET_OP(op) == JIT_DATA_REF_CODE) || (GET_OP(op) == JIT_DATA_REF_DATA)) {
 			unsigned char *buf = jit->buf + (long) op->patch_addr;
 			jit_value addr = jit_is_label(jit, (void *)op->arg[0]) ? ((jit_label *)op->arg[0])->pos : op->arg[0];
 			*((jit_value *)buf) = (jit_value) (jit->buf + addr);
@@ -779,12 +779,12 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_PATCH: do {
 					struct jit_op *target = (struct jit_op *) a1;
 					switch (GET_OP(target)) {
-						case JIT_CODE_ADDR: 
-						case JIT_DATA_ADDR: 
+						case JIT_REF_CODE: 
+						case JIT_REF_DATA: 
 							target->arg[1] = JIT_BUFFER_OFFSET(jit);
 							break;
-						case JIT_DATA_CADDR: 
-						case JIT_DATA_DADDR: 
+						case JIT_DATA_REF_CODE: 
+						case JIT_DATA_REF_DATA: 
 							target->arg[0] = JIT_BUFFER_OFFSET(jit);
 							break;
 						default: {
@@ -833,8 +833,8 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 					common86_nop(jit->ip);
 				break;
 
-		case JIT_CODE_ADDR: 
-		case JIT_DATA_ADDR: 
+		case JIT_REF_CODE: 
+		case JIT_REF_DATA: 
 			op->patch_addr = JIT_BUFFER_OFFSET(jit);
 			common86_mov_reg_imm_size(jit->ip, a1, 0xdeadbeefcafebabe, sizeof(void *));
 			break;

@@ -120,7 +120,7 @@ static inline int flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_
 		jit_op *xop = func_info->first_op->next;
 		op->live_out = jit_set_new();
 		while (xop && (GET_OP(xop) != JIT_PROLOG)) {
-			if ((GET_OP(xop) == JIT_CODE_ADDR) || (GET_OP(xop) == JIT_DATA_CADDR)) {
+			if ((GET_OP(xop) == JIT_REF_CODE) || (GET_OP(xop) == JIT_DATA_REF_CODE)) {
 				jit_set_addall(op->live_out, xop->jmp_addr->live_in);
 			}
 			xop = xop->next;
@@ -131,7 +131,7 @@ static inline int flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_
 	if (op->next) op->live_out = jit_set_clone(op->next->live_in);
 	else op->live_out = jit_set_new();
 
-	if (op->jmp_addr && (GET_OP(op) != JIT_CODE_ADDR) && (GET_OP(op) != JIT_DATA_CADDR))
+	if (op->jmp_addr && (GET_OP(op) != JIT_REF_CODE) && (GET_OP(op) != JIT_DATA_REF_CODE))
 		jit_set_addall(op->live_out, op->jmp_addr->live_in);
 skip:
 
@@ -181,7 +181,7 @@ static void jit_dead_code_analysis(struct jit *jit, int remove_dead_code)
 	// marks ordinary operations
 	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
 		if (GET_OP(op) == JIT_PROLOG) mark_livecode(op);
-		if (GET_OP(op) == JIT_DATA_CADDR) mark_livecode(op->jmp_addr);
+		if (GET_OP(op) == JIT_DATA_REF_CODE) mark_livecode(op->jmp_addr);
 	}
 
 
@@ -189,8 +189,8 @@ static void jit_dead_code_analysis(struct jit *jit, int remove_dead_code)
 	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
 		if (GET_OP(op) == JIT_CODESTART) op->in_use = 1; 
 		if (GET_OP(op) == JIT_DATA_BYTE) op->in_use = 1;
-		if (GET_OP(op) == JIT_DATA_CADDR) op->in_use = 1; 
-		if (GET_OP(op) == JIT_DATA_DADDR) op->in_use = 1; 
+		if (GET_OP(op) == JIT_DATA_REF_CODE) op->in_use = 1; 
+		if (GET_OP(op) == JIT_DATA_REF_DATA) op->in_use = 1; 
 		if (GET_OP(op) == JIT_CODE_ALIGN) op->in_use = 1; 
 		if (GET_OP(op) == JIT_LABEL) op->in_use = 1; 
 		if (GET_OP(op) == JIT_PATCH) op->in_use = 1; 

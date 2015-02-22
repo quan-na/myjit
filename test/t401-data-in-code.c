@@ -50,7 +50,7 @@ DEFINE_TEST(test11)
 	// code
 	jit_patch(p, skip_data);
 	
-	jit_data_addr(p, R(0), label_string); 
+	jit_ref_data(p, R(0), label_string); 
 
 	jit_prepare(p);
 	jit_putargr(p, R(0));
@@ -70,7 +70,7 @@ DEFINE_TEST(test12)
 	plfv f1;
 	jit_prolog(p, &f1);
 
-	jit_op * label_string = jit_data_addr(p, R(0), JIT_FORWARD);
+	jit_op * label_string = jit_ref_data(p, R(0), JIT_FORWARD);
 	jit_prepare(p);
 	jit_putargr(p, R(0));
 	jit_call(p, check_func);
@@ -98,7 +98,7 @@ DEFINE_TEST(test13)
 
 	jit_movi(p, R(0), 0xaa);
 
-	jit_op *target_addr = jit_code_addr(p, R(1), JIT_FORWARD);
+	jit_op *target_addr = jit_ref_code(p, R(1), JIT_FORWARD);
 
 	jit_jmpr(p, R(1));
 	jit_movi(p, R(0), 0xbb);
@@ -119,8 +119,8 @@ DEFINE_TEST(test14)
 
 	jit_movi(p, R(0), 10);
 
-	jit_op *target1_addr = jit_code_addr(p, R(1), JIT_FORWARD);
-	jit_op *target2_addr = jit_code_addr(p, R(2), JIT_FORWARD);
+	jit_op *target1_addr = jit_ref_code(p, R(1), JIT_FORWARD);
+	jit_op *target2_addr = jit_ref_code(p, R(2), JIT_FORWARD);
 
 	jit_movr(p, R(3), R(1));
 	jit_movi(p, R(4), 20);
@@ -171,8 +171,8 @@ DEFINE_TEST(test15)
 
 	// data
 	jit_label *data_addr = jit_get_label(p);
-	jit_op *target1_addr = jit_data_caddr(p, JIT_FORWARD);
-	jit_op *target2_addr = jit_data_caddr(p, JIT_FORWARD);
+	jit_op *target1_addr = jit_data_ref_code(p, JIT_FORWARD);
+	jit_op *target2_addr = jit_data_ref_code(p, JIT_FORWARD);
 	jit_code_align(p, 16);
 
 	
@@ -180,7 +180,7 @@ DEFINE_TEST(test15)
 	jit_patch(p, skip);
 	jit_movi(p, R(0), 10);
 	jit_getarg(p, R(1), 0);
-	jit_data_addr(p, R(2), data_addr);
+	jit_ref_data(p, R(2), data_addr);
 
 	jit_muli(p, R(3), R(1), PTR_SIZE);
 	jit_ldxr(p, R(2), R(2), R(3), PTR_SIZE);
@@ -226,18 +226,18 @@ DEFINE_TEST(test16)
 
 
 	jit_label *data_addr = jit_get_label(p);
-	jit_data_daddr(p, lb_mon);
-	jit_data_daddr(p, lb_tue);
-	jit_data_daddr(p, lb_wed);
-	jit_data_daddr(p, lb_thr);
-	jit_data_daddr(p, lb_fri);
+	jit_data_ref_data(p, lb_mon);
+	jit_data_ref_data(p, lb_tue);
+	jit_data_ref_data(p, lb_wed);
+	jit_data_ref_data(p, lb_thr);
+	jit_data_ref_data(p, lb_fri);
 	jit_code_align(p, 16);
 
 	
 	// code
 	jit_patch(p, skip);
 	jit_getarg(p, R(1), 0);
-	jit_data_addr(p, R(2), data_addr);
+	jit_ref_data(p, R(2), data_addr);
 
 	jit_muli(p, R(3), R(1), PTR_SIZE);
 	jit_ldxr(p, R(0), R(2), R(3), PTR_SIZE);
@@ -256,7 +256,7 @@ DEFINE_TEST(test17)
 	jit_prolog(p, &f1);
 	jit_declare_arg(p, JIT_SIGNED_NUM, sizeof(int));
 
-	jit_op *branch_table = jit_data_addr(p, R(0), JIT_FORWARD);
+	jit_op *branch_table = jit_ref_data(p, R(0), JIT_FORWARD);
 	jit_getarg(p, R(1), 0);
 	jit_muli(p, R(1), R(1), PTR_SIZE);
 	jit_ldxr(p, R(2), R(1), R(0), PTR_SIZE);
@@ -275,9 +275,9 @@ DEFINE_TEST(test17)
 	// branch table
 	jit_code_align(p, 16);
 	jit_patch(p, branch_table);
-	jit_data_caddr(p, branch1);
-	jit_data_caddr(p, branch2);
-	jit_data_caddr(p, branch3);
+	jit_data_ref_code(p, branch1);
+	jit_data_ref_code(p, branch2);
+	jit_data_ref_code(p, branch3);
 
 	JIT_GENERATE_CODE(p);
 

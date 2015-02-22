@@ -271,11 +271,11 @@ typedef enum {
 
 	JIT_DATA_BYTE	= (0xa0 << 3),
 	JIT_CODE_ALIGN	= (0xa1 << 3),
-	JIT_CODE_ADDR	= (0xa2 << 3),
-	JIT_DATA_ADDR	= (0xa3 << 3),
+	JIT_REF_CODE	= (0xa2 << 3),
+	JIT_REF_DATA	= (0xa3 << 3),
 	JIT_FULL_SPILL	= (0xa4 << 3),
-	JIT_DATA_CADDR  = (0xa5 << 3),
-	JIT_DATA_DADDR  = (0xa6 << 3),
+	JIT_DATA_REF_CODE  = (0xa5 << 3),
+	JIT_DATA_REF_DATA  = (0xa6 << 3),
 
 
 	// platform specific opcodes, for optimization purposes only
@@ -590,8 +590,8 @@ int jit_allocai(struct jit * jit, int size);
  * direct data and code emission 
  */
 
-#define jit_code_addr(jit, a, b) jit_add_op(jit, JIT_CODE_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
-#define jit_data_addr(jit, a, b) jit_add_op(jit, JIT_DATA_ADDR, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ref_code(jit, a, b) jit_add_op(jit, JIT_REF_CODE, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_ref_data(jit, a, b) jit_add_op(jit, JIT_REF_DATA, SPEC(TREG, IMM, NO), a, (jit_value)(b), 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 #define jit_code_align(jit, a) jit_add_op(jit, JIT_CODE_ALIGN| IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 #define jit_data_byte(jit, a)  jit_add_op(jit, JIT_DATA_BYTE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
@@ -602,8 +602,8 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_data_dword(jit, a)  do { int _x = (a); jit_data_bytes(jit, 4, (unsigned char*) &_x); } while(0)
 #define jit_data_qword(jit, a)  do { int64_t _x = (a); jit_data_bytes(jit, 8, (unsigned char*) &_x); } while(0)
 #define jit_data_ptr(jit, a)  do { void * _x = (void *)(a); jit_data_bytes(jit, sizeof(void *), (unsigned char*) &_x); } while(0)
-#define jit_data_caddr(jit, a)	jit_add_op(jit, JIT_DATA_CADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
-#define jit_data_daddr(jit, a)	jit_add_op(jit, JIT_DATA_DADDR | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_data_ref_code(jit, a)	jit_add_op(jit, JIT_DATA_REF_CODE | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_data_ref_data(jit, a)	jit_add_op(jit, JIT_DATA_REF_DATA | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 #define jit_data_emptyarea(jit, count) \
 	do {  \
