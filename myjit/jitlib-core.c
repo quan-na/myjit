@@ -215,6 +215,10 @@ static inline void jit_expand_patches_and_labels(struct jit * jit)
 		if ((GET_OP(op) != JIT_LABEL) && (jit_is_label(jit, (void *)op->arg[0]))) {
 			op->jmp_addr = ((jit_label *)(op->arg[0]))->op;
 		}
+
+		if ((GET_OP(op) != JIT_LABEL) && (jit_is_label(jit, (void *)op->arg[1]))) {
+			op->jmp_addr = ((jit_label *)(op->arg[1]))->op;
+		}
 	}
 }
 

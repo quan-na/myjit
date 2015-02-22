@@ -144,6 +144,117 @@ static int check_uninitialized_registers(jit_op *op, char *msg_buf)
 	return 0;
 }
 
+static int valid_size(int size) {
+	switch (size) {
+		case 1: case 2: case 4:
+#ifdef JIT_ARCH_AMD64
+		case 8:
+#endif
+			return 1;
+		default:
+			return 0;
+	}
+}
+
+static int valid_fsize(int size) 
+{
+	return (size == 4) || (size == 8);
+}
+
+static int check_argument_sizes(jit_op *op, char *msg_buf)
+{
+	switch (GET_OP(op)) {
+		// FIXME: argumenty
+		case JIT_LD: case JIT_LDX: case JIT_ST: case JIT_STX:
+			if (valid_size(op->arg_size)) return 0;
+			break;
+
+		case JIT_FLD: case JIT_FLDX: case JIT_FST: case JIT_FSTX:
+			if (valid_fsize(op->arg_size)) return 0;
+			break;
+
+		case JIT_DECL_ARG:
+			if (((op->arg[0] == JIT_SIGNED_NUM) || (op->arg[0] == JIT_UNSIGNED_NUM)) && valid_size(op->arg[1])) return 0;
+			if ((op->arg[0] == JIT_FLOAT_NUM) && valid_size(op->arg[1])) return 0;
+			if ((op->arg[0] == JIT_PTR) && (op->arg[1] == sizeof(void *))) return 0;
+			break;
+		default:
+			return 0;
+	}
+
+	append_msg(msg_buf, "invalid data size");
+	return JIT_WARN_INVALID_DATA_SIZE;
+}
+
+#define CHECK_ARG_TYPE(op, index, _type) (((ARG_TYPE(op, index) != REG) && (ARG_TYPE(op, index) != TREG)) || (JIT_REG(op->arg[index - 1]).type == _type))
+
+static int check_register_types(jit_op *op, char *msg_buf)
+{
+	switch (GET_OP(op)) {
+		case JIT_GETARG: return 0; // FIXME: testovat typ
+		case JIT_FST:
+		case JIT_TRUNC:
+		case JIT_CEIL:
+		case JIT_ROUND:
+		case JIT_FLOOR:
+			if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_FLOAT)) return 0;
+			break;
+		case JIT_EXT:
+		case JIT_FLD:
+			if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_FLOAT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_INT)) return 0;
+			break;
+		case JIT_FLDX:
+			if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_FLOAT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_INT)) return 0;
+			break;
+		case JIT_FSTX:
+			if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_FLOAT)) return 0;
+			break;
+		default: 
+			if (!op->fp && CHECK_ARG_TYPE(op, 1, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_INT)) return 0;
+			if (op->fp && CHECK_ARG_TYPE(op, 1, JIT_RTYPE_FLOAT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_FLOAT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_FLOAT)) return 0;
+	}
+	append_msg(msg_buf, "register type mismatch");
+	return JIT_WARN_REGISTER_TYPE_MISMATCH;
+}
+
+static int jit_op_is_data_op(jit_op *op) 
+{
+	while (op && ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH))) op = op->next;
+	
+	jit_opcode code = GET_OP(op);
+	return ((code == JIT_DATA_BYTE) || (code == JIT_DATA_CADDR) || (code == JIT_DATA_DADDR));
+}
+
+static int check_data_alignment(jit_op *op, char *msg_buf)
+{
+	if (!jit_op_is_data_op(op)) return 0;
+	if (op->next == NULL) return 0;
+	if (GET_OP(op->next) == JIT_CODE_ALIGN) return 0;
+	if (jit_op_is_data_op(op->next)) return 0;
+	
+	append_msg(msg_buf, "unaligned data block");
+	return JIT_WARN_UNALIGNED_CODE;
+}
+
+static int check_data_references(jit_op *op, char *msg_buf)
+{
+	if (((GET_OP(op) == JIT_DATA_ADDR) || (GET_OP(op) == JIT_DATA_DADDR)) && !jit_op_is_data_op(op->jmp_addr)) {
+		append_msg(msg_buf, "invalid data reference");
+		return JIT_WARN_INVALID_DATA_REFERENCE;
+	}
+	return 0;
+}
+
+static int check_code_references(jit_op *op, char *msg_buf)
+{
+	if (((GET_OP(op) == JIT_CODE_ADDR) || (GET_OP(op) == JIT_DATA_CADDR)) && jit_op_is_data_op(op->jmp_addr)) {
+		append_msg(msg_buf, "invalid code reference");
+		return JIT_WARN_INVALID_CODE_REFERENCE;
+	}
+	return 0;
+}
+
+
 void jit_check_code(struct jit *jit, int warnings)
 {
 	char buf[8192];
@@ -162,6 +273,11 @@ void jit_check_code(struct jit *jit, int warnings)
 		if (warnings & JIT_WARN_MISSING_PATCH) op->debug_info->warnings |= check_missing_patches(op, buf);
 		if (warnings & JIT_WARN_OP_WITHOUT_EFFECT) op->debug_info->warnings |= check_op_without_effect(op, buf);
 		if (warnings & JIT_WARN_UNINITIALIZED_REG) op->debug_info->warnings |= check_uninitialized_registers(op, buf);
+		if (warnings & JIT_WARN_INVALID_DATA_SIZE) op->debug_info->warnings |= check_argument_sizes(op, buf);
+		if (warnings & JIT_WARN_REGISTER_TYPE_MISMATCH) op->debug_info->warnings |= check_register_types(op, buf);
+		if (warnings & JIT_WARN_UNALIGNED_CODE) op->debug_info->warnings |= check_data_alignment(op, buf);
+		if (warnings & JIT_WARN_INVALID_DATA_REFERENCE) op->debug_info->warnings |= check_data_references(op, buf);
+		if (warnings & JIT_WARN_INVALID_CODE_REFERENCE) op->debug_info->warnings |= check_code_references(op, buf);
 
 		if (op->debug_info->warnings) report_warning(jit, op, buf);
 	}

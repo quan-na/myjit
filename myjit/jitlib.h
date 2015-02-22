@@ -293,14 +293,15 @@ enum jit_inp_type {
 };
 
 enum jit_warning {
-	JIT_WARN_DEAD_CODE 		= 0x00000001,	// check
-	JIT_WARN_OP_WITHOUT_EFFECT 	= 0x00000002,	// check
+	JIT_WARN_DEAD_CODE 		= 0x00000001,
+	JIT_WARN_OP_WITHOUT_EFFECT 	= 0x00000002,
 	JIT_WARN_INVALID_DATA_SIZE	= 0x00000004,
 	JIT_WARN_UNINITIALIZED_REG	= 0x00000008,
 	JIT_WARN_UNALIGNED_CODE		= 0x00000010,
-	JIT_WARN_CODE_DATA_MISMATCH	= 0x00000020,
-	JIT_WARN_MISSING_PATCH		= 0x00000040,	// check
-	JIT_WARN_REGISTER_TYPE_MISMATCH	= 0x00000080,
+	JIT_WARN_INVALID_CODE_REFERENCE = 0x00000020,
+	JIT_WARN_INVALID_DATA_REFERENCE = 0x00000040,
+	JIT_WARN_MISSING_PATCH		= 0x00000080,
+	JIT_WARN_REGISTER_TYPE_MISMATCH	= 0x00000100,
 	JIT_WARN_ALL			= 0x7fffffff
 };
 
@@ -609,11 +610,10 @@ int jit_allocai(struct jit * jit, int size);
 		for (int i = 0; i < count; i++) jit_data_byte(jit, 0x00);\
 	} while(0) 
 
-// FIXME: predavat debug_info
-static inline void jit_data_bytes(struct jit *jit, int count, unsigned char *data)
-{
-	for (int i = 0; i < count; i++, data++)
-		jit_data_byte(jit, *(data));
-} 
-
+#define jit_data_bytes(jit, count, data) \
+do {\
+	unsigned char *_data = (unsigned char *) (data);\
+	for (int i = 0; i < count; i++, _data++)\
+		jit_data_byte(jit, *(_data));\
+} while (0)
 #endif

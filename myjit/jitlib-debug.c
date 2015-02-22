@@ -318,7 +318,9 @@ static inline void print_addr(struct jit_disasm *disasm, char *buf, jit_tree *la
 {
 	void *arg = (void *)op->arg[arg_pos];
 	struct jit *jit = disasm->jit;
-	if (arg == NULL)
+	if (jit == NULL) {
+		bufprint(buf, disasm->label_template, -1);
+	} else if (arg == NULL)
 		bufprint(buf, disasm->label_forward_template, find_patch(jit, labels, op));
 	else if (jit_is_label(jit, arg)) 
 		bufprint(buf, disasm->label_template, find_label(jit, labels, arg));

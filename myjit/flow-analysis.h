@@ -45,6 +45,15 @@ static inline int flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_
 #if defined(JIT_ARCH_AMD64) 
 	if (GET_OP(op) == JIT_PROLOG) {
 		func_info = (struct jit_func_info *)op->arg[1];
+
+		for (int i = 0; i < func_info->general_arg_cnt + func_info->float_arg_cnt; i++) {
+			if (func_info->args[i].type == JIT_FLOAT_NUM) {
+				jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, i)); 
+			} else {
+				jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, i)); 
+			}
+		}
+/*
 		int argcount = MIN(func_info->general_arg_cnt, jit->reg_al->gp_arg_reg_cnt);
 		for (int j = 0; j < argcount; j++)
 			jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_INT, JIT_RTYPE_ARG, j)); 
@@ -52,6 +61,7 @@ static inline int flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_
 		argcount = MIN(func_info->float_arg_cnt, jit->reg_al->fp_arg_reg_cnt);
 		for (int j = 0; j < argcount; j++)
 			jit_set_remove(op->live_in, jit_mkreg(JIT_RTYPE_FLOAT, JIT_RTYPE_ARG, j)); 
+*/
 	}
 #endif
 
@@ -121,7 +131,8 @@ static inline int flw_analyze_op(struct jit * jit, jit_op * op, struct jit_func_
 	if (op->next) op->live_out = jit_set_clone(op->next->live_in);
 	else op->live_out = jit_set_new();
 
-	if (op->jmp_addr) jit_set_addall(op->live_out, op->jmp_addr->live_in);
+	if (op->jmp_addr && (GET_OP(op) != JIT_CODE_ADDR) && (GET_OP(op) != JIT_DATA_CADDR))
+		jit_set_addall(op->live_out, op->jmp_addr->live_in);
 skip:
 
 	result = !(jit_set_equal(in1, op->live_in) && jit_set_equal(out1, op->live_out));
