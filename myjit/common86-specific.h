@@ -245,7 +245,7 @@ static void emit_get_arg(struct jit * jit, jit_op * op)
 		stack_pos = arg->location.stack_pos;
 
 		// optimization which doesnot require EBP register
-		if ((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr)) {
+		if (!jit_current_func_info(jit)->has_prolog) {
 			stack_pos -= REG_SIZE;
 			stack_pos += jit->push_count * REG_SIZE;
 			emit_get_arg_from_stack(jit, type, size, dreg, COMMON86_SP, stack_pos);
@@ -804,7 +804,7 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 			if (!imm && (a1 != COMMON86_AX)) common86_mov_reg_reg(jit->ip, COMMON86_AX, a1, REG_SIZE);
 			if (imm) common86_mov_reg_imm(jit->ip, COMMON86_AX, a1);
 			emit_pop_callee_saved_regs(jit);
-			if (!((jit->optimizations & JIT_OPT_OMIT_FRAME_PTR) && (!jit_current_func_info(jit)->uses_frame_ptr))) {
+			if (jit_current_func_info(jit)->has_prolog) {
 				common86_mov_reg_reg(jit->ip, COMMON86_SP, COMMON86_BP, REG_SIZE);
 				common86_pop_reg(jit->ip, COMMON86_BP);
 			}

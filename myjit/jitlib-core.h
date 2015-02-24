@@ -130,7 +130,7 @@ struct jit_func_info {			// collection of information related to one function
 
 	int gp_reg_count;		// total number of GP registers used in the processed function
 	int fp_reg_count;		// total number of FP registers used in the processed function
-	int uses_frame_ptr;		// this flag indicates whether there is an operation using frame pointer
+	int has_prolog;			// flag indicating if the function has a complete prologue and epilogue
 	struct jit_op *first_op;	// first operation of the function
 };
 
@@ -308,7 +308,7 @@ static inline void funcall_put_arg(struct jit * jit, jit_op * op)
 	arg->argpos = jit->prepared_args.gp_args++;
 	jit->prepared_args.ready++;
 
-	if (jit->prepared_args.ready >= jit->reg_al->gp_arg_reg_cnt)
+	if (jit->prepared_args.ready > jit->reg_al->gp_arg_reg_cnt)
 		jit->prepared_args.stack_size += REG_SIZE;
 }
 
@@ -324,7 +324,7 @@ static inline void funcall_fput_arg(struct jit * jit, jit_op * op)
 	else arg->value.generic = op->arg[0];
 	jit->prepared_args.ready++;
 
-	if (jit->prepared_args.ready >= jit->reg_al->fp_arg_reg_cnt)
+	if (jit->prepared_args.ready > jit->reg_al->fp_arg_reg_cnt)
 		jit->prepared_args.stack_size += op->arg_size;
 }
 

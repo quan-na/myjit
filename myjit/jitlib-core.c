@@ -300,6 +300,7 @@ static inline void jit_prepare_arguments(struct jit * jit)
 	while (op) {
 		if (GET_OP(op) == JIT_PROLOG) {
 			info = (struct jit_func_info *)op->arg[1];
+			info->has_prolog = 1;
 			gp_arg_pos = 0;
 			fp_arg_pos = 0;
 			argpos = 0;
