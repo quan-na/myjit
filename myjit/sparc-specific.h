@@ -48,7 +48,7 @@ static inline int GET_REG_POS(struct jit * jit, int r)
 int jit_allocai(struct jit * jit, int size)
 {
 	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
-	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0);
+	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0, NULL);
 	jit_current_func_info(jit)->allocai_mem += real_size;	
 	return -(jit_current_func_info(jit)->allocai_mem + EXTRA_SPACE);
 }
