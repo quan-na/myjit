@@ -39,14 +39,19 @@ static inline int bufprint(char *buf, const char *format, ...) {
 	return result;
 }
 
-static void gcc_based_debugger(struct jit * jit)
+static void compiler_based_debugger(struct jit * jit)
 {
 	char obj_file_name[] = "myjitXXXXXX";
 	int obj_file_fd = mkstemp(obj_file_name);	
 
 
+#ifndef __APPLE_CC__
 	char * cmd1_fmt = "gcc -x assembler -c -o %s -";
 	char * cmd2_fmt = "objdump -d -M intel %s";
+#else
+	char * cmd1_fmt = "cc -x assembler -c -o %s -";
+	char * cmd2_fmt = "otool -tvVj %s";
+#endif
 
 	char cmd1[strlen(cmd1_fmt) + strlen(obj_file_name) + 1];
 	char cmd2[strlen(cmd2_fmt) + strlen(obj_file_name) + 1];
@@ -56,10 +61,18 @@ static void gcc_based_debugger(struct jit * jit)
 	FILE * f = popen(cmd1, "w");
 
 	int size = jit->ip - jit->buf;
+#ifndef __APPLE_CC__
 	fprintf (f, ".text\n.align 4\n.globl main\n.type main,@function\nmain:\n");
 	for (int i = 0; i < size; i++)
 		fprintf(f, ".byte %d\n", (unsigned int) jit->buf[i]);
-	fclose(f);
+#else
+// clang & OS X
+	fprintf (f, ".text\n.align 4\n.globl main\n\nmain:\n");
+	for (int i = 0; i < size; i++)
+		fprintf(f, ".byte 0x%x\n", (unsigned int) jit->buf[i]);
+#endif
+	pclose(f);
+	
 
 	sprintf(cmd2, cmd2_fmt, obj_file_name);
 	system(cmd2);
@@ -70,7 +83,7 @@ static void gcc_based_debugger(struct jit * jit)
 
 void jit_dump_code(struct jit * jit, int verbosity)
 {
-	gcc_based_debugger(jit);
+	compiler_based_debugger(jit);
 }
 
 typedef struct jit_disasm {
