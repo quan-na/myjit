@@ -164,18 +164,18 @@ static int valid_fsize(int size)
 static int check_argument_sizes(jit_op *op, char *msg_buf)
 {
 	switch (GET_OP(op)) {
-		// FIXME: argumenty
 		case JIT_LD: case JIT_LDX: case JIT_ST: case JIT_STX:
 			if (valid_size(op->arg_size)) return 0;
 			break;
 
 		case JIT_FLD: case JIT_FLDX: case JIT_FST: case JIT_FSTX:
+		case JIT_FPUTARG: case JIT_FRET: case JIT_FRETVAL:
 			if (valid_fsize(op->arg_size)) return 0;
 			break;
 
 		case JIT_DECL_ARG:
 			if (((op->arg[0] == JIT_SIGNED_NUM) || (op->arg[0] == JIT_UNSIGNED_NUM)) && valid_size(op->arg[1])) return 0;
-			if ((op->arg[0] == JIT_FLOAT_NUM) && valid_size(op->arg[1])) return 0;
+			if ((op->arg[0] == JIT_FLOAT_NUM) && valid_fsize(op->arg[1])) return 0;
 			if ((op->arg[0] == JIT_PTR) && (op->arg[1] == sizeof(void *))) return 0;
 			break;
 		default:
@@ -188,10 +188,18 @@ static int check_argument_sizes(jit_op *op, char *msg_buf)
 
 #define CHECK_ARG_TYPE(op, index, _type) (((ARG_TYPE(op, index) != REG) && (ARG_TYPE(op, index) != TREG)) || (JIT_REG(op->arg[index - 1]).type == _type))
 
-static int check_register_types(jit_op *op, char *msg_buf)
+static int check_register_types(struct jit *jit, jit_op *op, char *msg_buf)
 {
 	switch (GET_OP(op)) {
-		case JIT_GETARG: return 0; // FIXME: testovat typ
+		case JIT_GETARG: {
+			struct jit_func_info * info = jit_current_func_info(jit);
+			if (info->args[op->arg[1]].type == JIT_FLOAT_NUM) {
+				if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_FLOAT)) return 0;
+			} else {
+				if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_INT)) return 0;
+			} 
+			break;
+		}
 		case JIT_FST:
 		case JIT_TRUNC:
 		case JIT_CEIL:
@@ -266,6 +274,7 @@ void jit_check_code(struct jit *jit, int warnings)
 	jit_flw_analysis(jit);
 
 	for (jit_op *op = jit_op_first(jit->ops); op; op = op->next) {
+		if (GET_OP(op) == JIT_PROLOG) jit->current_func = op;
 		if (!op->debug_info) continue;
 		buf[0] = '\0';
 
@@ -274,7 +283,7 @@ void jit_check_code(struct jit *jit, int warnings)
 		if (warnings & JIT_WARN_OP_WITHOUT_EFFECT) op->debug_info->warnings |= check_op_without_effect(op, buf);
 		if (warnings & JIT_WARN_UNINITIALIZED_REG) op->debug_info->warnings |= check_uninitialized_registers(op, buf);
 		if (warnings & JIT_WARN_INVALID_DATA_SIZE) op->debug_info->warnings |= check_argument_sizes(op, buf);
-		if (warnings & JIT_WARN_REGISTER_TYPE_MISMATCH) op->debug_info->warnings |= check_register_types(op, buf);
+		if (warnings & JIT_WARN_REGISTER_TYPE_MISMATCH) op->debug_info->warnings |= check_register_types(jit, op, buf);
 		if (warnings & JIT_WARN_UNALIGNED_CODE) op->debug_info->warnings |= check_data_alignment(op, buf);
 		if (warnings & JIT_WARN_INVALID_DATA_REFERENCE) op->debug_info->warnings |= check_data_references(op, buf);
 		if (warnings & JIT_WARN_INVALID_CODE_REFERENCE) op->debug_info->warnings |= check_code_references(op, buf);
