@@ -79,13 +79,16 @@ t401: t401-data-in-code.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t401 t401-data-in-code.c jitlib-core.o
 
 
-
 jitlib-core.o: ../myjit/jitlib.h ../myjit/jitlib-core.h ../myjit/jitlib-core.c ../myjit/jitlib-debug.c ../myjit/x86-codegen.h ../myjit/x86-specific.h ../myjit/reg-allocator.h ../myjit/flow-analysis.h ../myjit/set.h ../myjit/amd64-specific.h ../myjit/amd64-codegen.h ../myjit/llrb.c ../myjit/reg-allocator.h ../myjit/rmap.h 
 	        $(CC) -c $(CFLAGS) ../myjit/jitlib-core.c
 
 
 clean:
 	rm -f *.o
+	rm -f *.gcda
+	rm -f *.gcno
+	rm -f coverage.info
+	rm -fr coverage
 	rm -f t001
 	rm -f t002
 	rm -f t003
@@ -108,3 +111,20 @@ clean:
 	rm -f t201
 	rm -f t301
 	rm -f t401
+
+coverage: CFLAGS+=--coverage
+coverage: clean coverage-run gen-coverage
+
+gen-coverage: 
+	lcov --capture --directory ../ --output-file coverage.info
+	genhtml coverage.info --output-directory coverage
+
+coverage-run: all
+	./run-tests.sh
+	./t401 -l
+	./t401 --all --code
+	./t401 --all --compilable
+	./t401 --all --compilable
+	./t401 --all --liveness --assoc
+	./t401 test11 test12 x
+

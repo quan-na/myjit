@@ -189,7 +189,6 @@ static inline void emit_fppush_arg(struct jit * jit, struct jit_out_arg * arg)
 		} else {
 			float b = arg->value.fp;
 			unsigned long tmp = 0;
-			// FIXME: overit, ze toto funguje spravne, nevim, jestli to nezapisuje do blbe (horni/dolni) casti registru
 			memcpy(&tmp, &b, sizeof(float));
 			
 			amd64_mov_reg_imm_size(jit->ip, AMD64_RAX, tmp, 8);

@@ -29,4 +29,9 @@ debug
 core
 test/core
 *.swp
+vgcore.*
 myjit-unique/*
+test/coverage.info
+*.gcda
+*.gcno
+test/coverage
