@@ -119,9 +119,68 @@ DEFINE_TEST(test2)
 	return 0;
 }
 
+DEFINE_TEST(test3)
+{
+	correct_result = 2;
+	plfv foo;
+
+	jit_prolog(p, &foo);
+
+	jit_prepare(p);
+	jit_fputargi(p, -1.0, sizeof(double));
+	jit_fputargi(p, 1.0, sizeof(double));
+	jit_fputargi(p, 2.0, sizeof(double));
+	jit_fputargi(p, 4.0, sizeof(double));
+	jit_fputargi(p, 8.0, sizeof(double));
+	jit_fputargi(p, 16.0, sizeof(double));
+	jit_fputargi(p, 32.0, sizeof(double));
+	jit_fputargi(p, 64.0, sizeof(double));
+	jit_fputargi(p, 128.0, sizeof(double));
+	jit_fputargi(p, 222.222, sizeof(double));
+	jit_call(p, foobar);
+
+	jit_reti(p, 0);
+
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(0, foo());
+	ASSERT_EQ(1, correct_result);
+	return 0;
+}
+
+DEFINE_TEST(test4)
+{
+	correct_result = 2;
+	plfv foo;
+
+	jit_prolog(p, &foo);
+
+	jit_prepare(p);
+	jit_fputargi(p, -1.0, sizeof(float));
+	jit_fputargi(p, 1.0, sizeof(float));
+	jit_fputargi(p, 2.0, sizeof(float));
+	jit_fputargi(p, 4.0, sizeof(float));
+	jit_fputargi(p, 8.0, sizeof(float));
+	jit_fputargi(p, 16.0, sizeof(float));
+	jit_fputargi(p, 32.0, sizeof(float));
+	jit_fputargi(p, 64.0, sizeof(float));
+	jit_fputargi(p, 128.0, sizeof(float));
+	jit_fputargi(p, 222.222, sizeof(float));
+	jit_fputargi(p, 256.0, sizeof(float));
+	jit_call(p, barbaz);
+
+	jit_reti(p, 0);
+
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(0, foo());
+	ASSERT_EQ(1, correct_result);
+	return 0;
+}
+
 void test_setup()
 {
 	test_filename = __FILE__;
 	SETUP_TEST(test1);
 	SETUP_TEST(test2);
+	SETUP_TEST(test3);
+	SETUP_TEST(test4);
 }

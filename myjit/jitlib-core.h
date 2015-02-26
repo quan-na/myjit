@@ -324,8 +324,13 @@ static inline void funcall_fput_arg(struct jit * jit, jit_op * op)
 	else arg->value.generic = op->arg[0];
 	jit->prepared_args.ready++;
 
-	if (jit->prepared_args.ready > jit->reg_al->fp_arg_reg_cnt)
+	if (jit->prepared_args.ready > jit->reg_al->fp_arg_reg_cnt) {
+#ifdef JIT_ARCH_AMD64
+		jit->prepared_args.stack_size += REG_SIZE;
+#else
 		jit->prepared_args.stack_size += op->arg_size;
+#endif
+	}
 }
 
 /**
