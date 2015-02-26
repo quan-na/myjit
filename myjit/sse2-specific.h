@@ -101,7 +101,7 @@
  */
 static void sse_mov_reg_safeimm(struct jit * jit, jit_op * op, jit_value reg, double * imm)
 {
-	if (((jit_value)imm) > 0xffffffffUL) {
+	if (((jit_unsigned_value)imm) > 0xffffffffUL) {
 		jit_hw_reg * r = jit_get_unused_reg(jit->reg_al, op, 0);
 		if (r) {
 			amd64_mov_reg_imm(jit->ip, r->id, (jit_value)imm);
@@ -125,7 +125,7 @@ static void sse_mov_reg_safeimm(struct jit * jit, jit_op * op, jit_value reg, do
  */
 static void sse_alu_pd_reg_safeimm(struct jit * jit, jit_op * op, int op_id, int reg, double * imm)
 {
-	if (((jit_value)imm) > 0xffffffffUL) {
+	if (((jit_unsigned_value)imm) > 0xffffffffUL) {
 		jit_hw_reg * r = jit_get_unused_reg(jit->reg_al, op, 0);
 		if (r) {
 			amd64_mov_reg_imm(jit->ip, r->id, (long)imm);
@@ -149,7 +149,7 @@ static void sse_alu_pd_reg_safeimm(struct jit * jit, jit_op * op, int op_id, int
  */
 static void sse_alu_sd_reg_safeimm(struct jit * jit, jit_op * op, int op_id, int reg, double * imm)
 {
-	if (((jit_value)imm) > 0xffffffffUL) {
+	if (((jit_unsigned_value)imm) > 0xffffffffUL) {
 		jit_hw_reg * r = jit_get_unused_reg(jit->reg_al, op, 0);
 		if (r) {
 			amd64_mov_reg_imm(jit->ip, r->id, (long)imm);

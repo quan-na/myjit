@@ -186,6 +186,10 @@ typedef union {
 		x86_membase_emit ((inst),(reg)&0x7, (basereg)&0x7, (disp)); \
 } while (0)
 
+
+#define amd64_mem_emit(inst, disp) do { *(inst)++ = 0x04; *(inst)++ = 0x25; x86_imm_emit32((inst), (disp)); } while (0)
+
+
 #define amd64_alu_reg_imm_size(inst,opc,reg,imm,size) 	\
 	do {	\
 		if (x86_is_imm8((imm))) {	\
@@ -1353,7 +1357,25 @@ do {     \
 #define amd64_mov_reg_memindex_size(inst,reg,basereg,disp,indexreg,shift,size) do { amd64_emit_rex ((inst),(size),(reg),(indexreg),(basereg)); x86_mov_reg_memindex((inst),((reg)&0x7),((basereg)&0x7),(disp),((indexreg)&0x7),(shift),(size) == 8 ? 4 : (size)); } while (0)
 #define amd64_clear_reg_size(inst,reg,size) do { amd64_emit_rex ((inst),(size),0,0,(reg)); x86_clear_reg((inst),((reg)&0x7)); } while (0)
 //#define amd64_mov_reg_imm_size(inst,reg,imm,size) do { amd64_emit_rex ((inst),(size),0,0,(reg)); x86_mov_reg_imm((inst),((reg)&0x7),(imm)); } while (0)
-#define amd64_mov_mem_imm_size(inst,mem,imm,size) do { amd64_emit_rex ((inst),(size),0,0,0); x86_mov_mem_imm((inst),(mem),(imm),(size) == 8 ? 4 : (size)); } while (0)
+//#define amd64_mov_mem_imm_size(inst,mem,imm,size) do { amd64_emit_rex ((inst),(size),0,0,0); x86_mov_mem_imm((inst),(mem),(imm),(size) == 8 ? 4 : (size)); } while (0)
+  #define amd64_mov_mem_imm_size(inst,mem,imm,size) do { amd64_emit_rex ((inst),(size),0,0,0); \
+                if ((size) == 1) {      \
+                        *(inst)++ = (unsigned char)0xc6;        \
+                        amd64_mem_emit ((inst), (mem));        \
+                        x86_imm_emit8 ((inst), (imm));  \
+                } else if ((size) == 2) {       \
+                        *(inst)++ = (unsigned char)0x66;        \
+                        *(inst)++ = (unsigned char)0xc7;        \
+                        amd64_mem_emit ((inst), (mem));        \
+                        x86_imm_emit16 ((inst), (imm)); \
+                } else {        \
+                        *(inst)++ = (unsigned char)0xc7;        \
+                        amd64_mem_emit ((inst), (mem));        \
+                        x86_imm_emit32 ((inst), (imm)); \
+                }       \
+        } while (0)
+
+
 //#define amd64_mov_membase_imm_size(inst,basereg,disp,imm,size) do { amd64_emit_rex ((inst),(size),0,0,(basereg)); x86_mov_membase_imm((inst),((basereg)&0x7),(disp),(imm),(size) == 8 ? 4 : (size)); } while (0)
 #define amd64_mov_memindex_imm_size(inst,basereg,disp,indexreg,shift,imm,size) do { amd64_emit_rex ((inst),(size),0,(indexreg),(basereg)); x86_mov_memindex_imm((inst),((basereg)&0x7),(disp),((indexreg)&0x7),(shift),(imm),(size) == 8 ? 4 : (size)); } while (0)
 #define amd64_lea_mem_size(inst,reg,mem,size) do { amd64_emit_rex ((inst),(size),0,0,(reg)); x86_lea_mem((inst),((reg)&0x7),(mem)); } while (0)
