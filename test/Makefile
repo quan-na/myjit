@@ -4,9 +4,9 @@ gp: t001 t002 t003 t004 t005 t006 t007 t008 t009 t010
 	
 fp: t101 t102 t103 t104 t105 t107 t108 t109
 
-optim: t301
+optim: t301 t302
 
-misc: t200 t201 t301 t401
+misc: t200 t201 t202 t301 t401
 
 
 CFLAGS = -g -std=c99 -Wall -pedantic -D_XOPEN_SOURCE=600
@@ -72,8 +72,17 @@ t200: t200-callr.c jitlib-core.o tests.h
 t201: t201-functions.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t201 t201-functions.c jitlib-core.o
 
+
+t202: t202-highmem.c jitlib-core.o tests.h
+	$(CC) -c $(CFLAGS) -DJIT_MALLOC=xxx_alloc -DJIT_FREE=xxx_free ../myjit/jitlib-core.c -o jitlib-core-highmem.o
+	$(CC) $(CFLAGS) -DJIT_MALLOC=xxx_alloc -DJIT_FREE=xxx_free -o t202 t202-highmem.c jitlib-core-highmem.o
+
 t301: t301-optim-adds.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t301 t301-optim-adds.c jitlib-core.o
+
+
+t302: t302-optim-stores.c jitlib-core.o tests.h
+	$(CC) $(CFLAGS) -o t302 t302-optim-stores.c jitlib-core.o
 
 t401: t401-data-in-code.c jitlib-core.o tests.h
 	$(CC) $(CFLAGS) -o t401 t401-data-in-code.c jitlib-core.o
@@ -109,7 +118,9 @@ clean:
 	rm -f t109
 	rm -f t200
 	rm -f t201
+	rm -f t202
 	rm -f t301
+	rm -f t302
 	rm -f t401
 
 coverage: CFLAGS+=--coverage

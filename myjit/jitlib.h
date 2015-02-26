@@ -31,16 +31,20 @@
  */
 
 #ifndef JIT_MALLOC
-#define JIT_MALLOC(x)	(malloc(x))
+#define JIT_MALLOC	malloc
 #endif
 
 #ifndef JIT_REALLOC
-#define JIT_REALLOC(x, size)	(realloc((x), (size)))
+#define JIT_REALLOC	realloc
 #endif
 
 #ifndef JIT_FREE
-#define JIT_FREE(x)	(free(x))
+#define JIT_FREE	free
 #endif
+
+void *JIT_MALLOC(size_t size);
+void JIT_FREE(void *ptr);
+void *JIT_REALLOC(void *ptr, size_t size);
 
 /*
  * Data structures

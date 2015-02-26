@@ -45,6 +45,34 @@ DEFINE_TEST(test21)
 	return 0;
 }
 
+DEFINE_TEST(test22)
+{
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(0), 7);
+	jit_muli(p, R(1), R(0), 4);
+	jit_ori(p, R(1), R(1), 2);
+	jit_retr(p, R(1));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(7 * 4 + 2, f1());
+	return 0;
+}
+
+DEFINE_TEST(test23)
+{
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(0), 7);
+	jit_lshi(p, R(1), R(0), 2);
+	jit_ori(p, R(1), R(1), 2);
+	jit_retr(p, R(1));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(7 * 4 + 2, f1());
+	return 0;
+}
+
 DEFINE_TEST(test30)
 {
 	plfv f1;
@@ -127,6 +155,8 @@ void test_setup()
 	SETUP_TEST(test10);
 	SETUP_TEST(test20);
 	SETUP_TEST(test21);
+	SETUP_TEST(test22);
+	SETUP_TEST(test23);
 	SETUP_TEST(test30);
 	SETUP_TEST(test31);
 	SETUP_TEST(test33);
