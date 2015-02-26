@@ -1,4 +1,6 @@
+#include <limits.h>
 #include "tests.h"
+#pragma GCC diagnostic ignored "-Woverflow"
 
 #define CREATE_TEST_SUITE_REG(testname, _data_type, _jit_op, _operator) \
         CREATE_TEST_CASE_REG(testname ## 0, _data_type, _jit_op, _operator, 0, 0, 0) \
@@ -94,6 +96,117 @@ DEFINE_TEST(testname)\
 	return 0; \
 }
 
+#define CREATE_TEST_MASK_REG(testname, _jit_op, value, mask, expected_result) \
+DEFINE_TEST(testname) \
+{ \
+	plfv f1;\
+	jit_prolog(p, &f1);\
+\
+	jit_movi(p, R(1), value);\
+	jit_movi(p, R(2), mask);\
+\
+	jit_op * br; \
+	br = _jit_op(p, 0, R(1), R(2));\
+	jit_movi(p, R(3), -10); \
+	jit_op * e = jit_jmpi(p, 0); \
+	\
+	jit_patch(p, br); \
+	jit_movi(p, R(3), 10); \
+	jit_patch(p, e); \
+	jit_retr(p, R(3)); \
+\
+	JIT_GENERATE_CODE(p);\
+\
+        if (expected_result) ASSERT_EQ(10, f1()); \
+        if (!expected_result) ASSERT_EQ(-10, f1()); \
+	return 0; \
+}
+
+#define CREATE_TEST_MASK_IMM(testname, _jit_op, value, mask, expected_result) \
+DEFINE_TEST(testname) \
+{ \
+	plfv f1;\
+	jit_prolog(p, &f1);\
+\
+	jit_movi(p, R(1), value);\
+\
+	jit_op * br; \
+	br = _jit_op(p, 0, R(1), mask);\
+	jit_movi(p, R(3), -10); \
+	jit_op * e = jit_jmpi(p, 0); \
+	\
+	jit_patch(p, br); \
+	jit_movi(p, R(3), 10); \
+	jit_patch(p, e); \
+	jit_retr(p, R(3)); \
+\
+	JIT_GENERATE_CODE(p);\
+\
+        if (expected_result) ASSERT_EQ(10, f1()); \
+        if (!expected_result) ASSERT_EQ(-10, f1()); \
+	return 0; \
+}
+
+
+
+#define CREATE_TEST_OVERFLOW_REG(testname, _jit_op, _c_op, value1, value2, expected_overflow) \
+DEFINE_TEST(testname) \
+{ \
+	plfv f1;\
+	char overflow_flag = -1;\
+	jit_prolog(p, &f1);\
+\
+	jit_movi(p, R(1), value1);\
+	jit_movi(p, R(2), value2);\
+\
+	jit_op * br; \
+	br = _jit_op(p, 0, R(1), R(2));\
+	jit_movi(p, R(3), 0); \
+	jit_op * e = jit_jmpi(p, 0); \
+	\
+	jit_patch(p, br); \
+	jit_movi(p, R(3), 1); \
+	jit_patch(p, e); \
+	jit_sti(p, &overflow_flag, R(3), 1); \
+	jit_retr(p, R(1)); \
+\
+	JIT_GENERATE_CODE(p);\
+\
+	ASSERT_EQ(((value1) _c_op (value2)), f1()); \
+        if (expected_overflow) ASSERT_EQ(1, overflow_flag); \
+        if (!expected_overflow) ASSERT_EQ(0, overflow_flag); \
+	return 0; \
+}
+
+#define CREATE_TEST_OVERFLOW_IMM(testname, _jit_op, _c_op, value1, value2, expected_overflow) \
+DEFINE_TEST(testname) \
+{ \
+	plfv f1;\
+	char overflow_flag = -1;\
+	jit_prolog(p, &f1);\
+\
+	jit_movi(p, R(1), value1);\
+\
+	jit_op * br; \
+	br = _jit_op(p, 0, R(1), value2);\
+	jit_movi(p, R(3), 0); \
+	jit_op * e = jit_jmpi(p, 0); \
+	\
+	jit_patch(p, br); \
+	jit_movi(p, R(3), 1); \
+	jit_patch(p, e); \
+	jit_sti(p, &overflow_flag, R(3), 1); \
+	jit_retr(p, R(1)); \
+\
+	JIT_GENERATE_CODE(p);\
+\
+	ASSERT_EQ(((value1) _c_op (value2)), f1()); \
+        if (expected_overflow) ASSERT_EQ(1, overflow_flag); \
+        if (!expected_overflow) ASSERT_EQ(0, overflow_flag); \
+	return 0; \
+}
+
+
 CREATE_TEST_SUITE_REG(test01reg, jit_value, jit_bltr, <)
 CREATE_TEST_SUITE_REG(test02reg, jit_value, jit_bler, <=)
 CREATE_TEST_SUITE_REG(test03reg, jit_value, jit_bger, >=)
@@ -121,6 +234,36 @@ CREATE_TEST_SUITE_IMM(test33imm, jit_unsigned_value, jit_bgei_u, >=)
 CREATE_TEST_SUITE_IMM(test34imm, jit_unsigned_value, jit_bgti_u, >)
 CREATE_TEST_SUITE_IMM(test35imm, jit_unsigned_value, jit_beqi, ==)
 CREATE_TEST_SUITE_IMM(test36imm, jit_unsigned_value, jit_bnei, !=)
+
+CREATE_TEST_MASK_REG(testmask40reg, jit_bmsr, 0x7f, 0x04, 1)
+CREATE_TEST_MASK_REG(testmask41reg, jit_bmsr, 0x7f, 0x80, 0)
+CREATE_TEST_MASK_REG(testmask42reg, jit_bmcr, 0x7f, 0x04, 0)
+CREATE_TEST_MASK_REG(testmask43reg, jit_bmcr, 0x7f, 0x80, 1)
+
+CREATE_TEST_MASK_IMM(testmask44imm, jit_bmsi, 0x7f, 0x04, 1)
+CREATE_TEST_MASK_IMM(testmask45imm, jit_bmsi, 0x7f, 0x80, 0)
+CREATE_TEST_MASK_IMM(testmask46imm, jit_bmci, 0x7f, 0x04, 0)
+CREATE_TEST_MASK_IMM(testmask47imm, jit_bmci, 0x7f, 0x80, 1)
+
+CREATE_TEST_OVERFLOW_REG(testaddoverflow50reg, jit_boaddr, +, 10, 20, 0)
+CREATE_TEST_OVERFLOW_REG(testaddoverflow51reg, jit_boaddr, +, LONG_MAX, 20, 1)
+CREATE_TEST_OVERFLOW_REG(testsuboverflow52reg, jit_bosubr, -, 10, 20, 0)
+CREATE_TEST_OVERFLOW_REG(testsuboverflow53reg, jit_bosubr, -, -20, LONG_MAX, 1)
+CREATE_TEST_OVERFLOW_REG(testaddoverflow54reg, jit_bnoaddr, +, 10, 20, 1)
+CREATE_TEST_OVERFLOW_REG(testaddoverflow55reg, jit_bnoaddr, +, LONG_MAX, 20, 0)
+CREATE_TEST_OVERFLOW_REG(testsuboverflow56reg, jit_bnosubr, -, 10, 20, 1)
+CREATE_TEST_OVERFLOW_REG(testsuboverflow57reg, jit_bnosubr, -, -20, LONG_MAX, 0)
+
+CREATE_TEST_OVERFLOW_IMM(testaddoverflow50imm, jit_boaddi, +, 10, 20, 0)
+CREATE_TEST_OVERFLOW_IMM(testaddoverflow51imm, jit_boaddi, +, LONG_MAX, 20, 1)
+CREATE_TEST_OVERFLOW_IMM(testsuboverflow52imm, jit_bosubi, -, 10, 20, 0)
+CREATE_TEST_OVERFLOW_IMM(testsuboverflow53imm, jit_bosubi, -, -20, LONG_MAX, 1)
+CREATE_TEST_OVERFLOW_IMM(testaddoverflow54imm, jit_bnoaddi, +, 10, 20, 1)
+CREATE_TEST_OVERFLOW_IMM(testaddoverflow55imm, jit_bnoaddi, +, LONG_MAX, 20, 0)
+CREATE_TEST_OVERFLOW_IMM(testsuboverflow56imm, jit_bnosubi, -, 10, 20, 1)
+CREATE_TEST_OVERFLOW_IMM(testsuboverflow57imm, jit_bnosubi, -, -20, LONG_MAX, 0)
+
+
 
 void test_setup()
 {
@@ -152,4 +295,32 @@ void test_setup()
 	SETUP_TESTS(test34imm);
 	SETUP_TESTS(test35imm);
 	SETUP_TESTS(test36imm);
+
+	SETUP_TEST(testmask40reg);
+	SETUP_TEST(testmask41reg);
+	SETUP_TEST(testmask42reg);
+	SETUP_TEST(testmask43reg);
+
+	SETUP_TEST(testmask44imm);
+	SETUP_TEST(testmask45imm);
+	SETUP_TEST(testmask46imm);
+	SETUP_TEST(testmask47imm);
+
+	SETUP_TEST(testaddoverflow50reg);
+	SETUP_TEST(testaddoverflow51reg);
+	SETUP_TEST(testsuboverflow52reg);
+	SETUP_TEST(testsuboverflow53reg);
+	SETUP_TEST(testaddoverflow54reg);
+	SETUP_TEST(testaddoverflow55reg);
+	SETUP_TEST(testsuboverflow56reg);
+	SETUP_TEST(testsuboverflow57reg);
+
+	SETUP_TEST(testaddoverflow50imm);
+	SETUP_TEST(testaddoverflow51imm);
+	SETUP_TEST(testsuboverflow52imm);
+	SETUP_TEST(testsuboverflow53imm);
+	SETUP_TEST(testaddoverflow54imm);
+	SETUP_TEST(testaddoverflow55imm);
+	SETUP_TEST(testsuboverflow56imm);
+	SETUP_TEST(testsuboverflow57imm);
 }
