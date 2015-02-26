@@ -7,6 +7,7 @@ DEFINE_TEST(_name) \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), _arg1); \
+	jit_addci(p, R(0), R(0), 0); /* sets carry flag to 0 */ \
 	_op(p, R(0), R(0), _arg2); \
 	jit_retr(p, R(0)); \
 	JIT_GENERATE_CODE(p); \
@@ -21,6 +22,7 @@ DEFINE_TEST(_name) \
 	plfv f1; \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), _arg1); \
+	jit_addci(p, R(0), R(0), 0); /* sets carry flag to 0 */ \
 	_op(p, R(1), R(0), _arg2); \
 	jit_retr(p, R(1)); \
 	JIT_GENERATE_CODE(p); \
@@ -36,6 +38,7 @@ DEFINE_TEST(_name) \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), _arg1); \
 	jit_movi(p, R(1), _arg2); \
+	jit_addci(p, R(0), R(0), 0); /* sets carry flag to 0 */ \
 	_op(p, R(1), R(0), R(1)); \
 	jit_retr(p, R(1)); \
 	JIT_GENERATE_CODE(p); \
@@ -51,6 +54,7 @@ DEFINE_TEST(_name) \
 	jit_prolog(p, &f1); \
 	jit_movi(p, R(0), _arg1); \
 	jit_movi(p, R(1), _arg2); \
+	jit_addci(p, R(0), R(0), 0); /* sets carry flag to 0 */ \
 	_op(p, R(2), R(0), R(1)); \
 	jit_retr(p, R(2)); \
 	JIT_GENERATE_CODE(p); \

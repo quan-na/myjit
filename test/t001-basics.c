@@ -71,6 +71,38 @@ DEFINE_TEST(test5)
 	return 0;
 }
 
+DEFINE_TEST(test6)
+{
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(0), -100);
+	jit_movi(p, R(1), ULONG_MAX);
+	jit_movi(p, R(2), 10);
+	jit_subcr(p, R(1), R(0), R(1));
+	
+	jit_subxr(p, R(2), R(2), R(0));
+	jit_retr(p, R(2));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(109, f1());
+	return 0;
+}
+
+DEFINE_TEST(test7)
+{
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(0), 25);
+	jit_movi(p, R(1), 30);
+	jit_rsbr(p, R(1), R(1), R(0));
+	
+	jit_retr(p, R(1));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(-5, f1());
+	return 0;
+}
+
 void test_setup()
 {
 	test_filename = __FILE__;
@@ -79,4 +111,6 @@ void test_setup()
 	SETUP_TEST(test3);
 	SETUP_TEST(test4);
 	SETUP_TEST(test5);
+	SETUP_TEST(test6);
+	SETUP_TEST(test7);
 }

@@ -340,10 +340,9 @@ static void emit_subx_op(struct jit * jit, struct jit_op * op, int x86_op, int i
 	if (op->r_arg[0] == op->r_arg[1]) {
 		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
 	} else if (op->r_arg[0] == op->r_arg[2]) {
-		common86_push_reg(jit->ip, op->r_arg[2]);
+		common86_mov_membase_reg(jit->ip, COMMON86_SP, -REG_SIZE, op->r_arg[2], REG_SIZE);
 		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
-		common86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], COMMON86_SP, 0);
-		common86_alu_reg_imm(jit->ip, X86_ADD, COMMON86_SP, REG_SIZE);
+		common86_alu_reg_membase(jit->ip, x86_op, op->r_arg[0], COMMON86_SP, -REG_SIZE);
 	} else {
 		common86_mov_reg_reg(jit->ip, op->r_arg[0], op->r_arg[1], REG_SIZE); 
 		common86_alu_reg_reg(jit->ip, x86_op, op->r_arg[0], op->r_arg[2]);
