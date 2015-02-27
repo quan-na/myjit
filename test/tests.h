@@ -8,6 +8,7 @@ typedef jit_value (*plfv)(void);
 typedef jit_value (*plfl)(jit_value);
 typedef jit_value (*plfll)(jit_value, jit_value);
 typedef double (*pdfv)(void);
+typedef float (*pffv)(void);
 typedef double (*pdfd)(double);
 typedef jit_value (*plfd)(double);
 typedef void * (*ppfl)(jit_value);

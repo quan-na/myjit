@@ -19,7 +19,7 @@ DEFINE_TEST(test10)
 
 DEFINE_TEST(test11)
 {
-	static unsigned char data;
+	static unsigned int data;
 	plfv f1;
 	jit_prolog(p, &f1);
 	jit_movi(p, R(2), 10);

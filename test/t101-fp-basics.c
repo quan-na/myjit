@@ -184,7 +184,7 @@ DEFINE_TEST(test20)
 DEFINE_TEST(test21)
 {
 	float x[] = { 1.0, 2.0, 3.0, 4.0, 5.0 };
-	pdfv f1;
+	pffv f1;
 	jit_prolog(p, &f1);
 
 	jit_fmovi(p, FR(0), 1.1);
