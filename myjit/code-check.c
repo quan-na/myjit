@@ -108,9 +108,10 @@ static int check_missing_patches(jit_op *op, char *msg_buf)
 
 static int check_op_without_effect(jit_op *op, char *msg_buf)
 {
-	// we have to skip these operations since, these are setting carry flag
-	if ((GET_OP(op) == JIT_ADDC) || (GET_OP(op) == JIT_ADDX)
-	|| (GET_OP(op) == JIT_SUBC) || (GET_OP(op) == JIT_SUBX)) return 0;
+	// we have to skip these operations since, these are working with the flag register
+	jit_opcode code = GET_OP(op);
+	if ((code == JIT_ADDC) || (code == JIT_ADDX) || (code == JIT_SUBC) || (code == JIT_SUBX)
+	|| (code == JIT_BOADD) || (code = JIT_BOSUB) || (code = JIT_BNOADD) || (code == JIT_BNOSUB)) return 0;
 
 	if ((ARG_TYPE(op, 1) == TREG) && (!jit_set_get(op->live_out, op->arg[0]))) {
 		append_msg(msg_buf, "operation without effect");

@@ -114,27 +114,27 @@ static inline void emit_branch_mask_op(struct jit * jit, struct jit_op * op, int
 	sparc_nop(jit->ip);
 }
 
-static inline void emit_overflow_mask_op(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
+static inline void emit_op_and_overflow_branch(struct jit * jit, struct jit_op * op, int alu_op, int imm, int negation)
 {
 	long a1 = op->r_arg[0];
 	long a2 = op->r_arg[1];
 	long a3 = op->r_arg[2];
 	if (imm) {
 		switch (alu_op) {
-			case JIT_ADD: sparc_add_imm(jit->ip, sparc_cc, a2, a3, a1); break;
-			case JIT_SUB: sparc_sub_imm(jit->ip, sparc_cc, a2, a3, a1); break;
+			case JIT_ADD: sparc_add_imm(jit->ip, sparc_cc, a2, a3, a2); break;
+			case JIT_SUB: sparc_sub_imm(jit->ip, sparc_cc, a2, a3, a2); break;
 			default: assert(0);
 		}
 	} else {
 		switch (alu_op) {
-			case JIT_ADD: sparc_add(jit->ip, sparc_cc, a2, a3, a1); break;
-			case JIT_SUB: sparc_sub(jit->ip, sparc_cc, a2, a3, a1); break;
+			case JIT_ADD: sparc_add(jit->ip, sparc_cc, a2, a3, a2); break;
+			case JIT_SUB: sparc_sub(jit->ip, sparc_cc, a2, a3, a2); break;
 			default: assert(0);
 		}
 	}
 	op->patch_addr = JIT_BUFFER_OFFSET(jit);
-	if (!negation) sparc_branch (jit->ip, FALSE, sparc_boverflow, JIT_GET_ADDR(jit, op->r_arg[0]));
-	else sparc_branch (jit->ip, FALSE, sparc_bnoverflow, JIT_GET_ADDR(jit, op->r_arg[0]));
+	if (!negation) sparc_branch (jit->ip, FALSE, sparc_boverflow, JIT_GET_ADDR(jit, a1));
+	else sparc_branch (jit->ip, FALSE, sparc_bnoverflow, JIT_GET_ADDR(jit, a1));
 	sparc_nop(jit->ip);
 }
 
@@ -648,10 +648,10 @@ void jit_gen_op(struct jit * jit, struct jit_op * op)
 		case JIT_BNE: emit_branch_op(jit, op, sparc_bne, IS_IMM(op)); break;
 		case JIT_BMS: emit_branch_mask_op(jit, op, sparc_bne, IS_IMM(op)); break;
 		case JIT_BMC: emit_branch_mask_op(jit, op, sparc_be, IS_IMM(op)); break;
-		case JIT_BOADD: emit_overflow_mask_op(jit, op, JIT_ADD, IS_IMM(op), 0); break;
-		case JIT_BOSUB: emit_overflow_mask_op(jit, op, JIT_SUB, IS_IMM(op), 0); break;
-		case JIT_BNOADD: emit_overflow_mask_op(jit, op, JIT_ADD, IS_IMM(op), 1); break;
-		case JIT_BNOSUB: emit_overflow_mask_op(jit, op, JIT_SUB, IS_IMM(op), 1); break;
+		case JIT_BOADD: emit_op_and_overflow_branch(jit, op, JIT_ADD, IS_IMM(op), 0); break;
+		case JIT_BOSUB: emit_op_and_overflow_branch(jit, op, JIT_SUB, IS_IMM(op), 0); break;
+		case JIT_BNOADD: emit_op_and_overflow_branch(jit, op, JIT_ADD, IS_IMM(op), 1); break;
+		case JIT_BNOSUB: emit_op_and_overflow_branch(jit, op, JIT_SUB, IS_IMM(op), 1); break;
 
 		case JIT_CALL: emit_funcall(jit, op, IS_IMM(op)); break;
 
