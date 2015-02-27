@@ -80,7 +80,7 @@
 
 #define sse_movss_membase_reg(ip, basereg, disp, reg)		amd64_movss_membase_reg(ip, basereg, disp, reg)
 #define sse_movss_mem_reg(ip, mem, reg)				amd64_movss_mem_reg(ip, mem, reg)
-#define sse_movss_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  x86_movss_memindex_xreg(ip, reg, basereg, disp, indexreg, shift)
+#define sse_movss_memindex_xreg(ip, basereg, disp, indexreg, shift, reg)  amd64_sse_movss_memindex_xreg(ip, basereg,disp, indexreg,shift, reg)
 
 #define sse_comisd_reg_reg(ip, r1, r2)                  amd64_sse_comisd_reg_reg(ip, r1, r2)
 #define sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)     amd64_sse_alu_pd_reg_reg_imm(ip, op, r1, r2, imm)

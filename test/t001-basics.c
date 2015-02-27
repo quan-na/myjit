@@ -103,6 +103,95 @@ DEFINE_TEST(test7)
 	return 0;
 }
 
+DEFINE_TEST(test10)
+{
+	static short y = -2;
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_ldi(p, R(0), &y, sizeof(short));
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(-2, f1());
+	return 0;
+}
+
+DEFINE_TEST(test11)
+{
+	static short y = -2;
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_ldi_u(p, R(0), &y, sizeof(short));
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(65534, f1());
+	return 0;
+}
+
+DEFINE_TEST(test12)
+{
+	static short y = -2;
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(1), &y);
+	jit_ldr(p, R(0), R(1), sizeof(short));
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(-2, f1());
+	return 0;
+}
+
+DEFINE_TEST(test13)
+{
+	static short y = -2;
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(1), &y);
+	jit_ldr_u(p, R(0), R(1), sizeof(short));
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(65534, f1());
+	return 0;
+}
+
+
+DEFINE_TEST(test14)
+{
+	static short y[] = { -2, -3, -5 };
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(1), &y);
+	jit_ldxi(p, R(0), R(1), sizeof(short) * 1, sizeof(short));
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(-3, f1());
+	return 0;
+}
+
+DEFINE_TEST(test15)
+{
+	static short y[] = { -2, -3, -4 };
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(1), &y);
+	jit_ldxi_u(p, R(0), R(1), sizeof(short) * 2, sizeof(short));
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(65532, f1());
+	return 0;
+}
+
 void test_setup()
 {
 	test_filename = __FILE__;
@@ -113,4 +202,12 @@ void test_setup()
 	SETUP_TEST(test5);
 	SETUP_TEST(test6);
 	SETUP_TEST(test7);
+
+	SETUP_TEST(test10);
+	SETUP_TEST(test11);
+	SETUP_TEST(test12);
+	SETUP_TEST(test13);
+	SETUP_TEST(test14);
+	SETUP_TEST(test15);
+
 }
