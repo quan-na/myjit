@@ -29,7 +29,7 @@ DEFINE_TEST(test1)
 	jit_msg(p, "Check X.\n");
 	jit_retr(p, R(1));
 
-	jit_generate_code(p);
+	JIT_GENERATE_CODE(p);
 
 	jit_value r =  factorial(6);
 

@@ -286,7 +286,11 @@ typedef enum {
 	JIT_X86_STI     = (0x0100 << 3),
 	JIT_X86_STXI    = (0x0101 << 3),
 	JIT_X86_ADDMUL  = (0x0102 << 3),
-	JIT_X86_ADDIMM  = (0x0103 << 3)
+	JIT_X86_ADDIMM  = (0x0103 << 3),
+
+	// opcodes for testing and debugging purposes only
+	JIT_FORCE_SPILL	= (0x0200 << 3),
+	JIT_FORCE_ASSOC = (0x0201 << 3)
 } jit_opcode;
 
 enum jit_inp_type {
@@ -620,4 +624,10 @@ do {\
 	for (int i = 0; i < count; i++, _data++)\
 		jit_data_byte(jit, *(_data));\
 } while (0)
+
+/*
+ * testing and debugging
+ */
+#define jit_force_spill(jit, a) jit_add_fop(jit, JIT_FORCE_SPILL, SPEC(REG, NO, NO), a, 0, 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_force_assoc(jit, a, b, c) jit_add_fop(jit, JIT_FORCE_ASSOC, SPEC(REG, IMM, NO), a, b, c, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 #endif

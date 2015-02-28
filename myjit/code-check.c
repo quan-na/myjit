@@ -218,6 +218,9 @@ static int check_register_types(struct jit *jit, jit_op *op, char *msg_buf)
 		case JIT_FSTX:
 			if (CHECK_ARG_TYPE(op, 1, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_FLOAT)) return 0;
 			break;
+		case JIT_FORCE_SPILL:
+		case JIT_FORCE_ASSOC:
+			return 0;
 		default: 
 			if (!op->fp && CHECK_ARG_TYPE(op, 1, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_INT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_INT)) return 0;
 			if (op->fp && CHECK_ARG_TYPE(op, 1, JIT_RTYPE_FLOAT) && CHECK_ARG_TYPE(op, 2, JIT_RTYPE_FLOAT) && CHECK_ARG_TYPE(op, 3, JIT_RTYPE_FLOAT)) return 0;

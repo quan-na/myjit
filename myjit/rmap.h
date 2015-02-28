@@ -76,7 +76,7 @@ static void rmap_assoc(jit_rmap * rmap, jit_value reg, jit_hw_reg * hreg)
 	rmap->map = jit_tree_insert(rmap->map, reg, hreg, NULL);
 }
 
-static void rmap_unassoc(jit_rmap * rmap, jit_value reg, int fp)
+static void rmap_unassoc(jit_rmap * rmap, jit_value reg)
 {
 	rmap->map = jit_tree_delete(rmap->map, reg, NULL);
 }

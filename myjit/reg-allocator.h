@@ -66,7 +66,7 @@ static jit_hw_reg * make_free_reg(struct jit_reg_allocator * al, jit_op * op, ji
 	if (spill) {
 		if (jit_set_get(op->live_in, spill_candidate))
 			unload_reg(op, hreg, spill_candidate);
-		rmap_unassoc(op->regmap, spill_candidate, JIT_REG(for_reg).type == JIT_RTYPE_FLOAT);
+		rmap_unassoc(op->regmap, spill_candidate);
 	}
 	return hreg;
 }
@@ -156,7 +156,7 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 		if (freereg && !spill) {
 			rename_reg(op, freereg->id, al->ret_reg->id);
 
-			rmap_unassoc(op->regmap, r, 0);
+			rmap_unassoc(op->regmap, r);
 			rmap_assoc(op->regmap, r, freereg);
 		} else {
 			sync_reg(op, hreg, r);
@@ -178,7 +178,7 @@ skip:
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q]->id, 0, &reg);
 		if (hreg) {
 			unload_reg(op, hreg, reg);
-			rmap_unassoc(op->regmap, reg, 0);
+			rmap_unassoc(op->regmap, reg);
 		}
 	}
 	args = MIN(op->arg[1], al->fp_arg_reg_cnt);
@@ -186,7 +186,7 @@ skip:
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q]->id, 1, &reg);
 		if (hreg) {
 			if (hreg->id != al->fpret_reg->id) unload_reg(op, hreg, reg);
-			rmap_unassoc(op->regmap, reg, 1);
+			rmap_unassoc(op->regmap, reg);
 		}
 	}
 }
@@ -217,7 +217,7 @@ static int assign_getarg(jit_op * op, struct jit_reg_allocator * al)
 		   ) {
 			jit_hw_reg * hreg = rmap_get(op->regmap, reg_id);
 			if (hreg) {
-				rmap_unassoc(op->regmap, reg_id, arg->type == JIT_FLOAT_NUM);
+				rmap_unassoc(op->regmap, reg_id);
 				rmap_assoc(op->regmap, op->arg[0], hreg);
 				op->r_arg[0] = hreg->id;
 				op->r_arg[1] = op->arg[1];
@@ -235,7 +235,7 @@ static void spill_ret_retreg(jit_op * op, jit_hw_reg * ret_reg)
 	jit_value r;
 	if (ret_reg) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, ret_reg->id, ret_reg->fp, &r);
-		if (hreg) rmap_unassoc(op->regmap, r, hreg->fp);
+		if (hreg) rmap_unassoc(op->regmap, r);
 	}
 }
 
@@ -269,7 +269,7 @@ static int assign_call(jit_op * op, struct jit_reg_allocator * al)
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[q].id, 1, &reg);
 		if (hreg) {
 			unload_reg(op, hreg, reg);
-			rmap_unassoc(op->regmap, reg, 1);
+			rmap_unassoc(op->regmap, reg);
 		}
 	}
 #endif
@@ -289,7 +289,7 @@ static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_regs[i].id, 0, &reg);
 		if (hreg && (jit_set_get(op->live_out, reg))) {
 			if (op->in_use) unload_reg(op, hreg, reg);
-			rmap_unassoc(op->regmap, reg, 0);
+			rmap_unassoc(op->regmap, reg);
 		}
 	}
 
@@ -297,13 +297,32 @@ static int spill_all_registers(jit_op *op, struct jit_reg_allocator * al)
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_regs[i].id, 1, &reg);
 		if (hreg && (jit_set_get(op->live_out, reg))) {
 			if (op->in_use) unload_reg(op, hreg, reg);
-			rmap_unassoc(op->regmap, reg, 1);
+			rmap_unassoc(op->regmap, reg);
 		}
 	}
 
 	return 1;
 }
 
+static int force_spill(jit_op *op)
+{
+	jit_value reg = op->arg[0];
+	jit_hw_reg *hreg = rmap_get(op->regmap, reg);
+	if (hreg) {
+		unload_reg(op, hreg, reg);
+		rmap_unassoc(op->regmap, reg);
+	}
+	return 1;
+}
+
+static int force_assoc(jit_op *op, struct jit_reg_allocator *al)
+{
+	jit_hw_reg *hreg = (op->arg[1] == 0 ? &al->gp_regs[op->arg[2]] : &al->fp_regs[op->arg[2]]); 
+	rmap_assoc(op->regmap, op->arg[0], hreg); 
+
+	load_reg(op, hreg, op->arg[0]);
+	return 1;
+}
 
 static void associate_register_alias(struct jit_reg_allocator * al, jit_op * op, int i)
 {
@@ -367,6 +386,8 @@ static void assign_regs(struct jit * jit, struct jit_op * op)
 		case JIT_CALL: skip = assign_call(op, al); break;
 		case JIT_JMP: skip = assign_jmp(op, al); break;
 		case JIT_FULL_SPILL: skip = spill_all_registers(op, al); break;
+		case JIT_FORCE_SPILL: skip = force_spill(op); break;
+		case JIT_FORCE_ASSOC: skip = force_assoc(op, al); break;
 		default: break;
 	}
 
