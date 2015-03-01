@@ -95,7 +95,6 @@ DEFINE_TEST(test2)
 
 	jit_check_code(p, JIT_WARN_ALL);
 
-
 	fclose(stdout);
 	stdout = old_stdout;
 
@@ -124,9 +123,35 @@ DEFINE_TEST(test2)
 	return 0;
 }
 
+DEFINE_TEST(test3)
+{
+	char buf[BUF_SIZE];
+	FILE *old_stdout = stdout;
+	stdout = fmemopen(buf, BUF_SIZE, "w");
+
+	jit_enable_optimization(p, JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS);
+	plfv x;
+	jit_prolog(p, &x);
+	jit_op *op03 = jit_movi(p, R(0), 10);
+	jit_movi(p, R(0), 20);
+	jit_addi(p, R(0), R(0), 30);
+	jit_retr(p, R(0));
+
+	JIT_GENERATE_CODE(p);
+	
+	ASSERT_EQ(50, x());
+	ASSERT_EQ(JIT_NOP, op03->code);
+
+	fclose(stdout);
+	stdout = old_stdout;
+		
+	return 0;
+}
+
 void test_setup()
 {
         test_filename = __FILE__;
         SETUP_TEST(test1);
         SETUP_TEST(test2);
+        SETUP_TEST(test3);
 }

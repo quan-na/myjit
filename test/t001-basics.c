@@ -192,6 +192,37 @@ DEFINE_TEST(test15)
 	return 0;
 }
 
+DEFINE_TEST(test16)
+{
+	static short y[] = { -2, -3, -4, -5, -6 };
+
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(2), 10);
+	jit_movi(p, R(1), sizeof(short));
+	jit_addi(p, R(1), R(1),  sizeof(short));
+	jit_stxi(p, &y, R(1), R(2), sizeof(short));
+	jit_reti(p, 42);
+	JIT_GENERATE_CODE(p);
+
+	ASSERT_EQ(42, f1());
+	ASSERT_EQ(10, y[2]);
+	return 0;
+}
+
+DEFINE_TEST(test20)
+{
+	plfv f1;
+	jit_prolog(p, &f1);
+	jit_movi(p, R(0), 0xcafe);
+	jit_hmuli(p, R(0), R(0), 1L << (REG_SIZE * 8 - 8));
+	
+	jit_retr(p, R(0));
+	JIT_GENERATE_CODE(p);
+	ASSERT_EQ(0xca, f1());
+	return 0;
+}
+
 void test_setup()
 {
 	test_filename = __FILE__;
@@ -209,5 +240,7 @@ void test_setup()
 	SETUP_TEST(test13);
 	SETUP_TEST(test14);
 	SETUP_TEST(test15);
+	SETUP_TEST(test16);
 
+	SETUP_TEST(test20);
 }

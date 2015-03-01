@@ -132,10 +132,20 @@ gen-coverage:
 
 coverage-run: all
 	./run-tests.sh
-	./t401 -l
-	./t401 --all --code
-	./t401 --all --compilable
-	./t401 --all --compilable
-	./t401 --all --liveness --assoc
+	./t401 -l > /dev/null
+	./t401 --all --code > /dev/null
+	./t401 --all --compilable > /dev/null
+	./t401 --all --compilable > /dev/null
+	./t401 --all --liveness --assoc > /dev/null
+	./t001 --all --liveness --assoc > /dev/null
+	./t002 --all --liveness --assoc > /dev/null
+	./t003 --all --liveness --assoc > /dev/null
+	./t004 --all --liveness --assoc > /dev/null
+	./t005 --all --liveness --assoc > /dev/null
+	./t101 --all --liveness --assoc > /dev/null
+	./t102 --all --liveness --assoc > /dev/null
+	./t103 --all --liveness --assoc > /dev/null
+	./t104 --all --liveness --assoc > /dev/null
+	./t105 --all --liveness --assoc > /dev/null
 	./t401 test11 test12 x
 
