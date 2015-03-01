@@ -46,9 +46,9 @@ static struct jit_disasm jit_debugging_disasm =  {
 
 static void report_warning(struct jit *jit, jit_op *op, char *desc)
 {
-	printf("%s at function `%s' (%s:%i)\n", desc, op->debug_info->function, op->debug_info->filename, op->debug_info->lineno);
+	fprintf(stdout, "%s at function `%s' (%s:%i)\n", desc, op->debug_info->function, op->debug_info->filename, op->debug_info->lineno);
 	print_op(&jit_debugging_disasm, op, NULL, 0);
-	printf("\n");
+	fprintf(stdout, "\n");
 }
 
 static void append_msg(char *buf, char *format, ...)
@@ -111,11 +111,13 @@ static int check_op_without_effect(jit_op *op, char *msg_buf)
 	// we have to skip these operations since, these are working with the flag register
 	jit_opcode code = GET_OP(op);
 	if ((code == JIT_ADDC) || (code == JIT_ADDX) || (code == JIT_SUBC) || (code == JIT_SUBX)
-	|| (code == JIT_BOADD) || (code = JIT_BOSUB) || (code = JIT_BNOADD) || (code == JIT_BNOSUB)) return 0;
+	|| (code == JIT_BOADD) || (code == JIT_BOSUB) || (code == JIT_BNOADD) || (code == JIT_BNOSUB)) return 0;
 
-	if ((ARG_TYPE(op, 1) == TREG) && (!jit_set_get(op->live_out, op->arg[0]))) {
-		append_msg(msg_buf, "operation without effect");
-		return JIT_WARN_OP_WITHOUT_EFFECT;
+	for (int i = 0; i < 3; i++) {
+		if ((ARG_TYPE(op, i + 1) == TREG) && (!jit_set_get(op->live_out, op->arg[i]))) {
+			append_msg(msg_buf, "operation without effect");
+			return JIT_WARN_OP_WITHOUT_EFFECT;
+		}
 	}
 	return 0;
 }
@@ -232,6 +234,7 @@ static int check_register_types(struct jit *jit, jit_op *op, char *msg_buf)
 static int jit_op_is_data_op(jit_op *op) 
 {
 	while (op && ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH))) op = op->next;
+	if (!op) return 0;
 	
 	jit_opcode code = GET_OP(op);
 	return ((code == JIT_DATA_BYTE) || (code == JIT_DATA_REF_CODE) || (code == JIT_DATA_REF_DATA));
@@ -239,13 +242,19 @@ static int jit_op_is_data_op(jit_op *op)
 
 static int check_data_alignment(jit_op *op, char *msg_buf)
 {
-	if (!jit_op_is_data_op(op)) return 0;
-	if (op->next == NULL) return 0;
-	if (GET_OP(op->next) == JIT_CODE_ALIGN) return 0;
-	if (jit_op_is_data_op(op->next)) return 0;
-	
-	append_msg(msg_buf, "unaligned data block");
-	return JIT_WARN_UNALIGNED_CODE;
+	if (jit_op_is_data_op(op) || (GET_OP(op) == JIT_CODE_ALIGN)) return 0;
+	if ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH)) return 0;
+	jit_op * prev = op->prev;
+	while (prev) {
+		if ((GET_OP(prev) == JIT_LABEL) || (GET_OP(prev) == JIT_PATCH)) 
+			prev = prev->prev;
+		else break;
+	}
+	if (jit_op_is_data_op(prev)) {
+		append_msg(msg_buf, "instruction follows unaligned data block");
+		return JIT_WARN_UNALIGNED_CODE;
+	}
+	return 0;
 }
 
 static int check_data_references(jit_op *op, char *msg_buf)

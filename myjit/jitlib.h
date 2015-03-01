@@ -350,7 +350,7 @@ void jit_disable_optimization(struct jit * jit, int opt);
 #define UNSIGNED 0x04
 #define SIGNED 0x00
 
-void jit_add_prolog(struct jit *, void *, struct jit_debug_info *);
+jit_op * jit_add_prolog(struct jit *, void *, struct jit_debug_info *);
 jit_label * jit_get_label(struct jit * jit);
 int jit_allocai(struct jit * jit, int size);
 
@@ -476,17 +476,17 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_bmcr(jit, a, b, c) jit_add_op(jit, JIT_BMC | REG, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 #define jit_bmci(jit, a, b, c) jit_add_op(jit, JIT_BMC | IMM, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_boaddr(jit, a, b, c) jit_add_op(jit, JIT_BOADD | REG | SIGNED, SPEC(IMM, TREG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
-#define jit_boaddi(jit, a, b, c) jit_add_op(jit, JIT_BOADD | IMM | SIGNED, SPEC(IMM, TREG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_boaddr(jit, a, b, c) jit_add_op(jit, JIT_BOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_boaddi(jit, a, b, c) jit_add_op(jit, JIT_BOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bosubr(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | REG | SIGNED, SPEC(IMM, TREG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
-#define jit_bosubi(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | IMM | SIGNED, SPEC(IMM, TREG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bosubr(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bosubi(jit, a, b, c) jit_add_op(jit, JIT_BOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bnoaddr(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | REG | SIGNED, SPEC(IMM, TREG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
-#define jit_bnoaddi(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | IMM | SIGNED, SPEC(IMM, TREG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnoaddr(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnoaddi(jit, a, b, c) jit_add_op(jit, JIT_BNOADD | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
-#define jit_bnosubr(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | REG | SIGNED, SPEC(IMM, TREG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
-#define jit_bnosubi(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | IMM | SIGNED, SPEC(IMM, TREG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnosubr(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | REG | SIGNED, SPEC(IMM, REG, REG), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_bnosubi(jit, a, b, c) jit_add_op(jit, JIT_BNOSUB | IMM | SIGNED, SPEC(IMM, REG, IMM), a, b, c, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* conditions */
 

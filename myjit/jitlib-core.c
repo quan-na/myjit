@@ -92,7 +92,7 @@ struct jit * jit_init()
 	return r;
 }
 
-void jit_add_prolog(struct jit * jit, void * func, struct jit_debug_info *debug_info)
+jit_op *jit_add_prolog(struct jit * jit, void * func, struct jit_debug_info *debug_info)
 {
         jit_op * op = jit_add_op(jit, JIT_PROLOG , SPEC(IMM, NO, NO), (long)func, 0, 0, 0, NULL);
         struct jit_func_info * info = JIT_MALLOC(sizeof(struct jit_func_info));
@@ -105,6 +105,7 @@ void jit_add_prolog(struct jit * jit, void * func, struct jit_debug_info *debug_
         info->allocai_mem = 0;
         info->general_arg_cnt = 0;
         info->float_arg_cnt = 0;
+	return op;
 }
 
 jit_label * jit_get_label(struct jit * jit)

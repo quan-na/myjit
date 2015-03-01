@@ -49,22 +49,22 @@ char *test_filename;
 
 
 #define ASSERT_EQ(_expected, _actual) { \
-	if (_expected != _actual)  {\
-		fprintf(stderr, "%s: %s (expected: %li, actual: %li)\n", test_filename, test_name, (jit_value)_expected, (jit_value)_actual); \
+	if ((_expected) != (_actual))  {\
+		fprintf(stderr, "%s: %s at line %i (expected: %li, actual: %li)\n", test_filename, test_name, __LINE__, (jit_value)(_expected), (jit_value)(_actual)); \
 		return 1; \
 	} \
 }
 
 #define ASSERT_EQ_DOUBLE(_expected, _actual) { \
 	if (!equals((_expected), (_actual),  TOLERANCE)) {\
-		fprintf(stderr, "%s: %s (expected: %f, actual: %f)\n", test_filename, test_name, (double)_expected, (double)_actual); \
+		fprintf(stderr, "%s: %s at line %i (expected: %f, actual: %f)\n", test_filename, test_name, __LINE__, (double)(_expected), (double)(_actual)); \
 		return 1; \
 	} \
 }
 
 #define ASSERT_EQ_STR(_expected, _actual) { \
-	if (strcmp(_expected, _actual))  {\
-		fprintf(stderr, "%s: %s (expected: %s, actual: %s)\n", test_filename, test_name, (char *)_expected, (char *)_actual); \
+	if (strcmp((_expected), (_actual)))  {\
+		fprintf(stderr, "%s: %s at line %i (expected: %s, actual: %s)\n", test_filename, test_name, __LINE__, (char *)(_expected), (char *)(_actual)); \
 		return 1; \
 	} \
 }
