@@ -328,7 +328,7 @@ static void emit_sse_fst_op(struct jit * jit, jit_op * op, jit_value a1, jit_val
 		if (live) sse_alu_pd_reg_reg_imm(jit->ip, X86_SSE_SHUF, a2, a2, 1);
 
 	} else {
-		if (IS_IMM(op)) sse_movlpd_mem_reg(jit->ip, a1, a2);
+		if (IS_IMM(op)) sse_movlpd_mem_reg(jit->ip, a2, a1);
 		else sse_movlpd_membase_xreg(jit->ip, a2, a1, 0);
 	}
 }
