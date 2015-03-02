@@ -85,6 +85,7 @@ struct jit * jit_init()
 	r->last_op = r->ops;
 	r->optimizations = 0;
 
+	r->buf = NULL;
 	r->labels = NULL;
 	r->reg_al = jit_reg_allocator_create();
 	jit_enable_optimization(r, JIT_OPT_JOIN_ADDMUL | JIT_OPT_OMIT_FRAME_PTR);
@@ -467,6 +468,6 @@ void jit_free(struct jit * jit)
 	jit_reg_allocator_free(jit->reg_al);
 	free_ops(jit_op_first(jit->ops));
 	free_labels(jit->labels);
-	JIT_FREE(jit->buf);
+	if (jit->buf) JIT_FREE(jit->buf);
 	JIT_FREE(jit);
 }
