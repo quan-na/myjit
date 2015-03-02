@@ -120,7 +120,6 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_CALL:		return "call";
 		case JIT_RET:		return "ret";
 		case JIT_PROLOG:	return "prolog";
-		case JIT_LEAF:		return "leaf";
 		case JIT_GETARG:	return "getarg";
 		case JIT_RETVAL:	return "retval";
 		case JIT_ALLOCA:	return "alloca";
@@ -132,6 +131,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_SUB:	return "sub";
 		case JIT_SUBC:	return "subc";
 		case JIT_SUBX:	return "subx";
+		case JIT_RSB:	return "rsb";
 		case JIT_NEG:	return "neg";
 		case JIT_MUL:	return "mul";
 		case JIT_HMUL:	return "hmul";
@@ -162,6 +162,8 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_BMC:	return "bmc";
 		case JIT_BOADD:	return "boadd";
 		case JIT_BOSUB:	return "bosub";
+		case JIT_BNOADD:return "bnoadd";
+		case JIT_BNOSUB:return "bnosub";
 
 		case JIT_UREG:		return ".ureg";
 		case JIT_LREG:		return ".lreg";
@@ -177,6 +179,9 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_DATA_REF_DATA:	return ".ref_data";
 		case JIT_REF_CODE:	return "ref_code";
 		case JIT_REF_DATA:	return "ref_data";
+		case JIT_FULL_SPILL:	return ".full_spill";
+		case JIT_FORCE_SPILL:	return "force_spill";
+		case JIT_FORCE_ASSOC:	return "force_assoc";
 
 		case JIT_FMOV:	return "fmov";
 		case JIT_FADD: 	return "fadd";
