@@ -69,6 +69,11 @@ char *test_filename;
 	} \
 }
 
+#define IGNORE_TEST { \
+	fprintf(stderr, " \033[1;33m??\033[0m %s: %s ignored\n", test_filename, test_name); \
+	return -1;\
+}
+
 static inline int equals(double x, double y, double tolerance)
 {
 	return fabs(x - y) < tolerance;
@@ -84,8 +89,9 @@ int run_test(int id, int options)
 	return result;
 }
 
-void report_results_and_quit(int successful, int total)
+void report_results_and_quit(int successful, int ignored, int total)
 {       
+	total -= ignored;
 	int ok = (total == successful);
 	if (ok) printf(" \033[1;32mOK\033[0m ");
 	else printf(" \033[1;31m!!\033[0m ");
@@ -97,6 +103,7 @@ int main(int argc, char **argv)
 {       
 	int options = 0; 
 	int successful = 0;
+	int ignored = 0;
 	if (argc == 1) options |= OPT_ALL;
 
 	for (int i = 1; i < argc; i++) {
@@ -118,9 +125,11 @@ int main(int argc, char **argv)
 
 	if (options & OPT_ALL) {
 		for (int i = 0; i < test_cnt; i++) {
-			if (run_test(i, options) == 0) successful++;
+			int status = run_test(i, options);
+			if (status == 0) successful++;
+			if (status < 0) ignored++;
 		}
-		report_results_and_quit(successful, test_cnt);
+		report_results_and_quit(successful, ignored, test_cnt);
 	}
 
 	int performed = 0;
@@ -132,25 +141,15 @@ int main(int argc, char **argv)
 		for (int j = 0; j < test_cnt; j++) {
 			if (!strcmp(test_names[j], name)) {
 				performed++;
-				if (run_test(j, options) == 0) successful++;
+				int status = run_test(j, options);
+				if (status == 0) successful++;
+				if (status < 0) ignored++;
 				found = 1;
 				break;
 			}
 		}
 		if (!found) fprintf(stderr, "%s: %s: test not found!\n", test_filename, name);
 	}
-	report_results_and_quit(successful, performed);
+	report_results_and_quit(successful, ignored, performed);
 
 }
-
-
-
-
-// <obsolete>
-#define SUCCESS(x) printf("%s:\ttest%i\thas succeeded\n", __FILE__, x)
-#define FAIL(x) printf("%s:\ttest%i\thas failed\n", __FILE__, x)
-#define FAILX(x, r, expt) printf("%s:\ttest%i\thas failed. Return value is `%li' but expected `%li':%i\n", __FILE__, x, r, (long)(expt), r == expt)
-#define FAILD(x, r, expt) printf("%s:\ttest%i\thas failed. Return value is `%f' but expected `%f':%i\n", __FILE__, x, r, expt, r == expt)
-
-
-// </OBSOLETE>

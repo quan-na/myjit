@@ -6,6 +6,7 @@
 
 DEFINE_TEST(test1)
 {
+#ifndef __APPLE__
 	char buf[BUF_SIZE];
 	FILE *old_stdout = stdout;
 	stdout = fmemopen(buf, BUF_SIZE, "w");
@@ -40,6 +41,9 @@ DEFINE_TEST(test1)
 	ASSERT_EQ_STR("Check 1.\nCheck R(1): 1\nCheck R(1): 6\nCheck R(1): 30\nCheck R(1): 120\nCheck R(1): 360\nCheck R(1): 720\nCheck X.\n", buf);
 
 	return 0;
+#else
+	IGNORE_TEST
+#endif
 }
 
 struct jit_debug_info {
@@ -53,6 +57,7 @@ struct jit_debug_info {
 
 DEFINE_TEST(test2)
 {
+#ifndef __APPLE__
 	char buf[BUF_SIZE];
 	FILE *old_stdout = stdout;
 	stdout = fmemopen(buf, BUF_SIZE, "w");
@@ -121,10 +126,14 @@ DEFINE_TEST(test2)
 	ASSERT_WARNING(op19, JIT_WARN_REGISTER_TYPE_MISMATCH | JIT_WARN_OP_WITHOUT_EFFECT);
 	
 	return 0;
+#else
+	IGNORE_TEST
+#endif
 }
 
 DEFINE_TEST(test3)
 {
+#ifndef __APPLE__
 	char buf[BUF_SIZE];
 	FILE *old_stdout = stdout;
 	stdout = fmemopen(buf, BUF_SIZE, "w");
@@ -146,6 +155,9 @@ DEFINE_TEST(test3)
 	stdout = old_stdout;
 		
 	return 0;
+#else
+	IGNORE_TEST
+#endif
 }
 
 void test_setup()

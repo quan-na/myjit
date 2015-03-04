@@ -101,7 +101,6 @@ DEFINE_TEST(test13)
 	jit_op *target_addr = jit_ref_code(p, R(1), JIT_FORWARD);
 
 	jit_jmpr(p, R(1));
-	jit_movi(p, R(0), 0xbb);
 
 	jit_patch(p, target_addr);
 	jit_retr(p, R(0));
