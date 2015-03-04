@@ -243,12 +243,8 @@ static inline void jit_prepare_reg_counts(struct jit * jit)
 				info->general_arg_cnt = gp_args;
 				info->float_arg_cnt = fp_args;
 
-				// stack has to be aligned to 16 bytes
-#if defined(JIT_ARCH_SPARC)
-				while ((info->gp_reg_count) % 2) info->gp_reg_count ++; 
-				while ((info->fp_reg_count) % 2) info->fp_reg_count ++; 
-#endif
 #if defined(JIT_ARCH_AMD64)
+				// stack has to be aligned to 16 bytes
 				while ((info->gp_reg_count + info->fp_reg_count) % 2) info->gp_reg_count ++; 
 #endif
 				info->args = JIT_MALLOC(sizeof(struct jit_inp_arg) * declared_args);

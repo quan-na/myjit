@@ -45,9 +45,25 @@ static inline int GET_REG_POS(struct jit * jit, int r)
 	assert(0);
 }
 
+static inline int space_for_outgoing_args(struct jit *jit, jit_op *op) {
+	int passed_gp_args = 0;
+	int passed_fp_args = 0;
+	op = op->next;
+	while (op && (GET_OP(op) != JIT_PROLOG)) {
+		if (GET_OP(op) == JIT_PREPARE) {
+			passed_gp_args = MAX(passed_gp_args, op->arg[0]);
+			passed_fp_args = MAX(passed_fp_args, op->arg[1]);
+		}
+		op = op->next;
+	}
+	int stack_gp_args = MAX(0, passed_gp_args - jit->reg_al->gp_arg_reg_cnt);
+	int stack_fp_args = MAX(0, passed_fp_args - jit->reg_al->fp_arg_reg_cnt);
+	return stack_gp_args * REG_SIZE + stack_fp_args * sizeof(double);
+}
+
 int jit_allocai(struct jit * jit, int size)
 {
-	int real_size = (size + 15) & 0xfffffff0; // 16-bytes aligned
+	int real_size = jit_value_align(size, 16);
 	jit_add_op(jit, JIT_ALLOCA | IMM, SPEC(IMM, NO, NO), (long)real_size, 0, 0, 0, NULL);
 	jit_current_func_info(jit)->allocai_mem += real_size;	
 	return -(jit_current_func_info(jit)->allocai_mem + EXTRA_SPACE);
@@ -745,7 +761,9 @@ op_complete:
 				stack_mem += info->gp_reg_count * REG_SIZE;
 				stack_mem += info->fp_reg_count * sizeof(double);
 				stack_mem += info->float_arg_cnt * sizeof(double);
-				stack_mem += EXTRA_SPACE;
+				stack_mem += space_for_outgoing_args(jit, op);
+
+				stack_mem = jit_value_align(stack_mem, 16);
 				sparc_save_imm(jit->ip, sparc_sp, -stack_mem, sparc_sp);
 			} while (0);
 			break;

@@ -9,16 +9,16 @@ int correct_result;
 static int foobar(double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8, double a9, double a10)
 {
         correct_result = 1;
-        if (a1 != -1) correct_result = 0;
-        if (a2 != 1) correct_result = 0;
-        if (a3 != 2) correct_result = 0;
-        if (a4 != 4) correct_result = 0;
-        if (a5 != 8) correct_result = 0;
-        if (a6 != 16) correct_result = 0;
-        if (a7 != 32) correct_result = 0;
-        if (a8 != 64) correct_result = 0;
-        if (a9 != 128) correct_result = 0;
-        if (a10 != 256) correct_result = 0;
+        if (!equals(a1, -1, 0.0001)) correct_result = 0;
+        if (!equals(a2, 1, 0.0001)) correct_result = 0;
+        if (!equals(a3, 2, 0.0001)) correct_result = 0;
+        if (!equals(a4, 4, 0.0001)) correct_result = 0;
+        if (!equals(a5, 8, 0.0001)) correct_result = 0;
+        if (!equals(a6, 16, 0.0001)) correct_result = 0;
+        if (!equals(a7, 32, 0.0001)) correct_result = 0;
+        if (!equals(a8, 64, 0.0001)) correct_result = 0;
+        if (!equals(a9, 128, 0.0001)) correct_result = 0;
+        if (!equals(a10, 256, 0.0001)) correct_result = 0;
 	return 666;
 }
 
