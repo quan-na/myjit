@@ -361,17 +361,6 @@ static inline void print_str(char * buf, char * str)
 	strcat(buf, "\"");
 }
 
-/*
-static jit_tree * get_prev_rmap(jit_op * op)
-{
-	while (!op->regmap) op = op->prev;
-	char * op_name = jit_get_op_name(op);
-	printf("REEE:%s\n", op_name);
-	print_rmap(op->regmap->map);
-	return op->regmap->map;
-}
-*/
-
 static void print_args(struct jit_disasm *disasm, char *linebuf, jit_op *op, jit_tree *labels) 
 {
 	for (int i = 1; i <= 3; i++) {
@@ -392,6 +381,44 @@ void print_full_op_name(char *linebuf, jit_op *op)
 	if (GET_OP_SUFFIX(op) & UNSIGNED) strcat(linebuf, "_u");
 }
 
+static int print_load_op(struct jit_disasm *disasm, char *linebuf, jit_op *op)
+{
+	
+	switch (GET_OP(op)) {
+		case JIT_LREG:
+			strcat(linebuf, disasm->indent_template);
+			strcat(linebuf, jit_get_op_name(op));
+			print_padding(linebuf, 13);
+			jit_get_reg_name(disasm, linebuf + strlen(linebuf), op->arg[1]);
+			return 1;
+		case JIT_UREG:
+		case JIT_SYNCREG:
+			strcat(linebuf, disasm->indent_template);
+			strcat(linebuf, jit_get_op_name(op));
+			print_padding(linebuf, 13);
+			jit_get_reg_name(disasm, linebuf + strlen(linebuf), op->arg[0]);
+			return 1;
+		case JIT_RENAMEREG: {
+				jit_value reg;
+				rmap_is_associated(op->prev->regmap, op->arg[1], 0, &reg);
+				strcat(linebuf, disasm->indent_template);
+				strcat(linebuf, jit_get_op_name(op));
+				strcat(linebuf, " ");
+				print_padding(linebuf, 13);
+				jit_get_reg_name(disasm, linebuf + strlen(linebuf), reg);
+				return 1;
+			}
+		case JIT_FULL_SPILL:
+			strcat(linebuf, disasm->indent_template);
+			strcat(linebuf, jit_get_op_name(op));
+			return 1;
+		default:
+			return 0;
+
+	}
+}
+
+
 int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *labels, int verbosity)
 {
 	char linebuf[OUTPUT_BUF_SIZE];
@@ -406,27 +433,12 @@ int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *l
 		goto print;
 	}
 	
-	/*
-	int op_code = GET_OP(op);
-	if (verbosity & JIT_DEBUG_LOADS) {
-		char buf[256];
-		int is_load_op = 1;
-		jit_hw_reg * hreg;
-		switch (op_code) {
-			case JIT_SYNCREG: 
-				jit_get_reg_name(buf, op->arg[0]);
-				hreg = (jit_hw_reg *) jit_tree_search(get_prev_rmap(op), op->arg[0]);
-				printf("\t.syncreg    %s <- %s", buf, hreg->name);
-				break;
-			default: is_load_op = 0;
-		}
-		if (is_load_op) goto print;
+	char * op_name = jit_get_op_name(op);
+	if ((op_name[0] == '.') && (verbosity & JIT_DEBUG_LOADS)) {
+		if (print_load_op(disasm, linebuf, op)) goto print;
 	}
-*/
-
 
 	strcat(linebuf, disasm->indent_template);
-	char * op_name = jit_get_op_name(op);
 	if (op_name[0] == '.') {
 		switch (GET_OP(op)) {
 			case JIT_DATA_BYTE:
@@ -445,40 +457,6 @@ int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *l
 				goto print;
 				
 		}
-/*
-		if (verbosity & JIT_DEBUG_LOADS) {
-			switch (GET_OP(op)) {
-				case JIT_LREG:
-					strcat(linebuf, "\t");
-					strcat(linebuf, op_name);
-					while (strlen(linebuf) < 13) strcat(linebuf, " ");
-					jit_get_reg_name(linebuf + strlen(linebuf), op->arg[1]);
-					goto print;
-				case JIT_UREG:
-					strcat(linebuf, "\t");
-					strcat(linebuf, op_name);
-					while (strlen(linebuf) < 13) strcat(linebuf, " ");
-					jit_get_reg_name(linebuf + strlen(linebuf), op->arg[0]);
-					goto print;
-				case JIT_SYNCREG:
-					strcat(linebuf, ":XXX:");
-					strcat(linebuf, op_name);
-					while (strlen(linebuf) < 13) strcat(linebuf, " ");
-					jit_get_reg_name(linebuf + strlen(linebuf), op->arg[0]);
-					// FIXME: operands
-					goto print;
-				case JIT_RENAMEREG:
-					strcat(linebuf, ":XXX:");
-					strcat(linebuf, op_name);
-					goto print;
-				default:
-					return;
-
-			}
-		} else return;
-	//	strcat(linebuf, op_name);
-	//
-*/
 	}
 	print_full_op_name(linebuf, op);
 
@@ -666,6 +644,13 @@ static char *platform_id()
 #endif
 }
 
+static inline void print_op_bytes(FILE *f, struct jit *jit, jit_op *op) {
+	for (int i = 0; i < op->code_length; i++)
+		fprintf(f, " %02x", jit->buf[op->code_offset + i]);
+	fprintf(f, "\n.nl\n");
+}
+
+
 static void jit_dump_ops_combined(struct jit *jit, jit_tree *labels)
 {
 
@@ -699,15 +684,41 @@ static void jit_dump_ops_combined(struct jit *jit, jit_tree *labels)
 
 	fprintf(f, ".addr=%lx\n", (unsigned long)jit->buf);
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
+		if (GET_OP(op) == JIT_DATA_BYTE) {
+			fprintf(f, ".text\n%s.byte\n", jit_disasm_general.indent_template);
+			fprintf(f, ".data\n");
+			while (op && (GET_OP(op) == JIT_DATA_BYTE)) {
+				fprintf(f, "%02x ", (unsigned char) op->arg[0]);
+				op = op->next;
+			}
+			fprintf(f, "\n");
+
+			if (!op) break;
+			op = op->prev;
+			continue;	
+		}
+
 		fprintf(f, ".text\n");
 		print_op(f, &jit_disasm_general, op, labels, JIT_DEBUG_LOADS);
 		fprintf(f, "\n");
 
-		if (op->code_length) {
-			fprintf(f, ".%s\n", platform_id());
-			for (int i = 0; i < op->code_length; i++)
-				fprintf(f, " %02x", jit->buf[op->code_offset + i]);
-			fprintf(f, "\n.nl\n");
+		switch (GET_OP(op)) {
+			case JIT_CODE_ALIGN:
+				if (op->next) {
+					fprintf(f, "\n.nl\n");
+					fprintf(f, ".addr=%lx\n", (unsigned long) (jit->buf + op->next->code_offset));
+				}
+				break;
+			case JIT_DATA_REF_CODE:
+			case JIT_DATA_REF_DATA:
+				fprintf(f, ".data\n");
+				print_op_bytes(f, jit, op);
+				break;
+
+			default:
+				if (!op->code_length) break;
+				fprintf(f, ".%s\n", platform_id());
+				print_op_bytes(f, jit, op);
 		}
 	}
 
@@ -718,6 +729,9 @@ static void jit_dump_ops_combined(struct jit *jit, jit_tree *labels)
 
 void jit_dump_ops(struct jit * jit, int verbosity)
 {
+	if (!(verbosity & (JIT_DEBUG_CODE | JIT_DEBUG_COMPILABLE | JIT_DEBUG_COMBINED)))
+		verbosity |= JIT_DEBUG_OPS;
+
 	jit_tree * labels = prepare_labels(jit);
 	if (verbosity & JIT_DEBUG_OPS) jit_dump_ops_general(jit, labels, verbosity);
 	if (verbosity & JIT_DEBUG_CODE) compiler_based_debugger(jit);

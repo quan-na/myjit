@@ -154,6 +154,7 @@ static void prepare_registers_for_call(struct jit_reg_allocator * al, jit_op * o
 		jit_value spill_reg;
 		jit_hw_reg * freereg = rmap_spill_candidate(al, op, r, &spill, &spill_reg, 1);
 		if (freereg && !spill) {
+			// FIXME: works only for GP registers
 			rename_reg(op, freereg->id, al->ret_reg->id);
 
 			rmap_unassoc(op->regmap, r);

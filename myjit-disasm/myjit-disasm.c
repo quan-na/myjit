@@ -56,11 +56,10 @@ void disassm_data(unsigned char *buf, int len)
 		int out = 0;
 		char text[OUTPUT_BYTES_PER_LINE + 1];
 		for (int i = 0; i < OUTPUT_BYTES_PER_LINE; i++) {
-			if (buf[i] < 32) text[i] = '.';
 			if (i < len) {
 				out++;
-				text[i] = buf[i];
-			} else text[i] = '.';
+				text[i] = (buf[i] < 32 ? '.' : buf[i]);
+			}
 		}
 		text[out] = '\0';
 		output_code(global_addr, buf, out, text);
@@ -119,21 +118,13 @@ int main()
 		if (input_size() - 1 > 0) {
 			if (input_buffer()[0] == '.') disassm_directive(input_buffer());
 			else {
+				if (global_disassm_mode != TEXT) input_convert();
 				switch (global_disassm_mode) {
-					case DATA: disassm_data(input_buffer(), input_size() - 1); break;
+					case DATA: disassm_data(input_buffer(), input_size()); break;
 					case TEXT: disassm_text(input_buffer(), input_size() - 1); break;
-					case AMD64: 
-						input_convert();
-						disassm_amd64(input_buffer(), input_size());
-						break;
-					case I386: 
-						input_convert();
-						disassm_i386(input_buffer(), input_size());
-						break;
-					case SPARC: 
-						input_convert();
-						disassm_sparc(input_buffer(), input_size());
-						break;
+					case AMD64: disassm_amd64(input_buffer(), input_size()); break;
+					case I386: disassm_i386(input_buffer(), input_size()); break;
+					case SPARC: disassm_sparc(input_buffer(), input_size()); break;
 				}
 			}
 		}
