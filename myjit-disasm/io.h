@@ -4,6 +4,7 @@
 void output_color_normal();
 void output_color_white();
 void output_color_yellow();
+void output_color_cyan();
 void output_code(unsigned long addr, unsigned char *data, int size, char *text);
 
 void input_init();

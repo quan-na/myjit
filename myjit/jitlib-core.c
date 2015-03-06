@@ -149,6 +149,7 @@ static void jit_correct_long_imms(struct jit * jit)
 		if (GET_OP(op) == JIT_MOV) continue;
 		if (GET_OP(op) == JIT_PUTARG) continue;
 		if (GET_OP(op) == JIT_MSG) continue;
+		if (GET_OP(op) == JIT_COMMENT) continue;
 		if (GET_OP(op) == JIT_PROLOG) continue;
 		if (GET_OP(op) == JIT_DATA_REF_CODE) continue;
 		if (GET_OP(op) == JIT_DATA_REF_DATA) continue;
@@ -396,6 +397,7 @@ void jit_generate_code(struct jit * jit)
 				break; 
 			case JIT_FORCE_SPILL:
 			case JIT_FORCE_ASSOC:
+			case JIT_COMMENT:
 				break;
 			// platform specific opcodes
 			default: jit_gen_op(jit, op);

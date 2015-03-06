@@ -206,6 +206,7 @@ char * jit_get_op_name(struct jit_op * op)
 		case JIT_SYNCREG:	return ".syncreg";
 		case JIT_RENAMEREG:	return ".renamereg";
 		case JIT_MSG:		return "msg";
+		case JIT_COMMENT:	return ".comment";
 		case JIT_NOP:		return "nop";
 		case JIT_CODE_ALIGN:	return ".align";
 		case JIT_DATA_BYTE:	return ".byte";
@@ -415,6 +416,16 @@ static int print_load_op(struct jit_disasm *disasm, char *linebuf, jit_op *op)
 	}
 }
 
+void print_comment(char *linebuf, jit_op *op)
+{
+	char *str = (char *)op->arg[0];
+	bufprint(linebuf, "// ");	
+	for (int i = 0; i < strlen(str); i++) {
+		if ((str[i] == '\r') || (str[i] == '\n')) bufprint(linebuf, "\n// ");
+		else bufprint(linebuf, "%c", str[i]);
+	}
+}
+
 
 int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *labels, int verbosity)
 {
@@ -429,6 +440,11 @@ int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *l
 		}
 		goto print;
 	}
+
+	if (GET_OP(op) == JIT_COMMENT) {
+		print_comment(linebuf, op);
+		goto print;
+	}
 	
 	char * op_name = jit_get_op_name(op);
 	if ((op_name[0] == '.') && (verbosity & JIT_DEBUG_LOADS)) {
@@ -440,13 +456,13 @@ int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *l
 		switch (GET_OP(op)) {
 			case JIT_DATA_BYTE:
 			case JIT_CODE_ALIGN:
-				bufprint(linebuf, "%s", op_name);
+				bufprint(linebuf, "%s ", op_name);
 				print_padding(linebuf, 13);
 				bufprint(linebuf, disasm->generic_value_template, op->arg[0]);
 				goto print;
 			case JIT_DATA_REF_CODE:
 			case JIT_DATA_REF_DATA:
-				bufprint(linebuf, "%s", op_name);
+				bufprint(linebuf, "%s ", op_name);
 				print_padding(linebuf, 13);
 				print_addr(disasm, linebuf, labels, op, 0); 
 				goto print;
@@ -510,6 +526,12 @@ int print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tree 
 		bufprint(linebuf, disasm->label_template, (long)lab->value);
 		bufprint(linebuf, ":\n");
 	}
+
+	if (GET_OP(op) == JIT_COMMENT) {
+		print_comment(linebuf, op);
+		goto direct_print;
+	}
+
 
 	strcat(linebuf, disasm->indent_template);
 
@@ -693,6 +715,13 @@ static void jit_dump_ops_combined(struct jit *jit, jit_tree *labels)
 			if (!op) break;
 			op = op->prev;
 			continue;	
+		}
+
+		if (GET_OP(op) == JIT_COMMENT) {
+			fprintf(f, ".comment\n");
+			print_op(f, &jit_disasm_general, op, labels, JIT_DEBUG_LOADS);
+			fprintf(f, "\n");
+			continue;
 		}
 
 		fprintf(f, ".text\n");

@@ -169,6 +169,7 @@ DEFINE_TEST(test15)
 	jit_code_align(p, 16);
 
 	// data
+	jit_comment(p, "\ndata\n");
 	jit_label *data_addr = jit_get_label(p);
 	jit_op *target1_addr = jit_data_ref_code(p, JIT_FORWARD);
 	jit_op *target2_addr = jit_data_ref_code(p, JIT_FORWARD);
@@ -176,6 +177,7 @@ DEFINE_TEST(test15)
 
 	
 	// code
+	jit_comment(p, "code");
 	jit_patch(p, skip);
 	jit_movi(p, R(0), 10);
 	jit_getarg(p, R(1), 0);
@@ -211,6 +213,7 @@ DEFINE_TEST(test16)
 	jit_code_align(p, 16);
 
 	// data
+	jit_comment(p, "data: days of week");
 	jit_label *lb_mon = jit_get_label(p);
 	jit_data_str(p, "Monday");	
 	jit_label *lb_tue = jit_get_label(p);
@@ -224,6 +227,7 @@ DEFINE_TEST(test16)
 	jit_code_align(p, 16);
 
 
+	jit_comment(p, "data: branch table");
 	jit_label *data_addr = jit_get_label(p);
 	jit_data_ref_data(p, lb_mon);
 	jit_data_ref_data(p, lb_tue);

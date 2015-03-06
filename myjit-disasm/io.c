@@ -22,6 +22,11 @@ void output_color_yellow()
 	printf("\033[0;33m");
 }
 
+void output_color_cyan()
+{
+	printf("\033[1;36m");
+}
+
 static int output_print_bytes(unsigned char *data, int size)
 {
 	int out = 0;

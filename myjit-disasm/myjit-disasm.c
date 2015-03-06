@@ -8,11 +8,12 @@
 unsigned long global_addr;
 
 enum {
-	DATA,
-	TEXT,
 	AMD64,
 	I386,
-	SPARC
+	SPARC,
+	DATA,
+	TEXT,
+	COMMENT
 } global_disassm_mode = DATA;
 
 ud_t dis_amd64;
@@ -43,6 +44,15 @@ void disassm_i386(unsigned char *buf, int len)
 void disassm_text(unsigned char *buf, int len)
 {
 	output_color_white();
+	for (int i = 0; i < len; i++)
+		putchar(buf[i]);
+	output_color_normal();
+	printf("\n");
+}
+
+void disassm_comment(unsigned char *buf, int len)
+{
+	output_color_cyan();
 	for (int i = 0; i < len; i++)
 		putchar(buf[i]);
 	output_color_normal();
@@ -86,6 +96,7 @@ void disassm_directive(unsigned char *buf)
 	const char *xbuf = (const char *)buf;
 	if (!strcmp(xbuf, ".text")) global_disassm_mode = TEXT;
 	else if (!strcmp(xbuf, ".data")) global_disassm_mode = DATA;
+	else if (!strcmp(xbuf, ".comment")) global_disassm_mode = COMMENT;
 	else if (!strcmp(xbuf, ".amd64")) global_disassm_mode = AMD64;
 	else if (!strcmp(xbuf, ".i386")) global_disassm_mode = I386;
 	else if (!strcmp(xbuf, ".sparc")) global_disassm_mode = SPARC;
@@ -118,10 +129,11 @@ int main()
 		if (input_size() - 1 > 0) {
 			if (input_buffer()[0] == '.') disassm_directive(input_buffer());
 			else {
-				if (global_disassm_mode != TEXT) input_convert();
+				if ((global_disassm_mode != TEXT) && (global_disassm_mode != COMMENT)) input_convert();
 				switch (global_disassm_mode) {
 					case DATA: disassm_data(input_buffer(), input_size()); break;
 					case TEXT: disassm_text(input_buffer(), input_size() - 1); break;
+					case COMMENT: disassm_comment(input_buffer(), input_size() - 1); break;
 					case AMD64: disassm_amd64(input_buffer(), input_size()); break;
 					case I386: disassm_i386(input_buffer(), input_size()); break;
 					case SPARC: disassm_sparc(input_buffer(), input_size()); break;

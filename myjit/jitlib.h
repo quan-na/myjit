@@ -272,6 +272,7 @@ typedef enum {
 	JIT_REF_DATA	= (0xb5 << 3),
 
 	JIT_MSG		= (0xf0 << 3),
+	JIT_COMMENT	= (0xf1 << 3),
 
 	// platform specific opcodes, for optimization purposes only
 	JIT_X86_STI     = (0x0100 << 3),
@@ -528,8 +529,11 @@ int jit_allocai(struct jit * jit, int size);
 #define jit_stxr(jit, a, b, c, d) jit_add_op(jit, JIT_STX | REG, SPEC(REG, REG, REG), a, b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
 #define jit_stxi(jit, a, b, c, d) jit_add_op(jit, JIT_STX | IMM, SPEC(IMM, REG, REG), (jit_value)(a), b, c, d, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
+/* debugging */
+
 #define jit_msg(jit, a) jit_add_op(jit, JIT_MSG | IMM, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 #define jit_msgr(jit, a, b) jit_add_op(jit, JIT_MSG | REG, SPEC(IMM, REG, NO), (jit_value)(a), b, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
+#define jit_comment(jit, a) jit_add_op(jit, JIT_COMMENT, SPEC(IMM, NO, NO), (jit_value)(a), 0, 0, 0, jit_debug_info_new(__FILE__, __func__, __LINE__))
 
 /* FPU */
 
