@@ -3,10 +3,11 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-
-
 #include "tests.h"
 
+#ifndef MAP_ANONYMOUS
+	#define MAP_ANONYMOUS MAP_ANON
+#endif
 
 static unsigned char *xxx_alloc_addr = (void *)0x100000000000UL;
 

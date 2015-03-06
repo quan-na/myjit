@@ -1,6 +1,7 @@
 #include <limits.h>
 #include "tests.h"
 #pragma GCC diagnostic ignored "-Woverflow"
+#pragma clang diagnostic ignored "-Winteger-overflow"
 
 #define CREATE_TEST_SUITE_REG(testname, _data_type, _jit_op, _operator) \
         CREATE_TEST_CASE_REG(testname ## 0, _data_type, _jit_op, _operator, 0, 0, 0) \
