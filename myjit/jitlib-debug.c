@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#define ABS(x)	((x) < 0 ? - (x) : x)
 
 #include "llrb.c"
 
@@ -300,7 +301,7 @@ static jit_tree * prepare_labels(struct jit * jit)
 	for (jit_op * op = jit_op_first(jit->ops); op != NULL; op = op->next) {
 		if (GET_OP(op) == JIT_PATCH) {
 			n = jit_tree_insert(n, (long) op, (void *)x, NULL);
-			n = jit_tree_insert(n, op->arg[0], (void *)x, NULL);
+			n = jit_tree_insert(n, op->arg[0], (void *) -x, NULL);
 			x++;
 		}
 		if (GET_OP(op) == JIT_LABEL) {
@@ -315,15 +316,11 @@ static inline void print_addr(struct jit_disasm *disasm, char *buf, jit_tree *la
 {
 	void *arg = (void *)op->arg[arg_pos];
 
-	jit_tree *label_item = NULL;
-	if (arg == NULL) {
-		label_item = jit_tree_search(labels, (long) op);
-		int label_id = -1;
-		if (label_item) label_id = (long) label_item->value;
-		bufprint(buf, disasm->label_forward_template, label_id);
-	} else {
+	jit_tree *label_item = jit_tree_search(labels, (long) op);
+	if (label_item) bufprint(buf, disasm->label_forward_template, - (long) label_item->value);
+	else {
 		label_item = jit_tree_search(labels, (long) arg);
-		if (label_item) bufprint(buf, disasm->label_template, label_item->value);
+		if (label_item) bufprint(buf, disasm->label_template, (long) label_item->value);
 		else bufprint(buf, disasm->generic_addr_template, arg);
 	}
 }
@@ -427,7 +424,7 @@ int print_op(FILE *f, struct jit_disasm * disasm, struct jit_op *op, jit_tree *l
 	if ((GET_OP(op) == JIT_LABEL) || (GET_OP(op) == JIT_PATCH)) {
 		jit_tree * lab = jit_tree_search(labels, (long)op->arg[0]);
 		if (lab) {
-			bufprint(linebuf, disasm->label_template, (long)lab->value);
+			bufprint(linebuf, disasm->label_template, ABS((long)lab->value));
 			bufprint(linebuf, ":");
 		}
 		goto print;
@@ -508,7 +505,7 @@ int print_op_compilable(struct jit_disasm *disasm, struct jit_op * op, jit_tree 
 	linebuf[0] = '\0';
 
 	jit_tree * lab = jit_tree_search(labels, (long)op);
-	if (lab) {
+	if (lab && ((long) lab->value > 0)) {
 		bufprint(linebuf, "// ");
 		bufprint(linebuf, disasm->label_template, (long)lab->value);
 		bufprint(linebuf, ":\n");
