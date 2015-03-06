@@ -383,6 +383,7 @@ void jit_generate_code(struct jit * jit)
 	for (struct jit_op * op = jit->ops; op != NULL; op = op->next) {
 		if (jit->buf_capacity - (jit->ip - jit->buf) < MINIMAL_BUF_SPACE) jit_buf_expand(jit);
 		// platform unspecific opcodes
+		unsigned long offset_1 = (jit->ip - jit->buf);
 		switch (GET_OP(op)) {
 			case JIT_DATA_BYTE: *(jit->ip)++ = (unsigned char) op->arg[0]; break;
 			case JIT_DATA_REF_CODE: 
@@ -399,6 +400,9 @@ void jit_generate_code(struct jit * jit)
 			// platform specific opcodes
 			default: jit_gen_op(jit, op);
 		}
+		unsigned long offset_2 = (jit->ip - jit->buf);
+		op->code_offset = offset_1;
+		op->code_length = offset_2 - offset_1;
 	}
 
 	/* moves the code to its final destination */
@@ -409,6 +413,7 @@ void jit_generate_code(struct jit * jit)
 	memcpy(mem, jit->buf, code_size);
 	JIT_FREE(jit->buf);
 
+	// FIXME: duplicitni vypocet?
 	long pos = jit->ip - jit->buf;
 	jit->buf = mem;
 	jit->ip = jit->buf + pos;

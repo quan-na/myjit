@@ -74,6 +74,8 @@ typedef struct jit_op {
         int normalized_pos;             // number of operations from the end of the function
         struct jit_tree * allocator_hints; // reg. allocator to collect statistics on used registers
 	struct jit_debug_info *debug_info;
+	unsigned long code_offset;			// offset in the output buffer
+	unsigned long code_length;			// offset in the output buffer
 } jit_op;
 
 typedef struct jit_label {
@@ -307,10 +309,15 @@ enum jit_warning {
  * Public interface
  */
 
-#define JIT_DEBUG_LOADS         (0x01)
-#define JIT_DEBUG_ASSOC         (0x02)
-#define JIT_DEBUG_LIVENESS      (0x04)
-#define JIT_DEBUG_COMPILABLE    (0x08)
+#define JIT_DEBUG_OPS		(0x01)
+#define JIT_DEBUG_CODE		(0x02)
+#define JIT_DEBUG_COMBINED	(0x04)
+#define JIT_DEBUG_COMPILABLE	(0x08)
+
+
+#define JIT_DEBUG_LOADS         (0x100)
+#define JIT_DEBUG_ASSOC         (0x200)
+#define JIT_DEBUG_LIVENESS      (0x400)
 
 #define JIT_OPT_OMIT_FRAME_PTR                  (0x01)
 #define JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS        (0x02)
@@ -324,7 +331,6 @@ struct jit_debug_info *jit_debug_info_new(const char *filename, const char *func
 void jit_generate_code(struct jit * jit);
 void jit_free(struct jit * jit);
 
-void jit_dump_code(struct jit * jit, int verbosity);
 void jit_dump_ops(struct jit * jit, int verbosity);
 void jit_check_code(struct jit *jit, int warnings);
 

@@ -25,7 +25,6 @@ static inline void jit_prepare_arguments(struct jit *jit);
 void jit_get_reg_name(struct jit_disasm *disasm, char * r, int reg);
 
 static struct jit_disasm jit_debugging_disasm =  {
-	.jit = NULL,
 	.indent_template = "    ",
 	.reg_template = "r%i",
 	.freg_template = "fr%i",
@@ -39,7 +38,7 @@ static struct jit_disasm jit_debugging_disasm =  {
 	.label_template = "<label>",
 	.label_forward_template = "<label>",
 	.generic_addr_template = "<addr: 0x%lx>",
-	.generic_jit_tree_valueemplate = "0x%lx",
+	.generic_value_template = "0x%lx",
 };
 
 
@@ -47,7 +46,7 @@ static struct jit_disasm jit_debugging_disasm =  {
 static void report_warning(struct jit *jit, jit_op *op, char *desc)
 {
 	fprintf(stdout, "%s at function `%s' (%s:%i)\n", desc, op->debug_info->function, op->debug_info->filename, op->debug_info->lineno);
-	print_op(&jit_debugging_disasm, op, NULL, 0);
+	print_op(stdout, &jit_debugging_disasm, op, NULL, 0);
 	fprintf(stdout, "\n");
 }
 

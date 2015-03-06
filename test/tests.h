@@ -13,12 +13,14 @@ typedef double (*pdfd)(double);
 typedef jit_value (*plfd)(double);
 typedef void * (*ppfl)(jit_value);
 
-#define DUMP_CODE       0x01
-#define DUMP_COMPILABLE 0x02
-#define DUMP_ASSOC      0x04
-#define DUMP_LIVENESS   0x08
-#define OPT_LIST        0x10
-#define OPT_ALL         0x20
+#define DUMP_OPS      	0x01
+#define DUMP_CODE      	0x02
+#define DUMP_COMBINED	0x04
+#define DUMP_COMPILABLE 0x08
+#define DUMP_ASSOC      0x10
+#define DUMP_LIVENESS   0x20
+#define OPT_LIST        0x40
+#define OPT_ALL         0x80
 
 
 #define TOLERANCE	0.00001
@@ -42,9 +44,10 @@ char *test_filename;
 	jit_check_code(p, JIT_WARN_ALL); \
 	if (test_flags & DUMP_COMPILABLE) jit_dump_ops(p, JIT_DEBUG_COMPILABLE); \
 	jit_generate_code(p); \
-	if (test_flags & (DUMP_ASSOC | DUMP_LIVENESS)) \
-	jit_dump_ops(p, (test_flags & DUMP_ASSOC ? JIT_DEBUG_ASSOC : 0) | (test_flags & DUMP_LIVENESS ? JIT_DEBUG_LIVENESS : 0)); \
-	if (test_flags & DUMP_CODE) jit_dump_code(p, 0); \
+	if (test_flags & (DUMP_OPS | DUMP_ASSOC | DUMP_LIVENESS)) \
+		jit_dump_ops(p, JIT_DEBUG_OPS | (test_flags & DUMP_ASSOC ? JIT_DEBUG_ASSOC : 0) | (test_flags & DUMP_LIVENESS ? JIT_DEBUG_LIVENESS : 0)); \
+	if (test_flags & DUMP_CODE) jit_dump_ops(p, JIT_DEBUG_CODE); \
+	if (test_flags & DUMP_COMBINED) jit_dump_ops(p, JIT_DEBUG_COMBINED); \
 }
 
 
@@ -107,8 +110,10 @@ int main(int argc, char **argv)
 	if (argc == 1) options |= OPT_ALL;
 
 	for (int i = 1; i < argc; i++) {
+		if (!strcmp("--ops", argv[i])) options |= DUMP_OPS;
 		if (!strcmp("--code", argv[i])) options |= DUMP_CODE;
 		if (!strcmp("--compilable", argv[i])) options |= DUMP_COMPILABLE;
+		if (!strcmp("--combined", argv[i])) options |= DUMP_COMBINED;
 		if (!strcmp("--assoc", argv[i])) options |= DUMP_ASSOC;
 		if (!strcmp("--liveness", argv[i])) options |= DUMP_LIVENESS;
 		if (!strcmp("-l", argv[i])) options |= OPT_LIST;
