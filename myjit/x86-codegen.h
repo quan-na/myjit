@@ -2,7 +2,7 @@
  * x86-codegen.h: Macros for generating x86 code
  *
  * Authors:
- *   Petr Krajca (krajcap@inf.upol.cz)
+ *   Petr Krajca (petr.krajca@upol.cz)
  *   Paolo Molaro (lupus@ximian.com)
  *   Intel Corporation (ORP Project)
  *   Sergey Chaban (serge@wildwestsoftware.com)
