@@ -694,7 +694,7 @@ static void jit_dump_ops_combined(struct jit *jit, jit_tree *labels)
 
 		// FIXME: better explanation
 		printf("myjit-disasm not found\n");
-		return;
+		exit(1);
 	}
 
 	// parent

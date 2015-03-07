@@ -34,7 +34,7 @@ int main()
 	jit_generate_code(p);
 
 	// if you are interested, you can dump the machine code
-	jit_dump_code(p, 0);
+	jit_dump_ops(p, JIT_DEBUG_CODE);
 
 	// check
 	printf("Check #1: %li\n", foo(1));

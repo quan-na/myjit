@@ -37,4 +37,5 @@ test/coverage.info
 *.gcda
 *.gcno
 test/coverage
-myjit-disasm/myjit-disasm
+disasm/myjit-disasm
+myjit-disasm

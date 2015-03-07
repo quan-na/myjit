@@ -80,8 +80,11 @@ int main()
 	jit_generate_code(p);
 
 	// if you are interested, you can dump the machine code
-	jit_dump_code(p, 0);
-//	jit_dump_ops(p, JIT_DEBUG_LIVENESS | JIT_DEBUG_ASSOC | JIT_DEBUG_LOADS);
+	//jit_dump_ops(p, JIT_DEBUG_CODE);
+
+	// or you can inspect how each operation is transformed
+	// into a machine code
+	jit_dump_ops(p, JIT_DEBUG_COMBINED);
 
 	// check
 	printf("Check #1: fib(1) = %li\n", fib(1));
