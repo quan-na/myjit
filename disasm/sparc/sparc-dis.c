@@ -8,6 +8,10 @@
 #define ABS(x)  ((x) < 0 ? - (x) : x)
 
 
+#define SPARC_G0	(0)
+#define SPARC_O7	(15)
+#define SPARC_I7	(31)
+
 char *fops[] = {
         /* fop1 format */
 	[196] = "fitos", 
@@ -106,8 +110,6 @@ typedef enum {
         sparc_fcmpeq_val = 87
 } SparcFOp;
 
-//
-//
 
 #define sparc_inst_op(inst) ((inst) >> 30)
 #define sparc_inst_op2(inst) (((inst) >> 22) & 0x7)
@@ -124,13 +126,6 @@ typedef enum {
 #define sparc_inst_a(inst) (((inst) >> 29) & 0x1)
 #define sparc_inst_opf(inst) (((inst) >> 5) & 0x1ff)
 
-/*
-typedef struct spd_t {
-	unsigned long pc;
-	char out[1024];
-	uint32_t *in;
-} spd_t;
-*/
 static int spd_out_printf(char *buf, const char *format, ...) {
         va_list ap;
         va_start(ap, format);
@@ -188,21 +183,18 @@ static void spd_out_freg(spd_t *dis, int freg)
 	spd_out_printf(dis->out, "f%i", freg);
 }
 
-static void spd_out_indirect_addr(spd_t *dis, int reg1, int reg2)
+static void spd_out_indirect_addr_reg(spd_t *dis, int reg1, int reg2)
 {
-	strcat(dis->out, "[ ");
 	if (reg1 && reg2) {
 		spd_out_reg(dis, reg1);
 		strcat(dis->out, " + ");
 		spd_out_reg(dis, reg2);
 	} else if (reg1) spd_out_reg(dis, reg1);
 	else spd_out_reg(dis, reg2);
-	strcat(dis->out, " ]");
 }
 
 static void spd_out_indirect_addr_imm(spd_t *dis, int reg1, int imm)
 {
-	strcat(dis->out, "[ ");
 	spd_out_reg(dis, reg1);
 	if (imm > 0) {
 		strcat(dis->out, " + ");
@@ -212,6 +204,20 @@ static void spd_out_indirect_addr_imm(spd_t *dis, int reg1, int imm)
 		strcat(dis->out, " - ");
 		spd_out_printf(dis->out, "%i", -imm);
 	}
+}
+
+
+static void spd_out_mem_reg(spd_t *dis, int reg1, int reg2)
+{
+	strcat(dis->out, "[ ");
+	spd_out_indirect_addr_reg(dis, reg1, reg2);
+	strcat(dis->out, " ]");
+}
+
+static void spd_out_mem_imm(spd_t *dis, int reg1, int imm)
+{
+	strcat(dis->out, "[ ");
+	spd_out_indirect_addr_imm(dis, reg1, imm);
 	strcat(dis->out, " ]");
 }
 
@@ -297,6 +303,20 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 	char *op_name = NULL;
 
 	int op_category;
+
+	if ((sparc_inst_op(insn) == 3) && (rd == SPARC_G0)){
+		int match = 0;
+		switch (op3) {
+			case 0x04: spd_out_name(dis, "clr"); match = 1; break;
+			case 0x05: spd_out_name(dis, "clrb"); match = 1; break;
+			case 0x06: spd_out_name(dis, "clrh"); match = 1; break;
+		}
+		if (match) {
+			if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
+			else spd_out_mem_reg(dis, rs1, rs2);
+			return;
+		}
+	}
 	if (sparc_inst_op(insn) == 3) {
 
 
@@ -320,16 +340,16 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 		switch (op_category) {
 			case OP_LOAD:
 				spd_out_name(dis, op_name);
-				if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-				else spd_out_indirect_addr(dis, rs1, rs2);
+				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
+				else spd_out_mem_reg(dis, rs1, rs2);
 				spd_out_comma(dis);
 				spd_out_reg(dis, rd);
 				break;
 
 			case OP_LOAD_FLOAT:
 				spd_out_name(dis, op_name);
-				if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-				else spd_out_indirect_addr(dis, rs1, rs2);
+				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
+				else spd_out_mem_reg(dis, rs1, rs2);
 				spd_out_comma(dis);
 				spd_out_freg(dis, rd);
 				break;
@@ -338,21 +358,122 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 				spd_out_name(dis, op_name);
 				spd_out_reg(dis, rd);
 				spd_out_comma(dis);
-				if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-				else spd_out_indirect_addr(dis, rs1, rs2);
+				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
+				else spd_out_mem_reg(dis, rs1, rs2);
 				break;
 			case OP_STORE_FLOAT:
 				spd_out_name(dis, op_name);
 				spd_out_freg(dis, rd);
 				spd_out_comma(dis);
-				if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-				else spd_out_indirect_addr(dis, rs1, rs2);
+				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
+				else spd_out_mem_reg(dis, rs1, rs2);
 				break;
 
 
 
 		}
 	}
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x14) && (rd == SPARC_G0)) {
+		spd_out_name(dis, "cmp");
+		spd_out_reg(dis, rs1);
+		spd_out_comma(dis);
+		if (is_imm) spd_out_simm(dis, simm13);
+		else spd_out_reg(dis, rs2);
+		return;
+	}
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x12) && !is_imm && (rd == SPARC_G0) && (rs1 == SPARC_G0)) {
+		spd_out_name(dis, "tst");
+		spd_out_reg(dis, rs2);
+		return;
+	}
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x07) && !is_imm && (rs2 == SPARC_G0)) {
+		spd_out_name(dis, "not");
+		if (rs1 != rd) {
+			spd_out_reg(dis, rs1);
+			spd_out_comma(dis);
+		}
+		spd_out_reg(dis, rd);
+		return;
+	}
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x04) && !is_imm && (rs2 == SPARC_G0)) {
+		spd_out_name(dis, "neg");
+		if (rs1 != rd) {
+			spd_out_reg(dis, rs1);
+			spd_out_comma(dis);
+		}
+		spd_out_reg(dis, rd);
+		return;
+	}
+
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x02) && (rs1 == SPARC_G0)) {
+		if (rs2 == SPARC_G0) spd_out_name(dis, "clr");
+		else {
+			spd_out_name(dis, "mov");
+			if (is_imm) spd_out_simm(dis, simm13);
+			else spd_out_reg(dis, rs2);
+			spd_out_comma(dis);
+		}
+		spd_out_reg(dis, rd);
+		return;
+	}
+
+
+		
+	if ((sparc_inst_op(insn) == 2) && (rs1 == rd) && (is_imm))  {
+		int match = 0;
+		switch (op3) {
+			case 0x00: spd_out_name(dis, "inc"); match = 1; break;
+			case 0x10: spd_out_name(dis, "inccc"); match = 1; break;
+			case 0x04: spd_out_name(dis, "dec"); match = 1; break;
+			case 0x14: spd_out_name(dis, "deccc"); match = 1; break;
+		}
+		if (match) {
+			if (simm13 != 1) {
+				spd_out_simm(dis, simm13);
+				spd_out_comma(dis);
+			}
+
+			spd_out_reg(dis, rd);
+			return;
+		}
+	}
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x3d) && (rd == SPARC_G0) && (rs1 == SPARC_G0) && (rs2 == SPARC_G0)) {
+		spd_out_name(dis, "restore");
+		return;
+	}
+
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x38) && (rd == SPARC_G0)) {
+		if (is_imm && (imm13 == 8)) {
+			if (rs1 == SPARC_I7) {
+				spd_out_name(dis, "ret");
+				return;
+			}
+			if (rs1 == SPARC_O7) {
+				spd_out_name(dis, "retl");
+				return;
+			}
+		}
+		spd_out_name(dis, "jmp");
+		if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
+		else spd_out_indirect_addr_reg(dis, rs1, rs2);
+		return;
+	}
+
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x38) && (rd == SPARC_O7)) {
+		spd_out_name(dis, "call");
+		if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
+		else spd_out_indirect_addr_reg(dis, rs1, rs2);
+		return;
+	}
+	
 
 	if (sparc_inst_op(insn) == 2) {
 		switch (op3) {
@@ -484,8 +605,8 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 
 			case OP_JMPL:
 				spd_out_name(dis, op_name);
-				// FIXME: adresa
-
+				if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
+				else spd_out_indirect_addr_reg(dis, rs1, rs2);
 				spd_out_comma(dis);
 				spd_out_reg(dis, rd);
 				break;
@@ -512,9 +633,6 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 				spd_out_comma(dis);
 				spd_out_freg(dis, rd);
 				break;
-
-				break;
-	
 		}
 
 	}
@@ -564,15 +682,3 @@ void spd_set_pc(spd_t *dis, unsigned long pc)
 {
 	dis->pc = pc;
 }
-
-
-/*
-int main()
-{
-	spd_t dis;
-//	84 10 a3 ff     or  %g2, 0x3ff, %g2 
-//	84 00 60 04 
-	decode(&dis, 0x84006004);
-	printf("#%s#\n", dis.out);
-}
-*/
