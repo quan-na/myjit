@@ -24,6 +24,7 @@
 #include "io.h"
 
 #include "udis86/udis86.h"
+#include "sparc/sparc-dis.h"
 
 unsigned long global_addr;
 
@@ -38,6 +39,7 @@ enum {
 
 ud_t dis_amd64;
 ud_t dis_i386;
+spd_t dis_sparc;
 
 void disassm_amd64(unsigned char *buf, int len)
 {
@@ -103,12 +105,22 @@ void disassm_data(unsigned char *buf, int len)
 
 void disassm_sparc(unsigned char *buf, int len)
 {
+/*
 	while (len > 0) {
 		output_code(global_addr, buf, 4, "not yet supported");
 		buf += 4;
 		global_addr += 4;
 		len -= 4;
 	}
+	*/
+	spd_set_input_buffer(&dis_sparc, buf, len);
+	while (spd_disassemble(&dis_sparc)) {
+		int len = 4;
+		output_code(global_addr, buf, len, (char *)spd_insn_asm(&dis_sparc));
+		buf += len;
+		global_addr += len;
+	}
+
 }
 
 void disassm_directive(unsigned char *buf)
@@ -124,6 +136,7 @@ void disassm_directive(unsigned char *buf)
 		global_addr = strtol(xbuf + 6, NULL, 16);
 		ud_set_pc(&dis_amd64, global_addr);
 		ud_set_pc(&dis_i386, global_addr);
+		spd_set_pc(&dis_sparc, global_addr);
 		if (sizeof(void *) == 8) printf("%016lx:\n", global_addr);
 		else printf("%016lx:\n", global_addr);
 	}
@@ -139,6 +152,8 @@ int main()
 	ud_set_mode(&dis_amd64, 64);
 	ud_set_syntax(&dis_i386, UD_SYN_INTEL);
 	ud_set_syntax(&dis_amd64, UD_SYN_INTEL);
+
+	spd_init(&dis_sparc);
 
 	global_addr = 0x0;
 	input_init();
