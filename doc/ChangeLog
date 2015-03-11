@@ -1,3 +1,20 @@
+Version 0.9.0.0
+===============
+Funding for this release was provided by Christian Collberg, University
+of Arizona.
+
++ new opcodes for mixing data and code
++ proper support for JMPR
++ support for warnings pointing out to the most commong issues in the compiled
+code
++ new testing framework and new tests covering almost 100% LoC
++ only public API is available through jitlib.h
++ new standalone disassembler
++ improved debugger
++ improved code quality (fixed GCC's warnings; more consistent function names,
+etc.)
++ various bugfixes
+
 Version 0.7.0.0
 ===============
 + support for optimizations

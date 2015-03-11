@@ -18,13 +18,13 @@ Getting MyJIT
 
 The source code including this documentation and examples is available at SourceForge (http://sourceforge.net/projects/myjit/files) as of other information (http://sourceforge.net/projects/myjit)
 
-You can also checkout the latest release from the Bazaar repository (bzr://myjit.bzr.sourceforge.net/bzrroot/myjit).
+You can also checkout the latest release from the GIT repository (git clone git://git.code.sf.net/p/myjit/maincode myjit-maincode).
 
 Instruction Set
 ---------------
 The instruction set of the MyJIT intermediate language is inspired by GNU lightning and in some aspects resembles architecture of RISC processors. Each operation has up to four operands which can be immediate values (numbers, constants) or registers. The number of available registers is virtually unlimited.
 
-All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides the ``jit_value`` type which has the same size as the CPU's general purpose register. In specific cases, e.g., if smaller or ``unsigned`` value is needed and it is appropriate, you may specify the size or type of the value. This topic is discussed in the sequel.
+All general purpose registers and integer values are treated as signed integers and have the same size which corresponds to the register size of the CPU. Note that i386 and SPARC processors have 32 bit wide registers and AMD64 has 64 bit wide registers.  In order to overcome this inconsistency, MyJIT provides the ``jit_value`` type which has the same size as the CPU's general purpose register. In specific cases, e.g., if smaller or ``unsigned`` value is needed and it is appropriate, you may specify the size or type of the value. This topic is discussed later.
 
 All floating-point numbers and registers are internally treated as double precision values. However, if necessary, the value can be converted into a single precision value.
 
@@ -37,7 +37,7 @@ Typically, name of each instruction consists of three parts:
 Registers
 .........
 
-MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by positive integers including zero. To refer to these registers you should use macros ``R(x)`` and ``FR(x)`` identifying general purpose and floating point registers, respectively. Registers ``R(x)`` and ``FR(x)`` are completely different register and do not occupy the same space.
+MyJIT supports arbitrary number of register. If the number of used registers is higher than the number of available hardware registers, MyJIT emulates them. Nevertheless, to achieve the best performance, it is a good practice not to use too many registers. All registers are denoted by positive integers including zero. To refer to these registers you should use macros ``R(x)`` and ``FR(x)`` identifying general purpose and floating point registers, respectively. Note that registers ``R(x)`` and ``FR(x)`` are completely different register and do not occupy the same space.
 
 Besides, MyJIT has two special purpose registers---R_FP and R_OUT. R_FP serves as the frame pointer and is used to access dynamically allocated memory on the stack. The R_OUT can be used to handle the return values more efficiently. It can be used to read the return value right after the return from the function. Otherwise, the value of the register is undefined. Furthermore, it can be used right before the return from the function to set the return value more efficiently. If the value is set earlier, it can lead to undefined behavior. However, in most cases register allocator can optimize this which makes this register almost obsolete.
 
@@ -48,7 +48,7 @@ In order to describe instruction set, we are using symbols ``reg`` and ``freg`` 
 
 Transfer Operations
 -------------------
-These operations allow to assign a value into a register. The first operand is always a register and the second one, can be either an immediate value or register.
+These operations allow to assign a value into a register. The first operand is always a register and the second one can be either an immediate value or register.
 
 ::
 
@@ -210,7 +210,7 @@ These operations compare last two operands and store one or zero (if the conditi
 
 Conversion
 ----------
-Register for integer and floating-pint values are independent and in order to convert value from one type to another you have to use the following operations.
+Register for integer and floating-pint values are independent and in order to convert value from one type to another you have to use one of the following operations.
 
 ::
 
@@ -239,7 +239,7 @@ The following operations and auxiliary macros help to create a function, read it
 	+ ``JIT_FLOAT`` -- floating-point number
 	+ ``JIT_PTR`` -- pointer
 
-+ To read an argument there are ``getarg reg, size`` and ``getarg freg, fsize`` operations having two arguments. The destination register where the input argument is stored and the immediate value which identifies position of the argument. 
++ To read an argument there are ``getarg reg, imm`` and ``getarg freg, imm`` operations having two arguments. The destination register where the input argument will be stored and the immediate value which identifies position of the argument. 
 
 + Operation ``allocai imm`` reserves space on the stack which has at least the size specified by its operand. Note that the stack space may be aligned to some higher value. The macro returns an integer number which is an *offset from the frame pointer R_FP!*
 
@@ -353,12 +353,16 @@ There is an operation that allows to emit raw bytes of data into a generated cod
 
 	data_byte imm
 
-This operation emits only one byte to a generated code. For convenience, there are two auxiliary functions emitting a sequence of bytes and a string of chars (including the trailing \0), respectively.
+This operation emits only one byte to a generated code. For convenience there are auxiliary macros emitting a sequence of bytes, string of chars (including the trailing \0), empty area, and values of common sizes, respectively.
 
 ::
 	
 	jit_data_bytes(struct jit *jit, int count, unsigned char *data)
-	jit_data_str(jit, a)
+	jit_data_str(jit, str)
+	jit_data_emptyarea(jit, size)
+	jit_data_word(jit, a)
+	jit_data_dword(jit, a)
+	jit_data_qword(jit, a)
 
 If you are emitting raw data into a code, it is your responsibility to properly align code. For this purpose there is an operation:
 
@@ -367,11 +371,23 @@ If you are emitting raw data into a code, it is your responsibility to properly 
 	jit_align imm
 
 
-This operation takes care of proper code alignment. Note that particular platforms have their specific requirements. On SPARC all instructions have to be aligned to 4 bytes, AMD64 favors alignment to 16 bytes, but it is not mandatory, etc. Safe bet is to use 16 as an argument for this operation.
+This operation takes care of proper code alignment. Note that particular platforms have their specific requirements. On SPARC all instructions have to be aligned to 4 bytes, AMD64 favors alignment to 16 bytes, but it is not mandatory, etc. Safe bet is to use 16 as an operand of this operation.
 
-Mixing code and data may not be a generally good idea and may lead to various issues, e.g. poor performance, weird behavior, etc. Albeit this feature is part of the library, users are encouraged to use data that are not part of the code and are allocated elsewhere, for instance, with ordinary ``malloc``.
+To obtain reference to a data or code you can use two operations:
 
-	
+::
+	ref_data reg, imm
+	ref_code reg, imm
+
+That loads address of the label (second operand) into a register. The ref_data operation is intended for addresses of data (emitted with data_* operations) and ref_code is for address within an ordinary code. Note that address obtained with ref_code can be used only for local jumps inside a function. If necessary, for instance, if a some sort of branch table is needed, it is possible to emit address as a data with two operations.
+
+::
+	data_code imm
+	data_data imm
+
+
+Note that mixing code and data may not be a generally good idea and may lead to various issues, e.g. poor performance, weird behavior, etc. Albeit this feature is part of the library, users are encouraged to place data to some specific part of code (for instance, to the end of code) or use data that are not part of the code and are allocated elsewhere, for instance, with ordinary ``malloc``.
+
 
 
 Getting Started
@@ -423,7 +439,7 @@ We start with a really simple example---function returning its argument incremen
 	
 		// if you are interested, you can dump the machine code
 		// this functionality is provided through the `gcc' and `objdump'
-		// jit_dump_code(p, 0);
+		// jit_dump_ops(p, JIT_DEBUG_CODE);
 	
 		// cleanup
 		jit_free(p);
@@ -449,18 +465,28 @@ We also recommend to check out the ``demo2.c`` and ``demo3.c`` examples which ar
 Debugging
 ---------
 
-MyJIT contains several tools simplifying application development. The first one is the ``msg`` operation which prints out given message or a value of the given register. The ``msg`` operation has one or two operands. The first one is always an immediate value which is the string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
+MyJIT contains several tools simplifying application development. The first one is the ``msg`` operation which prints out the given message or a value of the given register. The ``msg`` operation has one or two operands. The first one is always an immediate value which is the string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
 
 .. sourcecode:: c
 
 	jit_msg(jit, "Simple message\n");
 	jit_msgr(jit, "Reg 1: %l\n", R(1));
 
-MyJIT also provides two functions ``jit_dump_ops`` and ``jit_dump_code`` which allow to print out the code. The first one prints out the high level code and the second one prints out the final machine code. Both functions take two arguments---the reference to the compiler and the verbosity level. However, the second argument is not used and its value should be always zero.
+MyJIT provides several means for code analysis. It is provided through the ``jit_dump_ops`` function. In the second argument you may specify if you want to list:
+
++ list of all operations in the intermediate language (``JIT_DEBUG_OPS``)
++ generated machine code (``JIT_DEBUG_CODE``)
++ combination of both -- MyJIT operations and machine code (``JIT_DEBUG_COMBINED``)
+
+
+*NOTICE!* Do not use debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the ``printf`` function explicitly. The ``jit_dump_ops`` with the ``JIT_DEBUG_CODE`` is using ``gcc`` and ``objdump`` to disassemble the code, therefore, these two programs have to be present in the system, or, on OS X ``clang`` and ``otool`` are used. The ``JIT_DEBUG_COMBINED`` option requires ``myjit-disasm`` disassembler in the directory along with the debugged program, or the path to the disassembler has to be specified in the ``MYJIT_DISASM`` environment variable.
 
 Examples of the outputs for the above mentioned source code.
 
 ::
+
+	JIT_DEBUG_OPS
+	-------------
 
 	prolog      0xbfe62858
         declarg     integer, 0x4
@@ -471,20 +497,52 @@ Examples of the outputs for the above mentioned source code.
 
 ::
 
-	00000000 <main>:
-	   0:   55                      push   ebp
-	   1:   8b ec                   mov    ebp,esp
-	   3:   83 ec 08                sub    esp,0x8
-	   6:   8b 55 08                mov    edx,DWORD PTR [ebp+0x8]
-	   9:   8b ca                   mov    ecx,edx
-	   b:   83 c1 01                add    ecx,0x1
-	   e:   8b c1                   mov    eax,ecx
-	  10:   8b e5                   mov    esp,ebp
-	  12:   5d                      pop    ebp
-	  13:   c3                      ret  
+	JIT_DEBUG_CODE
+	--------------
+
+	0000000000000000 <main>:
+	   0:   55                      push   rbp
+	   1:   48 8b ec                mov    rbp,rsp
+	   4:   48 83 ec 20             sub    rsp,0x20
+	   8:   48 8b f7                mov    rsi,rdi
+	   b:   48 8d 46 01             lea    rax,[rsi+0x1]
+	   f:   48 8b e5                mov    rsp,rbp
+	  12:   5d                      pop    rbp
+	  13:   c3                      ret 
 
 
-*NOTICE!* Do not use the debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the ``printf`` function explicitly. The ``jit_dump_code`` is using ``gcc`` and ``objdump`` to disassemble the code, therefore, these two programs have to be present in the system.
+::
+
+	JIT_DEBUG_COMBINED
+	------------------
+
+	    prolog   0x7fffa0371db0
+	  0000: 55                         push rbp
+	  0001: 48 8b ec                   mov rbp, rsp
+	  0004: 48 83 ec 20                sub rsp, 0x20
+	
+	    declare_arg integer, 0x8
+	    getarg   r0, 0x0
+	  0008: 48 8b f7                   mov rsi, rdi
+	
+	    addi     r1, r0, 0x1
+	  000b: 48 8d 46 01                lea rax, [rsi+0x1]
+	
+	    retr     r1
+	  000f: 48 8b e5                   mov rsp, rbp
+	  0012: 5d                         pop rbp
+	  0013: c3                         ret
+
+
+To make the navigation through the dumps easier, we have included one auxiliary operation:
+
+::
+	
+	comment imm
+
+Which has only one argument -- string which will appear only in the dumps.
+
+
 
 Optimizations
 -------------

@@ -13,48 +13,33 @@ ROADMAP
 	* removed warnings
 	* bug in JIT_OPT_JOIN_ADDMUL
 	* opcodes as an enum
-	+ label to register operation
-	+ align operation
-	+ raw data in code
-	+ bogus demo.c file
-	+ cpu detection
-	+ all globals with the jit/JIT prefix
-	+ floating point comparisons
-
-
-+ release 0.7.2
-	+ addmul+add
-	+ ld/st -> membase/memindex conversion
-
-+ release 0.7.3
-	+ reg. allocator should be aware of operations having particular requirements on registers, e.g., MUL, DIV, SHL.
+	* label to register operation
+	* align operation
+	* raw data in code
+	* bogus demo.c file
+	* all globals with the jit/JIT prefix
+	* floating point comparisons
 
 + release 0.8.0
-	+ warnings:
-		+ basic API
-		+ unused assignments
-		+ unused arguments
-		+ uninitialized registers
-		+ register type mismatches
+	* warnings:
+		* basic API
+		* unused assignments
+		* unused arguments
+		* uninitialized registers
+		* register type mismatches
 
 
 + release 0.9.0
-	+ integrated disassambler
+	* integrated disassambler
+	* documentation update
+	* op-codes reorganization
+	* i386 testing
+	* amd64 testing
+	* sparc testing
+
 
 + release 1.0.0
-	+ more testing
-
-+ release 1.1.0
-	+ i386 (emulated)
-		+ arithmetics
-		+ conversions
-		+ load/store
-		+ argument reading
-		+ argument passing
-		+ branches
-		+ conditionals
-
-
-Known issues:
-	+ SPARC: vararg stack corruption
-	+ test-cases are not separate and does not cover all lines of code
+	+ reg. allocator should be aware of operations having particular requirements on registers, e.g., MUL, DIV, SHL.
+	+ addmul+add
+	+ ld/st -> membase/memindex conversion
+	+ cpu detection
