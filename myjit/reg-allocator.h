@@ -178,7 +178,7 @@ skip:
 	for (int q = 0; q < args; q++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->gp_arg_regs[q]->id, 0, &reg);
 		if (hreg) {
-			unload_reg(op, hreg, reg);
+			if (jit_set_get(op->live_out, reg)) unload_reg(op, hreg, reg);
 			rmap_unassoc(op->regmap, reg);
 		}
 	}
@@ -186,7 +186,7 @@ skip:
 	for (int q = 0; q < args; q++) {
 		jit_hw_reg * hreg = rmap_is_associated(op->regmap, al->fp_arg_regs[q]->id, 1, &reg);
 		if (hreg) {
-			if (hreg->id != al->fpret_reg->id) unload_reg(op, hreg, reg);
+			if ((hreg->id != al->fpret_reg->id) && jit_set_get(op->live_out, reg)) unload_reg(op, hreg, reg);
 			rmap_unassoc(op->regmap, reg);
 		}
 	}
