@@ -39,12 +39,14 @@
 #define sparc_inst_rs1(inst) (((inst) >> 14) & 0x1f)
 #define sparc_inst_rs2(inst) (((inst) >> 0) & 0x1f)
 #define sparc_inst_imm(inst) (((inst) >> 13) & 0x1)
+#define sparc_inst_imm11(inst) (((inst) >> 0) & 0x7ff)
 #define sparc_inst_imm13(inst) (((inst) >> 0) & 0x1fff)
 #define sparc_inst_imm22(inst) (((inst) >> 0) & 0x3fffff)
 #define sparc_inst_imm30(inst) (((inst) >> 0) & 0x3fffffff)
 #define sparc_inst_cond(inst) (((inst) >> 25) & 0xf)
 #define sparc_inst_a(inst) (((inst) >> 29) & 0x1)
 #define sparc_inst_opf(inst) (((inst) >> 5) & 0x1ff)
+#define sparc_inst_cond_format4(inst) (((inst) >> 14) & 0xf)
 
 typedef struct {
 	int opc;
@@ -160,7 +162,6 @@ static void spd_out_indirect_addr_reg(spd_t *dis, int reg1, int reg2)
 
 static void spd_out_indirect_addr_imm(spd_t *dis, int reg1, int imm)
 {
-	// FIXME: overit, ze neni potreboa nasobit imm 4
 	spd_out_reg(dis, reg1);
 	if (imm > 0) {
 		strcat(dis->out, " + ");
@@ -231,6 +232,29 @@ static void decode_format2(spd_t *dis, uint32_t insn)
 		if (sparc_inst_a(insn)) strcat(dis->out + strlen(dis->out) - 1, ",a ");
 		spd_out_addr(dis, sign_ext(22, imm22) * 4);
 	}
+}
+
+
+static void decode_format4(spd_t *dis, uint32_t insn)
+{
+	static char *movops[] = { "movn", "move", "movle", "movl", "movleu", "movcs", "movneg", "movvs",
+				"mova", "movne", "movg", "movge", "movgu", "movcc", "movpos", "movvc" };
+
+	int rd = sparc_inst_rd(insn);
+	int rs2 = sparc_inst_rs2(insn);
+	int op3 = sparc_inst_op3(insn);
+	int simm11 = sign_ext(11, sparc_inst_imm11(insn));
+	int is_imm = sparc_inst_i(insn);
+
+	if (op3 != 0x2c) return;
+
+	spd_out_name(dis, movops[sparc_inst_cond_format4(insn)]);
+
+	if (is_imm) spd_out_simm(dis, simm11);
+	else spd_out_reg(dis, rs2);
+
+	spd_out_comma(dis);
+	spd_out_reg(dis, rd);
 }
 
 static int decode_synthetic_3_11(spd_t *dis, int op3, int is_imm, int rd, int rs1, int rs2, int simm13)
@@ -477,6 +501,11 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 		op_table = opcodes_3fop;
 		op_table_size = sizeof(opcodes_3fop);
 		op = sparc_inst_opf(insn);
+	}
+
+	if ((sparc_inst_op(insn) == 2) && (op3 == 0x2c)) {
+		decode_format4(dis, insn);
+		return;
 	}
 
 	for (int i = 0; i < op_table_size; i++)
