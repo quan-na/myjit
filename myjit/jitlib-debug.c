@@ -35,6 +35,8 @@
 #define OUTPUT_BUF_SIZE         (8192)
 #define print_padding(buf, size) while (strlen((buf)) < (size)) { strcat((buf), " "); }
 
+static jit_hw_reg * rmap_is_associated(jit_rmap * rmap, int reg_id, int fp, jit_value * virt_reg);
+
 static inline int bufprint(char *buf, const char *format, ...) {
 	va_list ap;
 	va_start(ap, format);
@@ -659,7 +661,7 @@ static char *platform_id()
 #elif JIT_ARCH_I386
 	return "i386";
 #else
-	return "sparc"
+	return "sparc";
 #endif
 }
 
