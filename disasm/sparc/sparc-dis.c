@@ -1,3 +1,23 @@
+/*
+ * MyJIT Disassembler 
+ *
+ * Copyright (C) 2015 Petr Krajca, <petr.krajca@upol.cz>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -7,109 +27,9 @@
 
 #define ABS(x)  ((x) < 0 ? - (x) : x)
 
-
 #define SPARC_G0	(0)
 #define SPARC_O7	(15)
 #define SPARC_I7	(31)
-
-char *fops[] = {
-        /* fop1 format */
-	[196] = "fitos", 
-	[200] = "fitod", 
-	[204] = "fitoq", 
-	[132] = "fxtos", 
-	[136] = "fxtod", 
-	[140] = "fxtoq", 
-	[209] = "fstoi", 
-	[210] = "fdtoi", 
-	[211] = "fqtoi", 
-	[201] = "fstod", 
-	[205] = "fstoq", 
-	[198] = "fdtos", 
-	[206] = "fdtoq", 
-	[199] = "fqtos", 
-	[203] = "fqtod", 
-	[1]   = "fmovs", 
-	[2]   = "fmovd", 
-	[5]   = "fnegs", 
-	[6]   = "fnegd", 
-	[9]   = "fabss", 
-	[10]  = "fabsd", 
-	[41]  = "fsqrts",
-	[42]  = "fsqrtd",
-	[43]  = "fsqrtq",
-	[65]  = "fadds", 
-	[66]  = "faddd", 
-	[67]  = "faddq", 
-	[69]  = "fsubs", 
-	[70]  = "fsubd", 
-	[71]  = "fsubq", 
-	[73]  = "fmuls", 
-	[74]  = "fmuld", 
-	[75]  = "fmulq", 
-	[105] = "fsmuld",
-	[111] = "fdmulq",
-	[77]  = "fdivs", 
-	[78]  = "fdivd", 
-	[79]  = "fdivq", 
-
-	/* fop2 format */
-	[81]  = "fcmps", 
-	[82]  = "fcmpd", 
-	[83]  = "fcmpq", 
-	[85]  = "fcmpes",
-	[86]  = "fcmped",
-	[87]  = "fcmpeq",
-};
-typedef enum {
-        /* fop1 format */
-        sparc_fitos_val = 196,
-        sparc_fitod_val = 200,
-        sparc_fitoq_val = 204,
-        sparc_fxtos_val = 132,
-        sparc_fxtod_val = 136,
-        sparc_fxtoq_val = 140,
-        sparc_fstoi_val = 209,
-        sparc_fdtoi_val = 210,
-        sparc_fqtoi_val = 211,
-        sparc_fstod_val = 201,
-        sparc_fstoq_val = 205,
-        sparc_fdtos_val = 198,
-        sparc_fdtoq_val = 206,
-        sparc_fqtos_val = 199,
-        sparc_fqtod_val = 203,
-        sparc_fmovs_val  = 1,
-        sparc_fmovd_val  = 2,
-        sparc_fnegs_val  = 5,
-        sparc_fnegd_val  = 6,
-        sparc_fabss_val  = 9,
-        sparc_fabsd_val  = 10,
-        sparc_fsqrts_val = 41,
-        sparc_fsqrtd_val = 42,
-        sparc_fsqrtq_val = 43,
-        sparc_fadds_val  = 65,
-        sparc_faddd_val  = 66,
-        sparc_faddq_val  = 67,
-        sparc_fsubs_val  = 69,
-        sparc_fsubd_val  = 70,
-        sparc_fsubq_val  = 71,
-        sparc_fmuls_val  = 73,
-        sparc_fmuld_val  = 74,
-        sparc_fmulq_val  = 75,
-        sparc_fsmuld_val = 105,
-        sparc_fdmulq_val = 111,
-        sparc_fdivs_val  = 77,
-        sparc_fdivd_val  = 78,
-        sparc_fdivq_val  = 79,
-        /* fop2 format */
-        sparc_fcmps_val  = 81,
-        sparc_fcmpd_val  = 82,
-        sparc_fcmpq_val  = 83,
-        sparc_fcmpes_val = 85,
-        sparc_fcmped_val = 86,
-        sparc_fcmpeq_val = 87
-} SparcFOp;
-
 
 #define sparc_inst_op(inst) ((inst) >> 30)
 #define sparc_inst_op2(inst) (((inst) >> 22) & 0x7)
@@ -126,6 +46,52 @@ typedef enum {
 #define sparc_inst_a(inst) (((inst) >> 29) & 0x1)
 #define sparc_inst_opf(inst) (((inst) >> 5) & 0x1ff)
 
+typedef struct {
+	int opc;
+	void (*print_fn)(spd_t *, char *op_name, int is_imm, int rd, int rs1, int rs2, int simm13);
+	char *op_name;
+} format3;
+
+#define DEFINE_FORMAT(_fmt_name) \
+static void _fmt_name(spd_t *dis, char *op_name, int is_imm, int rd, int rs1, int rs2, int simm13)
+
+#define NAME		spd_out_name(dis, op_name);
+#define OPNAME(_x)	spd_out_name(dis, (_x));
+#define REG(_r) 	spd_out_reg(dis, (_r));
+#define FREG(_r) 	spd_out_freg(dis, (_r));
+#define COMMA		spd_out_comma(dis);
+#define MEM do { \
+	if (is_imm) spd_out_mem_imm(dis, rs1, simm13); \
+	else spd_out_mem_reg(dis, rs1, rs2);\
+} while(0);
+
+#define REG_OR_SIMM13 do { \
+	if (is_imm) spd_out_simm(dis, simm13); \
+	else spd_out_reg(dis, rs2); \
+} while(0);
+
+#define REG_OR_IMM13 do { \
+	if (is_imm) spd_out_imm(dis, simm13); \
+	else spd_out_reg(dis, rs2); \
+} while(0);
+
+
+#define INDIRECT_ADDR13 do{ \
+	if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13); \
+	else spd_out_indirect_addr_reg(dis, rs1, rs2); \
+} while(0);
+
+static inline int sign_ext(int bits, int value)
+{
+	if (value & (1 << (bits - 1))) return value | (-1 << (bits - 1));
+	return value;
+}
+
+/*
+ *
+ * Output functions
+ *
+ */
 static int spd_out_printf(char *buf, const char *format, ...) {
         va_list ap;
         va_start(ap, format);
@@ -153,23 +119,22 @@ static void spd_out_comma(spd_t *dis)
 	strcat(dis->out, ", ");
 }
 
-static char *regs[] = 
-{
-	"g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
-	"o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7", 
-	"l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", 
-	"i0", "i1", "i2", "i3", "i4", "i5", "fp", "i7"
-};
-
 static void spd_out_reg(spd_t *dis, int reg)
 {
+	static char *regs[] = {
+		"g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
+		"o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7", 
+		"l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", 
+		"i0", "i1", "i2", "i3", "i4", "i5", "fp", "i7"
+	};
+
 	strcat(dis->out, "%");
 	strcat(dis->out, regs[reg]);
 }
 
 static void spd_out_imm(spd_t *dis, int imm)
 {
-	spd_out_printf(dis->out, "0x%x", imm);
+	spd_out_printf(dis->out, "0x%x", imm & 0x1ff);
 }
 
 static void spd_out_simm(spd_t *dis, int simm)
@@ -195,6 +160,7 @@ static void spd_out_indirect_addr_reg(spd_t *dis, int reg1, int reg2)
 
 static void spd_out_indirect_addr_imm(spd_t *dis, int reg1, int imm)
 {
+	// FIXME: overit, ze neni potreboa nasobit imm 4
 	spd_out_reg(dis, reg1);
 	if (imm > 0) {
 		strcat(dis->out, " + ");
@@ -221,12 +187,17 @@ static void spd_out_mem_imm(spd_t *dis, int reg1, int imm)
 	strcat(dis->out, " ]");
 }
 
+/*
+ *
+ * Decoding
+ *
+ */
+
 static void decode_format1(spd_t *dis, uint32_t insn)
 {
 	spd_out_name(dis, "call");
 	spd_out_addr(dis, sparc_inst_imm30(insn) << 2);
 } 
-
 
 static void decode_format2(spd_t *dis, uint32_t insn)
 {
@@ -249,188 +220,60 @@ static void decode_format2(spd_t *dis, uint32_t insn)
 		} else {
 			spd_out_name(dis, "nop"); 
 		}
+		return;
 	}
 
-	if (op2 == 0x02) {
-		spd_out_name(dis, bops[sparc_inst_cond(insn)]); 
+	if ((op2 == 0x02) || (op2 == 0x06)) {
+
+		if (op2 == 0x02) spd_out_name(dis, bops[sparc_inst_cond(insn)]); 
+		if (op2 == 0x06) spd_out_name(dis, bfops[sparc_inst_cond(insn)]); 
+
 		if (sparc_inst_a(insn)) strcat(dis->out + strlen(dis->out) - 1, ",a ");
-		int simm22;
-		if (imm22 & (1 << 21)) simm22 = imm22 | (-1 << 21);
-		else simm22 = imm22;
-
-		spd_out_addr(dis, simm22 * 4);
+		spd_out_addr(dis, sign_ext(22, imm22) * 4);
 	}
-
-	if (op2 == 0x06) {
-		spd_out_name(dis, bfops[sparc_inst_cond(insn)]); 
-		if (sparc_inst_a(insn)) strcat(dis->out + strlen(dis->out) - 1, ",a ");
-		int simm22;
-		if (imm22 & (1 << 21)) simm22 = imm22 | (-1 << 21);
-		else simm22 = imm22;
-
-		spd_out_addr(dis, simm22 * 4);
-	}
-
 }
 
-#define OP_LOAD 	(1)
-#define OP_LOAD_FLOAT 	(2)
-#define OP_STORE	(4)
-#define OP_STORE_FLOAT 	(5)
-#define OP_LOGIC	(11)
-#define OP_SHIFT	(12)
-#define OP_ADD		(13)
-#define OP_SUB		(15)
-#define OP_MUL		(18)
-#define OP_DIV		(19)
-#define OP_STACK	(20)
-#define OP_JMPL		(25)
-#define OP_FOP_2A	(10033)
-#define OP_FOP_2B	(20033)
-#define OP_FOP_3	(30033)
-static void decode_format3(spd_t *dis, uint32_t insn)
+static int decode_synthetic_3_11(spd_t *dis, int op3, int is_imm, int rd, int rs1, int rs2, int simm13)
 {
-
-	int rd = sparc_inst_rd(insn);
-	int rs1 = sparc_inst_rs1(insn);
-	int rs2 = sparc_inst_rs2(insn);
-	int op3 = sparc_inst_op3(insn);
-	int is_imm = sparc_inst_i(insn);
-	int imm13 = sparc_inst_imm13(insn); 
-	int simm13;
-	if (imm13 & (1 << 12)) simm13 = imm13 | (-1 << 12);
-	else simm13 = imm13;
-	char *op_name = NULL;
-
-	int op_category;
-
-	if ((sparc_inst_op(insn) == 3) && (rd == SPARC_G0)){
-		int match = 0;
+	if (rd == SPARC_G0) {
 		switch (op3) {
-			case 0x04: spd_out_name(dis, "clr"); match = 1; break;
-			case 0x05: spd_out_name(dis, "clrb"); match = 1; break;
-			case 0x06: spd_out_name(dis, "clrh"); match = 1; break;
-		}
-		if (match) {
-			if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
-			else spd_out_mem_reg(dis, rs1, rs2);
-			return;
+			case 0x04: OPNAME("clr"); MEM; return 1;
+			case 0x05: OPNAME("clrb"); MEM; return 1;
+			case 0x06: OPNAME("clrh"); MEM; return 1;
 		}
 	}
-	if (sparc_inst_op(insn) == 3) {
+	return 0;
+}
 
-
-		switch (op3) {
-			case 0x00: op_category = OP_LOAD; op_name = "ld"; break;
-			case 0x01: op_category = OP_LOAD; op_name = "ldub"; break;
-			case 0x02: op_category = OP_LOAD; op_name = "lduh"; break;
-			case 0x03: op_category = OP_LOAD; op_name = "ldd"; break;
-			case 0x09: op_category = OP_LOAD; op_name = "ldsb"; break;
-			case 0x0a: op_category = OP_LOAD; op_name = "ldsh"; break;
-			case 0x04: op_category = OP_STORE; op_name = "st"; break;
-			case 0x05: op_category = OP_STORE; op_name = "stb"; break;
-			case 0x06: op_category = OP_STORE; op_name = "sth"; break;
-			case 0x07: op_category = OP_STORE; op_name = "std"; break;
-			case 0x20: op_category = OP_LOAD_FLOAT; op_name = "ldf"; break;
-			case 0x23: op_category = OP_LOAD_FLOAT; op_name = "lddf"; break;
-			case 0x24: op_category = OP_STORE_FLOAT; op_name = "stf"; break;
-			case 0x27: op_category = OP_STORE_FLOAT; op_name = "stdf"; break;
-
-		}
-		switch (op_category) {
-			case OP_LOAD:
-				spd_out_name(dis, op_name);
-				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
-				else spd_out_mem_reg(dis, rs1, rs2);
-				spd_out_comma(dis);
-				spd_out_reg(dis, rd);
-				break;
-
-			case OP_LOAD_FLOAT:
-				spd_out_name(dis, op_name);
-				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
-				else spd_out_mem_reg(dis, rs1, rs2);
-				spd_out_comma(dis);
-				spd_out_freg(dis, rd);
-				break;
-
-			case OP_STORE:
-				spd_out_name(dis, op_name);
-				spd_out_reg(dis, rd);
-				spd_out_comma(dis);
-				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
-				else spd_out_mem_reg(dis, rs1, rs2);
-				break;
-			case OP_STORE_FLOAT:
-				spd_out_name(dis, op_name);
-				spd_out_freg(dis, rd);
-				spd_out_comma(dis);
-				if (is_imm) spd_out_mem_imm(dis, rs1, simm13);
-				else spd_out_mem_reg(dis, rs1, rs2);
-				break;
-
-
-
-		}
+static int decode_synthetic_3_10(spd_t *dis, int op3, int is_imm, int rd, int rs1, int rs2, int simm13)
+{
+	if ((op3 == 0x14 /* subcc */) && (rd == SPARC_G0)) { OPNAME("cmp") REG(rs1) COMMA REG_OR_SIMM13; return 1; }
+	if ((op3 == 0x12 /* orcc */) && !is_imm && (rd == SPARC_G0) && (rs1 == SPARC_G0)) { OPNAME("tst"); REG(rs2); return 1; }
+	if ((op3 == 0x07 /* xnor */) && !is_imm && (rs2 == SPARC_G0)) { 
+		OPNAME("not"); 
+		if (rs1 != rd) { REG(rs1) COMMA };
+		REG(rd);
+		return 1;
 	}
 
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x14) && (rd == SPARC_G0)) {
-		spd_out_name(dis, "cmp");
-		spd_out_reg(dis, rs1);
-		spd_out_comma(dis);
-		if (is_imm) spd_out_simm(dis, simm13);
-		else spd_out_reg(dis, rs2);
-		return;
-	}
-
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x12) && !is_imm && (rd == SPARC_G0) && (rs1 == SPARC_G0)) {
-		spd_out_name(dis, "tst");
-		spd_out_reg(dis, rs2);
-		return;
-	}
-
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x07) && !is_imm && (rs2 == SPARC_G0)) {
-		spd_out_name(dis, "not");
-		if (rs1 != rd) {
-			spd_out_reg(dis, rs1);
-			spd_out_comma(dis);
-		}
-		spd_out_reg(dis, rd);
-		return;
-	}
-
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x04) && !is_imm && (rs2 == SPARC_G0)) {
-		spd_out_name(dis, "neg");
-		if (rs1 != rd) {
-			spd_out_reg(dis, rs1);
-			spd_out_comma(dis);
-		}
-		spd_out_reg(dis, rd);
-		return;
+	if ((op3 == 0x04 /* sub */) && !is_imm && (rs2 == SPARC_G0)) {
+		OPNAME("neg");
+		if (rs1 != rd) { REG(rs1) COMMA };
+		REG(rd);
+		return 1;
 	}
 
 
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x02) && (rs1 == SPARC_G0)) {
-		if (rs2 == SPARC_G0) spd_out_name(dis, "clr");
-		else {
-			spd_out_name(dis, "mov");
-			if (is_imm) spd_out_simm(dis, simm13);
-			else spd_out_reg(dis, rs2);
-			spd_out_comma(dis);
-		}
-		spd_out_reg(dis, rd);
-		return;
-	}
-
-
+	if ((op3 == 0x02 /* or */) && !is_imm && (rs1 == SPARC_G0) && (rs2 == SPARC_G0)) { OPNAME("clr") REG(rd); return 1; };
+	if ((op3 == 0x02 /* or */) && (rs1 == SPARC_G0)) { OPNAME("mov") REG_OR_SIMM13 COMMA REG(rd); return 1; };
 		
-	if ((sparc_inst_op(insn) == 2) && (rs1 == rd) && (is_imm))  {
+	if ((rs1 == rd) && (is_imm))  {
 		int match = 0;
 		switch (op3) {
-			case 0x00: spd_out_name(dis, "inc"); match = 1; break;
-			case 0x10: spd_out_name(dis, "inccc"); match = 1; break;
-			case 0x04: spd_out_name(dis, "dec"); match = 1; break;
-			case 0x14: spd_out_name(dis, "deccc"); match = 1; break;
+			case 0x00: OPNAME("inc"); match = 1; break;
+			case 0x10: OPNAME("inccc"); match = 1; break;
+			case 0x04: OPNAME("dec"); match = 1; break;
+			case 0x14: OPNAME("deccc"); match = 1; break;
 		}
 		if (match) {
 			if (simm13 != 1) {
@@ -438,204 +281,212 @@ static void decode_format3(spd_t *dis, uint32_t insn)
 				spd_out_comma(dis);
 			}
 
-			spd_out_reg(dis, rd);
-			return;
+			REG(rd);
+			return 1;
 		}
 	}
 
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x3d) && (rd == SPARC_G0) && (rs1 == SPARC_G0) && (rs2 == SPARC_G0)) {
-		spd_out_name(dis, "restore");
-		return;
+	if ((op3 == 0x3d /*restore */) && (!is_imm) && (rd == SPARC_G0) && (rs1 == SPARC_G0) && (rs2 == SPARC_G0)) {
+		OPNAME("restore");
+		return 1;
 	}
 
-
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x38) && (rd == SPARC_G0)) {
-		if (is_imm && (imm13 == 8)) {
-			if (rs1 == SPARC_I7) {
-				spd_out_name(dis, "ret");
-				return;
-			}
-			if (rs1 == SPARC_O7) {
-				spd_out_name(dis, "retl");
-				return;
-			}
+	if ((op3 == 0x38 /* jmpl */) && (rd == SPARC_G0)) {
+		if (is_imm && (simm13 == 8)) {
+			if (rs1 == SPARC_I7) { OPNAME("ret"); return 1; }
+			if (rs1 == SPARC_O7) { OPNAME("retl"); return 1; }
 		}
-		spd_out_name(dis, "jmp");
-		if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-		else spd_out_indirect_addr_reg(dis, rs1, rs2);
-		return;
+		OPNAME("jmp"); INDIRECT_ADDR13; 
+		return 1;
+	}
+
+	if ((op3 == 0x38 /* jmpl */) && (rd == SPARC_O7)) { OPNAME("call"); INDIRECT_ADDR13; return 1; }
+
+
+	if ((op3 == 0x28 /* rd */) && (rs1 == SPARC_G0)) { 
+		OPNAME("rd");
+		strcat(dis->out, "%y");
+		COMMA;
+		REG(rd);
+		return 1; 
+	}
+
+	if ((op3 == 0x30 /* wr */) && (rd == SPARC_G0)) { 
+		OPNAME("wr");
+		REG(rs1);
+		COMMA;
+		REG_OR_IMM13;
+		COMMA;
+		strcat(dis->out, "%y");
+		return 1; 
 	}
 
 
-	if ((sparc_inst_op(insn) == 2) && (op3 == 0x38) && (rd == SPARC_O7)) {
-		spd_out_name(dis, "call");
-		if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-		else spd_out_indirect_addr_reg(dis, rs1, rs2);
-		return;
-	}
-	
+	return 0;
+}
+
+DEFINE_FORMAT(fmt_load) 	{ NAME MEM COMMA REG(rd) }
+DEFINE_FORMAT(fmt_load_float) 	{ NAME MEM COMMA FREG(rd) }
+DEFINE_FORMAT(fmt_store) 	{ NAME REG(rd) COMMA MEM }
+DEFINE_FORMAT(fmt_store_float) 	{ NAME FREG(rd) COMMA MEM }
+DEFINE_FORMAT(fmt_logic)	{ NAME REG(rs1) COMMA REG_OR_IMM13 COMMA REG(rd) }
+DEFINE_FORMAT(fmt_arithmetics)	{ NAME REG(rs1) COMMA REG_OR_SIMM13 COMMA REG(rd) }
+DEFINE_FORMAT(fmt_jmpl)		{ NAME INDIRECT_ADDR13 COMMA REG(rd) }
+DEFINE_FORMAT(fmt_fcmp)		{ NAME FREG(rs1) COMMA FREG(rs2) }
+DEFINE_FORMAT(fmt_fop2)		{ NAME FREG(rs2) COMMA FREG(rd) }
+DEFINE_FORMAT(fmt_fop3)		{ NAME FREG(rs1) COMMA FREG(rs2) COMMA FREG(rd) }
+
+static format3 opcodes_3_11[] = {
+	{ .opc = 0x00, .print_fn = fmt_load, .op_name = "ld" }, 
+	{ .opc = 0x01, .print_fn = fmt_load, .op_name = "ldub" }, 
+	{ .opc = 0x02, .print_fn = fmt_load, .op_name = "lduh" }, 
+	{ .opc = 0x03, .print_fn = fmt_load, .op_name = "ldd" }, 
+	{ .opc = 0x09, .print_fn = fmt_load, .op_name = "ldsb" }, 
+	{ .opc = 0x0a, .print_fn = fmt_load, .op_name = "ldsh" }, 
+	{ .opc = 0x04, .print_fn = fmt_store, .op_name = "st" }, 
+	{ .opc = 0x05, .print_fn = fmt_store, .op_name = "stb" }, 
+	{ .opc = 0x06, .print_fn = fmt_store, .op_name = "sth" }, 
+	{ .opc = 0x07, .print_fn = fmt_store, .op_name = "std" }, 
+	{ .opc = 0x20, .print_fn = fmt_load_float, .op_name = "ldf" }, 
+	{ .opc = 0x23, .print_fn = fmt_load_float, .op_name = "lddf" }, 
+	{ .opc = 0x24, .print_fn = fmt_store_float, .op_name = "stf" }, 
+	{ .opc = 0x27, .print_fn = fmt_store_float, .op_name = "stdf" }, 
+};
+
+static format3 opcodes_3_10[] = {
+	{ .opc = 0x01, .print_fn = fmt_logic, .op_name = "and" },
+	{ .opc = 0x11, .print_fn = fmt_logic, .op_name = "andcc" },
+	{ .opc = 0x05, .print_fn = fmt_logic, .op_name = "andn" },
+	{ .opc = 0x15, .print_fn = fmt_logic, .op_name = "andncc" },
+	{ .opc = 0x02, .print_fn = fmt_logic, .op_name = "or" },
+	{ .opc = 0x12, .print_fn = fmt_logic, .op_name = "orcc" },
+	{ .opc = 0x16, .print_fn = fmt_logic, .op_name = "orn" },
+	{ .opc = 0x03, .print_fn = fmt_logic, .op_name = "xor" },
+	{ .opc = 0x13, .print_fn = fmt_logic, .op_name = "xorcc" },
+	{ .opc = 0x07, .print_fn = fmt_logic, .op_name = "xnor" },
+	{ .opc = 0x17, .print_fn = fmt_logic, .op_name = "xnorcc" },
+	{ .opc = 0x25, .print_fn = fmt_arithmetics, .op_name = "sll" },
+	{ .opc = 0x26, .print_fn = fmt_arithmetics, .op_name = "srl" },
+	{ .opc = 0x27, .print_fn = fmt_arithmetics, .op_name = "sra" },
+
+	{ .opc = 0x00, .print_fn = fmt_arithmetics, .op_name = "add" },
+	{ .opc = 0x10, .print_fn = fmt_arithmetics, .op_name = "addcc" },
+	{ .opc = 0x08, .print_fn = fmt_arithmetics, .op_name = "addx" },
+	{ .opc = 0x18, .print_fn = fmt_arithmetics, .op_name = "addxcc" },
+
+	{ .opc = 0x04, .print_fn = fmt_arithmetics, .op_name = "sub" },
+	{ .opc = 0x14, .print_fn = fmt_arithmetics, .op_name = "subcc" },
+	{ .opc = 0x0c, .print_fn = fmt_arithmetics, .op_name = "subx" },
+	{ .opc = 0x1c, .print_fn = fmt_arithmetics, .op_name = "subxcc" },
+
+	{ .opc = 0x0a, .print_fn = fmt_arithmetics, .op_name = "umul" },
+	{ .opc = 0x0b, .print_fn = fmt_arithmetics, .op_name = "smul" },
+	{ .opc = 0x1a, .print_fn = fmt_arithmetics, .op_name = "umulcc" },
+	{ .opc = 0x1b, .print_fn = fmt_arithmetics, .op_name = "smulcc" },
+
+	{ .opc = 0x0e, .print_fn = fmt_arithmetics, .op_name = "udiv" },
+	{ .opc = 0x0f, .print_fn = fmt_arithmetics, .op_name = "sdiv" },
+	{ .opc = 0x1e, .print_fn = fmt_arithmetics, .op_name = "udivcc" },
+	{ .opc = 0x1f, .print_fn = fmt_arithmetics, .op_name = "sdivcc" },
+
+	{ .opc = 0x3c, .print_fn = fmt_arithmetics, .op_name = "save" },
+	{ .opc = 0x3d, .print_fn = fmt_arithmetics, .op_name = "restore" },
+
+	{ .opc = 0x38, .print_fn = fmt_jmpl, .op_name = "jmpl" },
+};
+
+static format3 opcodes_3fop[] = {
+        /* fop1 format */
+	{ .opc = 196, .print_fn = fmt_fop2, .op_name = "fitos" }, 
+	{ .opc = 200, .print_fn = fmt_fop2, .op_name = "fitod" }, 
+	{ .opc = 204, .print_fn = fmt_fop2, .op_name = "fitoq" }, 
+	{ .opc = 132, .print_fn = fmt_fop2, .op_name = "fxtos" }, 
+	{ .opc = 136, .print_fn = fmt_fop2, .op_name = "fxtod" }, 
+	{ .opc = 140, .print_fn = fmt_fop2, .op_name = "fxtoq" }, 
+	{ .opc = 209, .print_fn = fmt_fop2, .op_name = "fstoi" }, 
+	{ .opc = 210, .print_fn = fmt_fop2, .op_name = "fdtoi" }, 
+	{ .opc = 211, .print_fn = fmt_fop2, .op_name = "fqtoi" }, 
+	{ .opc = 201, .print_fn = fmt_fop2, .op_name = "fstod" }, 
+	{ .opc = 205, .print_fn = fmt_fop2, .op_name = "fstoq" }, 
+	{ .opc = 198, .print_fn = fmt_fop2, .op_name = "fdtos" }, 
+	{ .opc = 206, .print_fn = fmt_fop2, .op_name = "fdtoq" }, 
+	{ .opc = 199, .print_fn = fmt_fop2, .op_name = "fqtos" }, 
+	{ .opc = 203, .print_fn = fmt_fop2, .op_name = "fqtod" }, 
+	{ .opc = 1, .print_fn = fmt_fop2,   .op_name = "fmovs" }, 
+	{ .opc = 2, .print_fn = fmt_fop2,   .op_name = "fmovd" }, 
+	{ .opc = 5, .print_fn = fmt_fop2,   .op_name = "fnegs" }, 
+	{ .opc = 6, .print_fn = fmt_fop2,   .op_name = "fnegd" }, 
+	{ .opc = 9, .print_fn = fmt_fop2,   .op_name = "fabss" }, 
+	{ .opc = 10, .print_fn = fmt_fop2,  .op_name = "fabsd" }, 
+	{ .opc = 41, .print_fn = fmt_fop2,  .op_name = "fsqrts" },
+	{ .opc = 42, .print_fn = fmt_fop2,  .op_name = "fsqrtd" },
+	{ .opc = 43, .print_fn = fmt_fop2,  .op_name = "fsqrtq" },
+	{ .opc = 65, .print_fn = fmt_fop3,  .op_name = "fadds" }, 
+	{ .opc = 66, .print_fn = fmt_fop3,  .op_name = "faddd" }, 
+	{ .opc = 67, .print_fn = fmt_fop3,  .op_name = "faddq" }, 
+	{ .opc = 69, .print_fn = fmt_fop3,  .op_name = "fsubs" }, 
+	{ .opc = 70, .print_fn = fmt_fop3,  .op_name = "fsubd" }, 
+	{ .opc = 71, .print_fn = fmt_fop3,  .op_name = "fsubq" }, 
+	{ .opc = 73, .print_fn = fmt_fop3,  .op_name = "fmuls" }, 
+	{ .opc = 74, .print_fn = fmt_fop3,  .op_name = "fmuld" }, 
+	{ .opc = 75, .print_fn = fmt_fop3,  .op_name = "fmulq" }, 
+	{ .opc = 105, .print_fn = fmt_fop3, .op_name = "fsmuld" },
+	{ .opc = 111, .print_fn = fmt_fop3, .op_name = "fdmulq" },
+	{ .opc = 77, .print_fn = fmt_fop3,  .op_name = "fdivs" }, 
+	{ .opc = 78, .print_fn = fmt_fop3,  .op_name = "fdivd" }, 
+	{ .opc = 79, .print_fn = fmt_fop3,  .op_name = "fdivq" }, 
+
+	/* fop2 format */
+	{ .opc = 81, .print_fn = fmt_fcmp,  .op_name = "fcmps" }, 
+	{ .opc = 82, .print_fn = fmt_fcmp,  .op_name = "fcmpd" }, 
+	{ .opc = 83, .print_fn = fmt_fcmp,  .op_name = "fcmpq" }, 
+	{ .opc = 85, .print_fn = fmt_fcmp,  .op_name = "fcmpes" },
+	{ .opc = 86, .print_fn = fmt_fcmp,  .op_name = "fcmped" },
+	{ .opc = 87, .print_fn = fmt_fcmp,  .op_name = "fcmpeq" },
+};
+
+static void decode_format3(spd_t *dis, uint32_t insn)
+{
+	int rd = sparc_inst_rd(insn);
+	int rs1 = sparc_inst_rs1(insn);
+	int rs2 = sparc_inst_rs2(insn);
+	int op3 = sparc_inst_op3(insn);
+	int is_imm = sparc_inst_i(insn);
+	int imm13 = sparc_inst_imm13(insn); 
+	int simm13 = sign_ext(13, imm13);
+
+	format3 *op_table;
+	int op_table_size;
+	int op;
 
 	if (sparc_inst_op(insn) == 2) {
-		switch (op3) {
-			case 0x01: op_category = OP_LOGIC; op_name = "and"; break;
-			case 0x11: op_category = OP_LOGIC; op_name = "andcc"; break;
-			case 0x05: op_category = OP_LOGIC; op_name = "andn"; break;
-			case 0x15: op_category = OP_LOGIC; op_name = "andncc"; break;
-			case 0x02: op_category = OP_LOGIC; op_name = "or"; break;
-			case 0x12: op_category = OP_LOGIC; op_name = "orcc"; break;
-			case 0x16: op_category = OP_LOGIC; op_name = "orn"; break;
-			case 0x03: op_category = OP_LOGIC; op_name = "xor"; break;
-			case 0x13: op_category = OP_LOGIC; op_name = "xorcc"; break;
-			case 0x07: op_category = OP_LOGIC; op_name = "xnor"; break;
-			case 0x17: op_category = OP_LOGIC; op_name = "xnorcc"; break;
-			case 0x25: op_category = OP_SHIFT; op_name = "sll"; break;
-			case 0x26: op_category = OP_SHIFT; op_name = "srl"; break;
-			case 0x27: op_category = OP_SHIFT; op_name = "sra"; break;
+		if (decode_synthetic_3_10(dis, op3, is_imm, rd, rs1, rs2, simm13)) return;
+		op_table = opcodes_3_10;
+		op_table_size = sizeof(opcodes_3_10);
+		op = op3;
+	}
 
-			case 0x00: op_category = OP_ADD; op_name = "add"; break;
-			case 0x10: op_category = OP_ADD; op_name = "addcc"; break;
-			case 0x08: op_category = OP_ADD; op_name = "addx"; break;
-			case 0x18: op_category = OP_ADD; op_name = "addxcc"; break;
+	if (sparc_inst_op(insn) == 3) {
+		if (decode_synthetic_3_11(dis, op3, is_imm, rd, rs1, rs2, simm13)) return;
+		op_table = opcodes_3_11;
+		op_table_size = sizeof(opcodes_3_11);
+		op = op3;
+	}
 
+	if ((sparc_inst_op(insn) == 2) && ((op3 == 0x34) || (op3 == 0x35))) {
+		op_table = opcodes_3fop;
+		op_table_size = sizeof(opcodes_3fop);
+		op = sparc_inst_opf(insn);
+	}
 
-			case 0x04: op_category = OP_SUB; op_name = "sub"; break;
-			case 0x14: op_category = OP_SUB; op_name = "subcc"; break;
-			case 0x0c: op_category = OP_SUB; op_name = "subx"; break;
-			case 0x1c: op_category = OP_SUB; op_name = "subxcc"; break;
-
-
-			case 0x0a: op_category = OP_MUL; op_name = "umul"; break;
-			case 0x0b: op_category = OP_MUL; op_name = "smul"; break;
-			case 0x1a: op_category = OP_MUL; op_name = "umulcc"; break;
-			case 0x1b: op_category = OP_MUL; op_name = "smulcc"; break;
-
-
-			case 0x0e: op_category = OP_DIV; op_name = "udiv"; break;
-			case 0x0f: op_category = OP_DIV; op_name = "sdiv"; break;
-			case 0x1e: op_category = OP_DIV; op_name = "udivcc"; break;
-			case 0x1f: op_category = OP_DIV; op_name = "sdivcc"; break;
-
-			case 0x3c: op_category = OP_STACK; op_name = "save"; break;
-			case 0x3d: op_category = OP_STACK; op_name = "restore"; break;
-
-			case 0x38: op_category = OP_JMPL; op_name = "jmpl"; break;
-
-			case 0x34:
-				op_name = fops[sparc_inst_opf(insn)];
-				switch (sparc_inst_opf(insn)) {
-					case sparc_fitos_val:
-					case sparc_fitod_val:
-					case sparc_fitoq_val:
-					case sparc_fstoi_val:
-					case sparc_fdtoi_val:
-					case sparc_fqtoi_val:
-					case sparc_fstoq_val:
-					case sparc_fdtos_val:
-					case sparc_fdtoq_val:
-					case sparc_fqtos_val:
-					case sparc_fqtod_val:
-					case sparc_fmovs_val:
-					case sparc_fmovd_val:
-					case sparc_fstod_val:
-					case sparc_fabss_val:
-					case sparc_fabsd_val:
-					case sparc_fnegs_val:
-					case sparc_fnegd_val:
-					case sparc_fsqrts_val:
-					case sparc_fsqrtd_val:
-					case sparc_fsqrtq_val:
-						op_category = OP_FOP_2A;
-						break;
-
-					case sparc_fadds_val:
-					case sparc_faddd_val:
-					case sparc_faddq_val:
-					case sparc_fsubs_val:
-					case sparc_fsubd_val:
-					case sparc_fsubq_val:
-					case sparc_fmuls_val:
-					case sparc_fmuld_val:
-					case sparc_fmulq_val:
-					case sparc_fsmuld_val:
-					case sparc_fdmulq_val:
-					case sparc_fdivs_val:
-					case sparc_fdivd_val:
-					case sparc_fdivq_val:
-						op_category = OP_FOP_3;
-						break;
-				}
-				break;
-
-			case 0x35:
-				op_name = fops[sparc_inst_opf(insn)];
-				op_category = OP_FOP_2B;
-				break;
-
+	for (int i = 0; i < op_table_size; i++)
+		if (op_table[i].opc == op) {
+			char *op_name = op_table[i].op_name;
+			op_table[i].print_fn(dis, op_name, is_imm, rd, rs1, rs2, simm13);
+			return;
 		}
-
-/*
 	// B.28 - rd y
 	// B.29 - wr y
-*/
-
-		switch (op_category) {
-			case OP_LOGIC:
-			case OP_SHIFT:
-				spd_out_name(dis, op_name);
-				spd_out_reg(dis, rs1);
-				spd_out_comma(dis);
-				if (is_imm) spd_out_imm(dis, imm13);
-				else spd_out_reg(dis, rs2);
-				spd_out_comma(dis);
-				spd_out_reg(dis, rd);
-				break;
-			case OP_ADD:
-			case OP_SUB:
-			case OP_MUL:
-			case OP_DIV:
-			case OP_STACK:
-				spd_out_name(dis, op_name);
-				spd_out_reg(dis, rs1);
-				spd_out_comma(dis);
-				if (is_imm) spd_out_simm(dis, simm13);
-				else spd_out_reg(dis, rs2);
-				spd_out_comma(dis);
-				spd_out_reg(dis, rd);
-				break;
-
-			case OP_JMPL:
-				spd_out_name(dis, op_name);
-				if (is_imm) spd_out_indirect_addr_imm(dis, rs1, simm13);
-				else spd_out_indirect_addr_reg(dis, rs1, rs2);
-				spd_out_comma(dis);
-				spd_out_reg(dis, rd);
-				break;
-
-			case OP_FOP_2A:
-				spd_out_name(dis, op_name);
-				spd_out_freg(dis, rs2);
-				spd_out_comma(dis);
-				spd_out_freg(dis, rd);
-				break;
-			case OP_FOP_2B:
-				spd_out_name(dis, op_name);
-				spd_out_comma(dis);
-				spd_out_freg(dis, rs1);
-				spd_out_comma(dis);
-				spd_out_freg(dis, rs2);
-				break;
-				
-			case OP_FOP_3:
-				spd_out_name(dis, op_name);
-				spd_out_freg(dis, rs1);
-				spd_out_comma(dis);
-				spd_out_freg(dis, rs2);
-				spd_out_comma(dis);
-				spd_out_freg(dis, rd);
-				break;
-		}
-
-	}
 }
 
 static void decode(spd_t *dis, uint32_t insn)
@@ -647,7 +498,11 @@ static void decode(spd_t *dis, uint32_t insn)
 	}
 }
 
-
+/*
+ *
+ * Public API
+ *
+ */
 void spd_init(spd_t *dis)
 {
 	dis->ibuf = NULL;
