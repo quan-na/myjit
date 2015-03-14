@@ -1,0 +1,120 @@
+body {
+/*	font-family: 'Pontano Sans', sans-serif;
+ *	*/
+
+	font-family: 'Gudea', sans-serif;
+	font-size: 12pt;
+	background: white;
+	padding-top: 0px;
+	margin-top: 0px;
+}
+
+#page {
+	margin-left: auto;
+	margin-right: auto;
+	max-width: 900pt;
+}
+
+#maincontent {
+	float: left;
+	width: 80%;
+}
+
+#banner {
+	font-family: 'Josefin Sans', sans-serif;
+	background: #aa0000;
+	display: block; 
+	color: white; 
+	font-size: 18pt; 
+	margin-left: auto; 
+	margin-right: auto; 
+	padding: 5pt;
+	padding-bottom: 5pt;
+}
+
+.title {
+	font-size: 18pt;
+}
+
+h1.title {
+	font-family: 'Josefin Sans', sans-serif;
+	color: #aa0000;
+	font-size: 23pt;
+	padding-bottom: 0pt;
+	margin-top: 25pt;
+	/*border-bottom: 1px solid #aa0000;*/
+}
+
+h1 {
+	font-family: 'Josefin Sans', sans-serif;
+	margin-top: 20pt;
+	margin-bottom: 2pt;
+	font-size: 17pt;
+	color: #aa0000;
+}
+
+h2 {
+	font-family: 'Josefin Sans', sans-serif;
+	margin-top: 20pt;
+	font-size: 14pt;
+	color: #aa0000;
+	padding-bottom: 0px;
+	margin-bottom: -5pt;
+}
+
+li {
+	margin-bottom: 5pt;
+}
+
+
+
+pre, .pre, tt {
+	color: #333333;
+	font-family: 'Ubuntu Mono' ;	
+}
+
+a {
+	color: #007700;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #007700;
+	text-decoration: underline;
+}
+
+hr {
+	color: #aa0000;
+	background-color: #aa0000;
+	border: 0px;
+	height: 1px;
+}
+
+.highlight {
+	padding-top: 0px;
+	padding-bottom: 0px;
+	padding-left: 0px;
+	padding-right: 0px;
+	background: white;
+	/*border: 1px solid #aa0000;*/
+}
+
+ul.mnu li.mnu a {
+	color: #aa0000;
+}
+
+ul.mnu li.mnu {
+	margin-bottom: 10pt;
+	list-style-type: none;
+}
+ul.mnu {
+	width: 120pt;
+	margin-top: 70pt;
+	float: left;
+}
+
+#footer {
+	padding: 20pt;
+	border-top: 1px solid #aa0000;
+	padding: 5pt;
+}

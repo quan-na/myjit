@@ -1,0 +1,15 @@
+=====
+MyJIT
+=====
+
+MyJIT is a library that allows to generate machine code at run-time and afterwards execute it. The project has started as a part of the Just-in-Time compiler of the Schemik (http://schemik.sourceforge.net) programming language and as a replacement for the GNU lightning library (http://www.gnu.org/software/lightning/) fixing some of its design issues. However, it has evolved into a more powerful tool. Therefore, MyJIT has a very similar instruction set as GNU lightning but it differs in some key aspects. The most important features which make MyJIT different or which should be highlighted are:
+
++ support for an unlimited number of registers
++ thread-safety
++ support for the i386, AMD64, and SPARC processors
++ convenient debugging
++ easy to use and easy to extend design
++ support for optimizations
++ the library is fully embeddable 
++ particular backward compatibility with GNU lightning
+

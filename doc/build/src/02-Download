@@ -1,0 +1,17 @@
+========
+Download
+========
+
+Getting MyJIT
+-------------
+
+The source code including this documentation and examples is available at SourceForge (http://sourceforge.net/projects/myjit/files) as of other information (http://sourceforge.net/projects/myjit)
+
+You can also checkout the latest release from the GIT repository (git clone git://git.code.sf.net/p/myjit/maincode myjit-maincode).
+
+License
+-------
+MyJIT is distributed under the terms of GNU Lesser General Public License v.3 or later (at your option).
+
+Despite the fact that MyJIT is very similar to GNU Lightning, it does not share any source code with this project. However, some files come from the Mono project by Novel. (http://www.mono-project.com)
+

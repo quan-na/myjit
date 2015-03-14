@@ -39,3 +39,6 @@ test/coverage.info
 test/coverage
 disasm/myjit-disasm
 myjit-disasm
+doc/build/latex
+doc/build/web
+doc/build/assets/final-style.css

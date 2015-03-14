@@ -1,0 +1,81 @@
+=========
+Debugging
+=========
+
+MyJIT contains several tools simplifying application development. The first one is the ``msg`` operation which prints out the given message or a value of the given register. The ``msg`` operation has one or two operands. The first one is always an immediate value which is the string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
+
+.. sourcecode:: c
+
+	jit_msg(jit, "Simple message\n");
+	jit_msgr(jit, "Reg 1: %l\n", R(1));
+
+MyJIT provides several means for code analysis. It is provided through the ``jit_dump_ops`` function. In the second argument you may specify if you want to list:
+
++ list of all operations in the intermediate language (``JIT_DEBUG_OPS``)
++ generated machine code (``JIT_DEBUG_CODE``)
++ combination of both -- MyJIT operations and machine code (``JIT_DEBUG_COMBINED``)
+
+
+*NOTICE!* Do not use debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the ``printf`` function explicitly. The ``jit_dump_ops`` with the ``JIT_DEBUG_CODE`` is using ``gcc`` and ``objdump`` to disassemble the code, therefore, these two programs have to be present in the system, or, on OS X ``clang`` and ``otool`` are used. The ``JIT_DEBUG_COMBINED`` option requires ``myjit-disasm`` disassembler in the directory along with the debugged program, or the path to the disassembler has to be specified in the ``MYJIT_DISASM`` environment variable.
+
+Examples of the outputs for the above mentioned source code.
+
+::
+
+	JIT_DEBUG_OPS
+	-------------
+
+	prolog      0xbfe62858
+        declarg     integer, 0x4
+        getarg      r0, 0x0
+        addi        r1, r0, 0x1
+        retr        r1
+
+
+::
+
+	JIT_DEBUG_CODE
+	--------------
+
+	0000000000000000 <main>:
+	   0:   55                      push   rbp
+	   1:   48 8b ec                mov    rbp,rsp
+	   4:   48 83 ec 20             sub    rsp,0x20
+	   8:   48 8b f7                mov    rsi,rdi
+	   b:   48 8d 46 01             lea    rax,[rsi+0x1]
+	   f:   48 8b e5                mov    rsp,rbp
+	  12:   5d                      pop    rbp
+	  13:   c3                      ret 
+
+
+::
+
+	JIT_DEBUG_COMBINED
+	------------------
+
+	    prolog   0x7fffa0371db0
+	  0000: 55                         push rbp
+	  0001: 48 8b ec                   mov rbp, rsp
+	  0004: 48 83 ec 20                sub rsp, 0x20
+	
+	    declare_arg integer, 0x8
+	    getarg   r0, 0x0
+	  0008: 48 8b f7                   mov rsi, rdi
+	
+	    addi     r1, r0, 0x1
+	  000b: 48 8d 46 01                lea rax, [rsi+0x1]
+	
+	    retr     r1
+	  000f: 48 8b e5                   mov rsp, rbp
+	  0012: 5d                         pop rbp
+	  0013: c3                         ret
+
+
+To make the navigation through the dumps easier, we have included one auxiliary operation:
+
+::
+	
+	comment imm
+
+Which has only one argument -- string which will appear only in the dumps.
+

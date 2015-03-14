@@ -1,0 +1,26 @@
+=============
+Optimizations
+=============
+Support for multiple optimizations is available since release 0.7. These optimizations may speed up your code but the code generation may take longer. Therefore, you can turn particular optimization off and on using ``jit_disable_optimization`` and ``jit_enable_optimization`` functions, respectively. Currently, there are available the following optimizations:
+
++ ``JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS`` -- compiler skips unused assignments. (Turned off by default.)
++ ``JIT_OPT_JOIN_ADDMUL`` -- if possible, compiler joins adjacent ``mul`` and ``add`` (or two ``add``'s) into one ``LEA`` operation (Turned on by default.)
++ ``JIT_OPT_OMIT_FRAME_PTR`` -- if possible, compiler skips prolog and epilogue of the function. This significantly speeds up small functions.  (Turned on by default.)
+
+The optimized code for above mentioned example looks like this:
+
+::
+
+	00000000 <main>:
+	   0:   8b 4c 24 04             mov    ecx,DWORD PTR [esp+0x4]
+	   4:   8d 41 01                lea    eax,[ecx+0x1]
+	   7:   c3                      ret   
+
+Or, like this:
+
+::
+
+	0000000000000000 <main>:
+	   0:   48 8d 47 01             lea    rax,[rdi+1]
+	   4:   c3                      ret
+

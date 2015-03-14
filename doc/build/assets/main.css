@@ -12,16 +12,28 @@ body {
 
 h1 {
 	color: #aa0000;
-	font-size: 15pt;
+	font-size: 16pt;
 	padding-bottom: 3pt;
-	margin-top: 17pt;
+	margin-top: 20pt;
 	border-bottom: 1px solid #aa0000;
 }
 
 h2 {
-	font-size: 12pt;
+	margin-top: 20pt;
+	font-size: 13.5pt;
 	color: #aa0000;
 }
+
+h3 {
+	margin-top: 13pt;
+	padding-top 0pt;
+	font-size: 11.5pt;
+	color: #aa0000;
+	padding-bottom: 0px;
+	margin-bottom: 0px;
+}
+
+
 
 pre, .pre {
 	color: #333333;
