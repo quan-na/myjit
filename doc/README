@@ -611,7 +611,7 @@ You can also checkout the latest release from the GIT repository:
 
 ::
 
-	git clone git://git.code.sf.net/p/myjit/maincode myjit-maincode).
+	git clone git://git.code.sf.net/p/myjit/maincode myjit-maincode
 
 Documentation
 -------------
