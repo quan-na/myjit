@@ -7,7 +7,16 @@ Getting MyJIT
 
 The source code including this documentation and examples is available at SourceForge (http://sourceforge.net/projects/myjit/files) as of other information (http://sourceforge.net/projects/myjit)
 
-You can also checkout the latest release from the GIT repository (git clone git://git.code.sf.net/p/myjit/maincode myjit-maincode).
+You can also checkout the latest release from the GIT repository:
+
+::
+
+	git clone git://git.code.sf.net/p/myjit/maincode myjit-maincode).
+
+Documentation
+-------------
+
+Documentation is available in the ``doc/`` directory and on the project's website as a text file, `PDF file <http://myjit.sourceforge.net/readme.pdf>`_, or as a `single HTML page <http://myjit.sourceforge.net/readme.htm>`_.
 
 License
 -------

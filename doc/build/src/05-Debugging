@@ -2,28 +2,66 @@
 Debugging
 =========
 
-MyJIT contains several tools simplifying application development. The first one is the ``msg`` operation which prints out the given message or a value of the given register. The ``msg`` operation has one or two operands. The first one is always an immediate value which is the string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
+Debugging messages
+------------------
+
+MyJIT contains several tools simplifying development. One of them is the ``msg`` operation which prints out the given message or a value of the given register. The ``msg`` operation has one or two operands. The first one is always an immediate value which is the string to display. The second operand is optional and it must be a register. In this case the first string serves as the format string for ``printf`` and the value of the register is printed out using this string. The example of the ``msg`` operation usage:
 
 .. sourcecode:: c
 
 	jit_msg(jit, "Simple message\n");
 	jit_msgr(jit, "Reg 1: %l\n", R(1));
 
-MyJIT provides several means for code analysis. It is provided through the ``jit_dump_ops`` function. In the second argument you may specify if you want to list:
+
+Warnings
+--------
+One of the MyJIT's goals is to achieve maximal performance while emitting code. Thus, it does not do many checks while generating machine code from the intermediate language. Therefore, if the code in the intermediate language contains an error, it leads to a faulty machine code, and subsequently to a crash of the program. In order to avoid such errors, MyJIT contains a function:
+
+.. sourcecode:: c
+
+	void jit_check_code(struct jit *jit, int warnings);
+
+Which can be called before code generation and which can point out to the most common errors. In the second argument you may specify if you want to be warned about all types of errors (``JIT_WARN_ALL``) or you can pick only some of them from the following list:
+
++ ``JIT_WARN_DEAD_CODE`` -- detects unreachable code
++ ``JIT_WARN_OP_WITHOUT_EFFECT`` -- displays warnings about operations without effect
++ ``JIT_WARN_INVALID_DATA_SIZE`` -- displays warning if the size operand does not contain a valid value (i.e., 1, 2, 4, or 8)
++ ``JIT_WARN_UNINITIALIZED_REG`` -- displays warning if an uninitialized register is used
++ ``JIT_WARN_REGISTER_TYPE_MISMATCH`` -- displays warning if a general purpose register is used in place where the floating point register is expected, or vice versa
++ ``JIT_WARN_MISSING_PATCH`` -- reports all jump operations with a ``JIT_FORWARD`` declaration but without corresponding ``patch``
++ ``JIT_WARN_UNALIGNED_CODE`` -- displays warning if the code follows data section without alignment
++ ``JIT_WARN_INVALID_CODE_REFERENCE`` -- displays warning if ``ref_code`` or ``data_code`` is referring to a data and not to a valid code
++ ``JIT_WARN_INVALID_DATA_REFERENCE`` -- displays warning if ``ref_data`` or ``data_data`` is referring to a code and not to a data
++ ``JIT_WARN_ALL`` -- displays all warnings
+
+
+
+Code listing
+------------
+
+In real programs is MyJIT typically called from various functions and code is constructed in several steps, thus it is sometimes difficult to figure out, how the code looks like. Therefore, MyJIT provides several means allowing to inspect final code in the intermediate language as well as in the machine code. This functionality is provided through the ``jit_dump_ops`` function. In the second argument you may specify if you want to list:
 
 + list of all operations in the intermediate language (``JIT_DEBUG_OPS``)
 + generated machine code (``JIT_DEBUG_CODE``)
 + combination of both -- MyJIT operations and machine code (``JIT_DEBUG_COMBINED``)
+
+To make the navigation through the listing easier, we have included one auxiliary operation:
+
+::
+	
+	comment imm
+
+Which has only one argument -- string which will appear only in the dumps.
 
 
 *NOTICE!* Do not use debugging operations and functions in the production code. These operations are not efficient and may lead to a poor performance. You should rather call the ``printf`` function explicitly. The ``jit_dump_ops`` with the ``JIT_DEBUG_CODE`` is using ``gcc`` and ``objdump`` to disassemble the code, therefore, these two programs have to be present in the system, or, on OS X ``clang`` and ``otool`` are used. The ``JIT_DEBUG_COMBINED`` option requires ``myjit-disasm`` disassembler in the directory along with the debugged program, or the path to the disassembler has to be specified in the ``MYJIT_DISASM`` environment variable.
 
 Examples of the outputs for the above mentioned source code.
 
-::
+Example of the IL listing (``JIT_DEBUG_OPS``)
+.............................................
 
-	JIT_DEBUG_OPS
-	-------------
+::
 
 	prolog      0xbfe62858
         declarg     integer, 0x4
@@ -32,10 +70,11 @@ Examples of the outputs for the above mentioned source code.
         retr        r1
 
 
-::
 
-	JIT_DEBUG_CODE
-	--------------
+Example of the machine code listing (``JIT_DEBUG_CODE``)
+........................................................
+
+::
 
 	0000000000000000 <main>:
 	   0:   55                      push   rbp
@@ -48,10 +87,11 @@ Examples of the outputs for the above mentioned source code.
 	  13:   c3                      ret 
 
 
-::
 
-	JIT_DEBUG_COMBINED
-	------------------
+Example of the combined listing (``JIT_DEBUG_COMBINED``)
+........................................................
+
+::
 
 	    prolog   0x7fffa0371db0
 	  0000: 55                         push rbp
@@ -71,11 +111,4 @@ Examples of the outputs for the above mentioned source code.
 	  0013: c3                         ret
 
 
-To make the navigation through the dumps easier, we have included one auxiliary operation:
-
-::
-	
-	comment imm
-
-Which has only one argument -- string which will appear only in the dumps.
 

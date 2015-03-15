@@ -695,7 +695,8 @@ static void jit_dump_ops_combined(struct jit *jit, jit_tree *labels)
 		if (path) execlp(path, path, NULL);
 
 		// FIXME: better explanation
-		printf("myjit-disasm not found\n");
+		printf("myjit-disasm not found\n\n");
+		printf("In order to list myjit operations along with the machine code, the MyJIT disassembler has to be present in the current directory or its path has to be specified in the MYJIT_DISASM environment variable.\nThe disassembler's source code can be found in the \"disasm/\" directory.\n\n");
 		exit(1);
 	}
 

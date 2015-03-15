@@ -35,9 +35,14 @@ h3 {
 
 
 
-pre, .pre {
+pre, .pre, tt {
 	color: #333333;
 }
+
+h3 tt {
+        color: #aa0000;
+}
+
 
 a {
 	color: #007700;

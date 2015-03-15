@@ -19,7 +19,7 @@ web: src/* assets/*.css assets/template.htm
 	done 
 	cat web/01-About.htm | sed -e 's/<h1 class="title">/<h1 class="title">About /' > web/index.htm
 
-pdf: README assets/template.tex
+pdf: README assets/xetex-template.tex
 	mkdir -p latex
 	rst2xetex --template=assets/xetex-template.tex --use-verbatim-when-possible ../README | sed -e 's/section{MyJIT/section{About MyJIT/' >  latex/readme.tex
 	cd latex; xelatex readme.tex; xelatex readme.tex

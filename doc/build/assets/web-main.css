@@ -73,6 +73,10 @@ pre, .pre, tt {
 	font-family: 'Ubuntu Mono' ;	
 }
 
+h2 tt {
+	color: #aa0000;
+}
+
 a {
 	color: #007700;
 	text-decoration: none;

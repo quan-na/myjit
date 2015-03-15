@@ -32,3 +32,4 @@ clean:
 	rm -f demo3
 	rm -f debug
 	rm -f *.o
+	rm -f myjit-disasm
