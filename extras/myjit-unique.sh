@@ -10,8 +10,8 @@ SCRIPT=`mktemp`
 #
 function list_functions {
 	sed -n -e '/^[[:alpha:]].*(/p' | \
-	sed -e 's/\([^ ]*\)(.*/#\1/' -e 's/.*#//' | \
-	grep -v "^jit" | sort | uniq 
+	sed -e 's/\([A-Za-z0-9_]*\)(.*/#\1/' -e 's/.*#//' | \
+	grep -v '^\(jit\|JIT\)' | sort | uniq 
 }
 
 
@@ -35,7 +35,7 @@ function list_constants {
 #
 function create_sed_script {
 	while read SYMBOL; do
-		echo "s/$SYMBOL/$PREFIX$SYMBOL/g"
+		echo "s/\b$SYMBOL/$PREFIX$SYMBOL/g"
 	done
 
 }
